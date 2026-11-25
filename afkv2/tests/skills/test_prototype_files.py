@@ -1,7 +1,9 @@
 """Tests for prototype_files.py: start, check and settle (SDD §3), and the network check (SDD §6).
 
 A throwaway git repository holds the config and the spec folder; each verb runs through its command line. No lavish
-host, live app or browser runs here.
+host, live app or browser runs here. Each failure message shows the input (the command and every change made to the
+fixture), the expected value and the actual value. A settle that passes runs with the date pinned to 2026-03-14, so
+the expected INDEX row is a literal.
 """
 
 from __future__ import annotations
@@ -10,7 +12,7 @@ import json
 import shutil
 import subprocess
 import sys
-from datetime import date
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
@@ -24,6 +26,70 @@ sys.path.insert(0, str(PLUGIN / "engine"))
 
 import prototype_files  # noqa: E402
 from shell import inject  # noqa: E402
+
+# Runs the script file as __main__, with date.today() pinned to 2026-03-14. Only the date changes: the argv, the
+# answer and the exit code are those of the real command line.
+PINNED_CLOCK = """
+import datetime, runpy, sys
+class PinnedDate(datetime.date):
+    @classmethod
+    def today(cls):
+        return cls(2026, 3, 14)
+datetime.date = PinnedDate
+script = sys.argv[1]
+sys.argv = sys.argv[1:]
+runpy.run_path(script, run_name="__main__")
+"""
+CHANGES = []
+
+
+@pytest.fixture(autouse=True)
+def _fresh_changes():
+    CHANGES.clear()
+
+
+def note(change):
+    """Record a change to the fixture, so that a failure message names it as input."""
+    CHANGES.append(change)
+
+
+@dataclass
+class Ran:
+    code: int
+    answer: dict
+    given: str
+
+
+def run(cwd, *args, pinned=False):
+    head = [sys.executable, "-c", PINNED_CLOCK, str(SCRIPT)] if pinned else [sys.executable, str(SCRIPT)]
+    done = subprocess.run([*head, *args], cwd=cwd, capture_output=True, text=True, encoding="utf-8",
+                          stdin=subprocess.DEVNULL)
+    given = f"prototype_files.py {' '.join(args)}" + (f" after: {'; '.join(CHANGES)}" if CHANGES else "")
+    return Ran(done.returncode, json.loads(done.stdout), given)
+
+
+def expect(actual, expected, given):
+    assert actual == expected, f"\ninput: {given}\nexpected: {expected!r}\nactual: {actual!r}"
+
+
+def expect_in(part, whole, given):
+    assert part in whole, f"\ninput: {given}\nexpected to hold: {part!r}\nactual: {whole!r}"
+
+
+def expect_problem(words, ran):
+    problems = ran.answer.get("error", {}).get("problems", [])
+    assert any(words in problem for problem in problems), \
+        f"\ninput: {ran.given}\nexpected: a problem with {words!r}\nactual: {ran.answer!r}"
+
+
+def expect_refusal(ran, exit_code, code):
+    expect(ran.code, exit_code, f"{ran.given} (answer {ran.answer!r})")
+    expect(ran.answer.get("error", {}).get("code"), code, f"{ran.given} (answer {ran.answer!r})")
+
+
+def expect_ok(ran):
+    expect(ran.code, 0, f"{ran.given} (answer {ran.answer!r})")
+    expect(ran.answer.get("ok"), True, f"{ran.given} (answer {ran.answer!r})")
 
 
 # --- the network check (VR-017) ------------------------------------------------------------------------------------
@@ -55,6 +121,10 @@ PASSED = [
     '<link rel="stylesheet" href="local.css">',
     'const data = "status: open";',
     '<img srcset="a.png 1x, b.png 2x">',
+    '<a href="javascript:void(0)">x</a>',
+    '<img src="blob:abc">',
+    '<a href="tel:123">call</a>',
+    '<iframe src="about:blank"></iframe>',
 ]
 
 
@@ -62,64 +132,80 @@ PASSED = [
 def test_the_network_check_flags_a_call_or_a_scheme_url_with_its_line(snippet, why):
     text = f"<p>first line</p>\n{snippet}\n<p>last line</p>\n"
     found = prototype_files.find_network_calls(text)
-    assert [finding["line"] for finding in found] == [2], why
-    assert found[0]["text"] == snippet
+    expect([finding["line"] for finding in found], [2], f"{why}: {text!r}")
+    expect(found[0]["text"], snippet, f"{why}: {text!r}")
 
 
 @pytest.mark.parametrize("snippet", PASSED)
 def test_the_network_check_passes_an_id_link_and_inline_content(snippet):
-    assert prototype_files.find_network_calls(snippet) == []
+    expect(prototype_files.find_network_calls(snippet), [], repr(snippet))
 
 
 def test_the_network_check_gives_one_finding_per_line():
     text = "fetch('/a'); fetch('/b'); new WebSocket('wss://x.test');\n<a href=\"#x\">x</a>\n"
     found = prototype_files.find_network_calls(text)
-    assert [finding["line"] for finding in found] == [1]
-    assert found[0]["found"] == ["fetch", "WebSocket"]
+    expect([finding["line"] for finding in found], [1], repr(text))
+    expect(found[0]["found"], ["fetch", "WebSocket"], repr(text))
 
 
 def test_the_network_check_flags_a_protocol_relative_address():
-    assert [f["line"] for f in prototype_files.find_network_calls('<img src="//cdn.example/a.png">')] == [1]
+    text = '<img src="//cdn.example/a.png">'
+    expect([finding["line"] for finding in prototype_files.find_network_calls(text)], [1], repr(text))
 
 
 # --- check (VR-008, VR-009) ----------------------------------------------------------------------------------------
 
-def run(cwd, *args):
-    done = subprocess.run([sys.executable, str(SCRIPT), *args], cwd=cwd, capture_output=True, text=True,
-                          encoding="utf-8", stdin=subprocess.DEVNULL)
-    return done.returncode, json.loads(done.stdout)
-
-
 def test_check_refuses_network_call_naming_each_line_with_a_call(tmp_path):
-    mockup = tmp_path / "orders.html"
-    shutil.copyfile(FIXTURES / "network.html", mockup)
-    code, answer = run(tmp_path, "check", "--mockup", str(mockup))
-    assert code == 1 and answer["error"]["code"] == "network-call"
-    assert [finding["line"] for finding in answer["error"]["lines"]] == [6, 12]
-    assert "6" in answer["error"]["reason"] and "12" in answer["error"]["reason"]
+    shutil.copyfile(FIXTURES / "network.html", tmp_path / "orders.html")
+    note("orders.html is fixtures/prototype/network.html: a CDN script on line 6, a #orders link on line 9, a fetch on line 12")
+    ran = run(tmp_path, "check", "--mockup", "orders.html")
+    expect_refusal(ran, 1, "network-call")
+    expect([finding["line"] for finding in ran.answer["error"]["lines"]], [6, 12], ran.given)
+    expect_in("orders.html:6", ran.answer["error"]["reason"], ran.given)
+    expect_in("orders.html:12", ran.answer["error"]["reason"], ran.given)
 
 
 def test_check_answers_ok_on_a_clean_mockup(tmp_path):
-    mockup = tmp_path / "orders.html"
-    shutil.copyfile(FIXTURES / "clean.html", mockup)
-    code, answer = run(tmp_path, "check", "--mockup", str(mockup))
-    assert code == 0 and answer["ok"] is True
-    assert answer["file"] == str(mockup) and answer["bytes"] == mockup.stat().st_size
+    shutil.copyfile(FIXTURES / "clean.html", tmp_path / "orders.html")
+    note("orders.html is fixtures/prototype/clean.html, 539 bytes")
+    ran = run(tmp_path, "check", "--mockup", "orders.html")
+    expect_ok(ran)
+    expect(ran.answer["file"], "orders.html", ran.given)
+    expect(ran.answer["bytes"], 539, ran.given)
 
 
 def test_check_refuses_unreadable_for_a_missing_file(tmp_path):
-    code, answer = run(tmp_path, "check", "--mockup", str(tmp_path / "none.html"))
-    assert code == 2 and answer["error"]["code"] == "unreadable"
+    ran = run(tmp_path, "check", "--mockup", "none.html")
+    expect_refusal(ran, 2, "unreadable")
 
 
 def test_check_refuses_afkv2_runtime_on_the_tooltip_block(tmp_path):
-    mockup = tmp_path / "orders.html"
     clean = (FIXTURES / "clean.html").read_text(encoding="utf-8")
-    mockup.write_text(inject.inject(clean, {"mockup": "a made-up term"}), encoding="utf-8")
-    assert inject.MARK_START in mockup.read_text(encoding="utf-8")
-    code, answer = run(tmp_path, "check", "--mockup", str(mockup))
-    assert code == 1 and answer["error"]["code"] == "afkv2-runtime"
-    assert answer["error"]["file"] == str(mockup) and answer["error"]["lines"]
+    (tmp_path / "orders.html").write_text(inject.inject(clean, {"mockup": "a made-up term"}), encoding="utf-8")
+    note("orders.html is clean.html with the afkv2 tooltip block injected")
+    ran = run(tmp_path, "check", "--mockup", "orders.html")
+    expect_refusal(ran, 1, "afkv2-runtime")
+    expect(ran.answer["error"]["file"], "orders.html", ran.given)
+    expect(bool(ran.answer["error"]["lines"]), True, f"{ran.given} (answer {ran.answer!r})")
+
+
+def test_check_refuses_a_tooltip_mark_that_shares_its_line(tmp_path):
+    (tmp_path / "orders.html").write_text(f"<p>x</p>\n<p>y</p>{inject.MARK_START}<style></style>\n", encoding="utf-8")
+    note("orders.html holds the tooltip start mark at the end of line 2")
+    ran = run(tmp_path, "check", "--mockup", "orders.html")
+    expect_refusal(ran, 1, "afkv2-runtime")
+    expect(ran.answer["error"]["lines"], [2], ran.given)
+
+
+def test_check_answers_ok_on_the_clean_mockup_after_the_tooltip_refusal(tmp_path):
+    clean = (FIXTURES / "clean.html").read_text(encoding="utf-8")
+    (tmp_path / "tooltip.html").write_text(inject.inject(clean, {"mockup": "a made-up term"}), encoding="utf-8")
+    shutil.copyfile(FIXTURES / "clean.html", tmp_path / "clean.html")
+    note("tooltip.html is clean.html with the tooltip block; clean.html is fixtures/prototype/clean.html")
+    first = run(tmp_path, "check", "--mockup", "tooltip.html")
+    expect_refusal(first, 1, "afkv2-runtime")
+    second = run(tmp_path, "check", "--mockup", "clean.html")
+    expect_ok(second)
 
 
 # --- start (VR-007) ------------------------------------------------------------------------------------------------
@@ -129,13 +215,14 @@ TICKET = "PROJ-7"
 
 def git(repo, *args):
     done = subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, stdin=subprocess.DEVNULL)
-    assert done.returncode == 0, done.stderr
+    assert done.returncode == 0, f"\ninput: git {' '.join(args)}\nexpected: exit 0\nactual: {done.stderr}"
     return done.stdout.strip()
 
 
 def set_config(repo, **values):
     config = {"spec_folder": "docs", **values}
     (repo / ".afkv2" / "config.json").write_text(json.dumps(config), encoding="utf-8")
+    note(f"config {json.dumps(config)}")
 
 
 WEB = {"name": "web", "source": "frontend/web", "catalog": "design/web"}
@@ -151,59 +238,82 @@ def repo(tmp_path):
     set_config(root, frontends=[WEB])
     (root / "frontend" / "web").mkdir(parents=True)
     shutil.copytree(FIXTURES / "spec", root / "docs" / TICKET)
+    CHANGES.clear()
+    note("spec folder docs/PROJ-7 is fixtures/prototype/spec; config frontends [web]")
     return root
+
+
+def relative(path, repo):
+    return Path(path).relative_to(repo).as_posix()
 
 
 def test_start_with_no_frontend_refuses_naming_the_add_frontend_command(repo):
     set_config(repo)
-    code, answer = run(repo, "start", "--ticket", TICKET)
-    assert code == 1 and answer["error"]["code"] == "no-frontend"
-    assert "catalog_files.py add-frontend" in answer["error"]["reason"]
+    ran = run(repo, "start", "--ticket", TICKET)
+    expect_refusal(ran, 1, "no-frontend")
+    expect_in("catalog_files.py add-frontend", ran.answer["error"]["reason"], ran.given)
 
 
 def test_start_with_2_frontends_and_no_choice_refuses_pick_frontend_listing_both(repo):
     set_config(repo, frontends=[WEB, ADMIN])
-    code, answer = run(repo, "start", "--ticket", TICKET)
-    assert code == 1 and answer["error"]["code"] == "pick-frontend"
-    assert answer["error"]["names"] == ["web", "admin"]
-    assert "web" in answer["error"]["reason"] and "admin" in answer["error"]["reason"]
+    ran = run(repo, "start", "--ticket", TICKET)
+    expect_refusal(ran, 1, "pick-frontend")
+    expect(ran.answer["error"]["names"], ["web", "admin"], ran.given)
+    expect_in("web", ran.answer["error"]["reason"], ran.given)
+    expect_in("admin", ran.answer["error"]["reason"], ran.given)
 
 
 def test_start_with_an_unknown_frontend_refuses_no_frontend_naming_it(repo):
-    code, answer = run(repo, "start", "--ticket", TICKET, "--frontend", "shop")
-    assert code == 1 and answer["error"]["code"] == "no-frontend"
-    assert "shop" in answer["error"]["reason"] and "catalog_files.py add-frontend" in answer["error"]["reason"]
+    ran = run(repo, "start", "--ticket", TICKET, "--frontend", "shop")
+    expect_refusal(ran, 1, "no-frontend")
+    expect_in("shop", ran.answer["error"]["reason"], ran.given)
+    expect_in("catalog_files.py add-frontend", ran.answer["error"]["reason"], ran.given)
 
 
 def test_start_with_no_prd_refuses_missing_input_naming_to_prd(repo):
     (repo / "docs" / TICKET / "PRD.md").unlink()
-    code, answer = run(repo, "start", "--ticket", TICKET)
-    assert code == 1 and answer["error"]["code"] == "missing-input" and answer["error"]["writer"] == "/afkv2:to-prd"
+    note("PRD.md deleted")
+    ran = run(repo, "start", "--ticket", TICKET)
+    expect_refusal(ran, 1, "missing-input")
+    expect(ran.answer["error"]["writer"], "/afkv2:to-prd", ran.given)
 
 
 def test_start_answers_the_paths_and_the_source_anchor(repo):
     (repo / "docs" / TICKET / "PROTOTYPE.md").unlink()
-    code, answer = run(repo, "start", "--ticket", TICKET)
-    assert code == 0, answer
-    spec = (repo / "docs" / TICKET).as_posix()
-    assert answer["spec_dir"] == spec and answer["prd"] == f"{spec}/PRD.md" and answer["index"] == f"{spec}/INDEX.md"
-    assert answer["prototype_md"] == f"{spec}/PROTOTYPE.md" and answer["mockup_dir"] == f"{spec}/prototype"
-    assert answer["frontend"] == WEB and answer["catalog_exists"] is False
-    assert answer["live"] is None and answer["anchor"] == "source" and answer["resume"] is False
+    note("PROTOTYPE.md deleted")
+    ran = run(repo, "start", "--ticket", TICKET)
+    expect(ran.code, 0, f"{ran.given} (answer {ran.answer!r})")
+    paths = {key: relative(ran.answer[key], repo) for key in ("spec_dir", "prd", "index", "prototype_md", "mockup_dir")}
+    expect(paths, {"spec_dir": "docs/PROJ-7", "prd": "docs/PROJ-7/PRD.md", "index": "docs/PROJ-7/INDEX.md",
+                   "prototype_md": "docs/PROJ-7/PROTOTYPE.md", "mockup_dir": "docs/PROJ-7/prototype"}, ran.given)
+    expect(ran.answer["frontend"], {"name": "web", "source": "frontend/web", "catalog": "design/web"}, ran.given)
+    expect(ran.answer["catalog_exists"], False, ran.given)
+    expect(ran.answer["live"], None, ran.given)
+    expect(ran.answer["anchor"], "source", ran.given)
+    expect(ran.answer["resume"], False, ran.given)
 
 
 def test_start_picks_the_named_frontend_and_answers_the_catalog_and_live_anchors(repo):
     set_config(repo, frontends=[WEB, ADMIN], live=LIVE)
-    code, answer = run(repo, "start", "--ticket", TICKET, "--frontend", "admin")
-    assert code == 0 and answer["frontend"] == ADMIN and answer["anchor"] == "live"
-    assert answer["live"]["address"] == LIVE["address"]
+    ran = run(repo, "start", "--ticket", TICKET, "--frontend", "admin")
+    expect(ran.code, 0, f"{ran.given} (answer {ran.answer!r})")
+    expect(ran.answer["frontend"], {"name": "admin", "source": "frontend/admin", "catalog": "design/admin"}, ran.given)
+    expect(ran.answer["anchor"], "live", ran.given)
+    expect(ran.answer["live"]["address"], "http://127.0.0.1:4999", ran.given)
     (repo / "design" / "admin").mkdir(parents=True)
     (repo / "design" / "admin" / "README.md").write_text("# Catalog\n", encoding="utf-8")
-    code, answer = run(repo, "start", "--ticket", TICKET, "--frontend", "admin")
-    assert answer["catalog_exists"] is True and answer["anchor"] == "catalog" and answer["resume"] is True
+    note("design/admin/README.md written")
+    ran = run(repo, "start", "--ticket", TICKET, "--frontend", "admin")
+    expect(ran.answer["catalog_exists"], True, ran.given)
+    expect(ran.answer["anchor"], "catalog", ran.given)
+    expect(ran.answer["resume"], True, ran.given)
 
 
 # --- settle (VR-011, VR-002, VR-012) -------------------------------------------------------------------------------
+
+PINNED_ROW = "| Prototype | PROTOTYPE.md | chosen 2026-03-14 |"
+FIXTURE_ROW = "| Prototype | PROTOTYPE.md | — |"
+
 
 def spec(repo):
     return repo / "docs" / TICKET
@@ -216,8 +326,9 @@ def prototype_row(repo):
 
 def edit(path, old, new):
     text = path.read_text(encoding="utf-8")
-    assert old in text, old
+    assert old in text, f"\ninput: {path.name}\nexpected to hold: {old!r}\nactual: {text!r}"
     path.write_text(text.replace(old, new), encoding="utf-8")
+    note(f"{path.name}: {old!r} -> {new!r}")
 
 
 def test_settle_refuses_bad_prototype_for_a_story_with_no_coverage_row_then_sets_the_index_row(repo):
@@ -225,26 +336,25 @@ def test_settle_refuses_bad_prototype_for_a_story_with_no_coverage_row_then_sets
          "so that I find an open order.\n3. As a buyer, I want to cancel an order, so that I stop a mistake.\n")
     edit(spec(repo) / "PROTOTYPE.md", "| 2 | nav Orders → status filter → Open | reachable |",
          "| 3 | nav Orders → order → Cancel | gap |")
-    before = (spec(repo) / "INDEX.md").read_bytes()
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 1 and answer["error"]["code"] == "bad-prototype"
-    assert any("story 2" in problem for problem in answer["error"]["problems"]), answer
-    assert (spec(repo) / "INDEX.md").read_bytes() == before
+    ran = run(repo, "settle", "--ticket", TICKET, pinned=True)
+    expect_refusal(ran, 1, "bad-prototype")
+    expect_problem("no coverage row for story 2", ran)
+    expect(prototype_row(repo), FIXTURE_ROW, ran.given)
     edit(spec(repo) / "PROTOTYPE.md", "| 3 | nav Orders → order → Cancel | gap |",
          "| 2 | nav Orders → status filter → Open | reachable |\n| 3 | nav Orders → order → Cancel | gap |")
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 0, answer
-    today = date.today().isoformat()
-    assert answer["index_state"] == f"chosen {today}"
-    assert prototype_row(repo) == f"| Prototype | PROTOTYPE.md | chosen {today} |"
-    assert sorted(answer["scanned"]) == ["PROTOTYPE.md", "prototype/orders.html"]
+    ran = run(repo, "settle", "--ticket", TICKET, pinned=True)
+    expect_ok(ran)
+    expect(ran.answer["index_state"], "chosen 2026-03-14", ran.given)
+    expect(prototype_row(repo), PINNED_ROW, ran.given)
+    expect(sorted(ran.answer["scanned"]), ["PROTOTYPE.md", "prototype/orders.html"], ran.given)
 
 
 def test_settle_refuses_a_coverage_row_for_a_story_the_prd_does_not_hold(repo):
     edit(spec(repo) / "PROTOTYPE.md", "| 2 | nav Orders → status filter → Open | reachable |",
          "| 2 | nav Orders → status filter → Open | reachable |\n| 9 | nowhere | gap |")
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 1 and any("story 9" in problem for problem in answer["error"]["problems"])
+    ran = run(repo, "settle", "--ticket", TICKET)
+    expect_refusal(ran, 1, "bad-prototype")
+    expect_problem("story 9", ran)
 
 
 @pytest.mark.parametrize("old, new, words", [
@@ -262,34 +372,38 @@ def test_settle_refuses_a_coverage_row_for_a_story_the_prd_does_not_hold(repo):
 ])
 def test_settle_names_each_problem_of_the_format(repo, old, new, words):
     edit(spec(repo) / "PROTOTYPE.md", old, new)
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 1 and answer["error"]["code"] == "bad-prototype"
-    assert any(words in problem for problem in answer["error"]["problems"]), answer
+    ran = run(repo, "settle", "--ticket", TICKET)
+    expect_refusal(ran, 1, "bad-prototype")
+    expect_problem(words, ran)
 
 
 def test_the_format_file_names_each_section_settle_reads():
     text = (SKILL_DIR / "PROTOTYPE-FORMAT.md").read_text(encoding="utf-8")
-    for section in prototype_files.SECTIONS:
-        assert f"| `{section}` |" in text
-    for state in prototype_files.STATES:
-        assert f"`{state}`" in text
+    for section in ("Screens", "Coverage", "Fidelity", "Decisions", "PRD gaps"):
+        expect_in(f"| `{section}` |", text, "PROTOTYPE-FORMAT.md")
+    for state in ("reachable", "gap", "retired"):
+        expect_in(f"`{state}`", text, "PROTOTYPE-FORMAT.md")
+    expect(prototype_files.SECTIONS, ("Screens", "Coverage", "Fidelity", "Decisions", "PRD gaps"), "SECTIONS")
+    expect(prototype_files.STATES, ("reachable", "gap", "retired"), "STATES")
 
 
 def test_settle_takes_live_verified_with_named_screenshots_and_refuses_it_without(repo):
     set_config(repo, frontends=[WEB], live=LIVE)
-    edit(spec(repo) / "PROTOTYPE.md", "> Fidelity: source-only", "> Fidelity: live-verified · screenshots: shell.png, orders.png")
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 0, answer
-    assert prototype_row(repo) == f"| Prototype | PROTOTYPE.md | chosen {date.today().isoformat()} |"
+    edit(spec(repo) / "PROTOTYPE.md", "> Fidelity: source-only",
+         "> Fidelity: live-verified · screenshots: shell.png, orders.png")
+    ran = run(repo, "settle", "--ticket", TICKET, pinned=True)
+    expect_ok(ran)
+    expect(prototype_row(repo), PINNED_ROW, ran.given)
     edit(spec(repo) / "PROTOTYPE.md", " · screenshots: shell.png, orders.png", "")
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 1 and answer["error"]["code"] == "bad-prototype"
-    assert any("screenshot" in problem for problem in answer["error"]["problems"]), answer
+    ran = run(repo, "settle", "--ticket", TICKET, pinned=True)
+    expect_refusal(ran, 1, "bad-prototype")
+    expect_problem("screenshot", ran)
 
 
 def test_settle_takes_source_only_with_no_live_block(repo):
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 0 and answer["ok"] is True
+    ran = run(repo, "settle", "--ticket", TICKET, pinned=True)
+    expect_ok(ran)
+    expect(prototype_row(repo), PINNED_ROW, ran.given)
 
 
 # Built at run time, so no committed file holds a key shape.
@@ -298,25 +412,28 @@ MADE_UP_KEY = "gh" + "p_" + "Made0Up" * 5
 
 def test_settle_refuses_secrets_in_prototype_md_itself(repo):
     edit(spec(repo) / "PROTOTYPE.md", "Differences left: none.", f"Differences left: none. {MADE_UP_KEY}")
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 1 and answer["error"]["code"] == "secrets"
-    assert answer["error"]["hits"] == [{"file": "PROTOTYPE.md", "line": 22, "shape": "github-token"}]
+    ran = run(repo, "settle", "--ticket", TICKET)
+    expect_refusal(ran, 1, "secrets")
+    expect(ran.answer["error"]["hits"], [{"file": "PROTOTYPE.md", "line": 22, "shape": "github-token"}], ran.given)
 
 
 def test_settle_with_no_index_refuses_missing_input_naming_to_prd(repo):
     (spec(repo) / "INDEX.md").unlink()
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 1 and answer["error"]["code"] == "missing-input" and answer["error"]["writer"] == "/afkv2:to-prd"
+    note("INDEX.md deleted")
+    ran = run(repo, "settle", "--ticket", TICKET)
+    expect_refusal(ran, 1, "missing-input")
+    expect(ran.answer["error"]["writer"], "/afkv2:to-prd", ran.given)
 
 
 def test_settle_refuses_secrets_with_the_file_and_line_and_keeps_the_index(repo):
     edit(spec(repo) / "prototype" / "orders.html", "<td>Made-up Buyer</td>", f"<td>{MADE_UP_KEY}</td>")
-    before = (spec(repo) / "INDEX.md").read_bytes()
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 1 and answer["error"]["code"] == "secrets"
-    assert answer["error"]["hits"] == [{"file": "prototype/orders.html", "line": 14, "shape": "github-token"}]
-    assert "prototype/orders.html:14" in answer["error"]["reason"] and MADE_UP_KEY not in json.dumps(answer)
-    assert (spec(repo) / "INDEX.md").read_bytes() == before
+    ran = run(repo, "settle", "--ticket", TICKET)
+    expect_refusal(ran, 1, "secrets")
+    expect(ran.answer["error"]["hits"], [{"file": "prototype/orders.html", "line": 14, "shape": "github-token"}],
+           ran.given)
+    expect_in("prototype/orders.html:14", ran.answer["error"]["reason"], ran.given)
+    expect(MADE_UP_KEY in json.dumps(ran.answer), False, f"{ran.given} (answer {ran.answer!r})")
+    expect(prototype_row(repo), FIXTURE_ROW, ran.given)
 
 
 @pytest.mark.parametrize("old, new, code_name", [
@@ -325,46 +442,50 @@ def test_settle_refuses_secrets_with_the_file_and_line_and_keeps_the_index(repo)
 ])
 def test_settle_runs_the_mockup_checks_on_every_mockup_and_keeps_the_index(repo, old, new, code_name):
     edit(spec(repo) / "prototype" / "orders.html", old, new)
-    before = (spec(repo) / "INDEX.md").read_bytes()
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 1 and answer["error"]["code"] == code_name and answer["error"]["file"] == "prototype/orders.html"
-    assert (spec(repo) / "INDEX.md").read_bytes() == before
+    ran = run(repo, "settle", "--ticket", TICKET)
+    expect_refusal(ran, 1, code_name)
+    expect(ran.answer["error"]["file"], "prototype/orders.html", ran.given)
+    expect(prototype_row(repo), FIXTURE_ROW, ran.given)
 
 
 def test_settle_checks_every_file_of_the_mockup_folder(repo):
     (spec(repo) / "prototype" / "app.js").write_text("fetch('/api/orders');\n", encoding="utf-8")
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 1 and answer["error"]["code"] == "network-call" and answer["error"]["file"] == "prototype/app.js"
+    note("prototype/app.js holds fetch('/api/orders')")
+    ran = run(repo, "settle", "--ticket", TICKET)
+    expect_refusal(ran, 1, "network-call")
+    expect(ran.answer["error"]["file"], "prototype/app.js", ran.given)
 
 
 def test_settle_refuses_a_mockup_outside_the_mockup_folder(repo):
     (spec(repo) / "other").mkdir()
     shutil.copyfile(FIXTURES / "clean.html", spec(repo) / "other" / "orders.html")
+    note("other/orders.html is clean.html")
     edit(spec(repo) / "PROTOTYPE.md", "| prototype/orders.html |", "| other/orders.html |")
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 1 and answer["error"]["code"] == "bad-prototype"
-    assert any("prototype/" in problem for problem in answer["error"]["problems"]), answer
+    ran = run(repo, "settle", "--ticket", TICKET)
+    expect_refusal(ran, 1, "bad-prototype")
+    expect_problem("prototype/", ran)
 
 
 def test_settle_keeps_a_retired_row_of_a_story_the_prd_dropped(repo):
     edit(spec(repo) / "PROTOTYPE.md", "| 2 | nav Orders → status filter → Open | reachable |",
          "| 2 | nav Orders → status filter → Open | reachable |\n| 3 | nav Orders → order → Cancel | retired |")
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 0, answer
+    ran = run(repo, "settle", "--ticket", TICKET)
+    expect_ok(ran)
 
 
 def test_settle_counts_only_top_level_stories(repo):
     edit(spec(repo) / "PRD.md", "so that I know what I bought.\n",
          "so that I know what I bought.\n   1. a note under story 1\n   7. another note\n")
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 0, answer
+    ran = run(repo, "settle", "--ticket", TICKET)
+    expect_ok(ran)
 
 
 def test_settle_refuses_a_file_too_large_to_scan(repo):
     (spec(repo) / "prototype" / "big.svg").write_text("<svg>" + "x" * (2 * 1024 * 1024) + "</svg>\n", encoding="utf-8")
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 1 and answer["error"]["code"] == "bad-prototype"
-    assert any("prototype/big.svg" in problem for problem in answer["error"]["problems"]), answer
+    note("prototype/big.svg is 2 MiB")
+    ran = run(repo, "settle", "--ticket", TICKET)
+    expect_refusal(ran, 1, "bad-prototype")
+    expect_problem("prototype/big.svg", ran)
 
 
 # --- round 2 of the review -----------------------------------------------------------------------------------------
@@ -372,57 +493,49 @@ def test_settle_refuses_a_file_too_large_to_scan(repo):
 def test_settle_numbers_bullet_stories_by_their_position(repo):
     edit(spec(repo) / "PRD.md", "1. As a buyer, I want to see", "- As a buyer, I want to see")
     edit(spec(repo) / "PRD.md", "2. As a buyer, I want to filter", "* As a buyer, I want to filter")
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 0, answer
+    ran = run(repo, "settle", "--ticket", TICKET)
+    expect_ok(ran)
     edit(spec(repo) / "PROTOTYPE.md", "| 2 | nav Orders → status filter → Open | reachable |\n", "")
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 1 and "no coverage row for story 2" in answer["error"]["problems"]
+    ran = run(repo, "settle", "--ticket", TICKET)
+    expect_refusal(ran, 1, "bad-prototype")
+    expect_in("no coverage row for story 2", ran.answer["error"]["problems"], ran.given)
 
 
 def test_settle_refuses_a_prd_with_no_story(repo):
     edit(spec(repo) / "PRD.md", "1. As a buyer, I want to see", "As a buyer, I want to see")
     edit(spec(repo) / "PRD.md", "2. As a buyer, I want to filter", "As a buyer, I want to filter")
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 1 and answer["error"]["code"] == "bad-prototype"
-    assert any("no story" in problem for problem in answer["error"]["problems"]), answer
+    ran = run(repo, "settle", "--ticket", TICKET)
+    expect_refusal(ran, 1, "bad-prototype")
+    expect_problem("no story", ran)
 
 
 def test_settle_refuses_retired_for_a_story_the_prd_holds(repo):
     edit(spec(repo) / "PROTOTYPE.md", "| 2 | nav Orders → status filter → Open | reachable |", "| 2 | — | retired |")
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 1 and any("story 2" in problem and "retired" in problem for problem in answer["error"]["problems"])
+    ran = run(repo, "settle", "--ticket", TICKET)
+    expect_refusal(ran, 1, "bad-prototype")
+    expect_problem("story 2 is in the PRD, so it is not retired", ran)
 
 
 def test_settle_lets_prototype_md_describe_the_calls_of_the_live_app(repo):
     edit(spec(repo) / "PROTOTYPE.md", "- The status filter sits above the list",
          "- The live app loads the rows with fetch() from the orders API; the mockup inlines them.\n"
          "- The status filter sits above the list")
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 0, answer
-
-
-def test_check_refuses_a_tooltip_mark_that_shares_its_line(tmp_path):
-    mockup = tmp_path / "orders.html"
-    mockup.write_text(f"<p>x</p>\n<p>y</p>{inject.MARK_START}<style></style>\n", encoding="utf-8")
-    code, answer = run(tmp_path, "check", "--mockup", str(mockup))
-    assert code == 1 and answer["error"]["code"] == "afkv2-runtime" and answer["error"]["lines"] == [2]
+    ran = run(repo, "settle", "--ticket", TICKET)
+    expect_ok(ran)
 
 
 def test_settle_refuses_a_mockup_path_that_climbs_out_of_the_mockup_folder(repo):
     (spec(repo) / "other").mkdir()
     shutil.copyfile(FIXTURES / "clean.html", spec(repo) / "other" / "orders.html")
+    note("other/orders.html is clean.html")
     edit(spec(repo) / "PROTOTYPE.md", "| prototype/orders.html |", "| prototype/../other/orders.html |")
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 1 and answer["error"]["code"] == "bad-prototype"
+    ran = run(repo, "settle", "--ticket", TICKET)
+    expect_refusal(ran, 1, "bad-prototype")
 
 
 def test_settle_with_no_prototype_md_refuses_bad_prototype(repo):
     (spec(repo) / "PROTOTYPE.md").unlink()
-    code, answer = run(repo, "settle", "--ticket", TICKET)
-    assert code == 1 and answer["error"]["code"] == "bad-prototype" and answer["error"]["problems"] == ["no PROTOTYPE.md"]
-
-
-@pytest.mark.parametrize("snippet", ['<a href="javascript:void(0)">x</a>', '<img src="blob:abc">',
-                                     '<a href="tel:123">call</a>', '<iframe src="about:blank"></iframe>'])
-def test_the_network_check_passes_each_local_scheme(snippet):
-    assert prototype_files.find_network_calls(snippet) == []
+    note("PROTOTYPE.md deleted")
+    ran = run(repo, "settle", "--ticket", TICKET)
+    expect_refusal(ran, 1, "bad-prototype")
+    expect(ran.answer["error"]["problems"], ["no PROTOTYPE.md"], ran.given)
