@@ -185,7 +185,7 @@ def test_show_with_no_usable_host_refuses_no_host_naming_the_cause_and_writes_no
     listing = sorted(path.name for path in mockup.parent.iterdir())
     code, answer = show_cli(capsys, "show", "--mockup", mockup)
     assert code == 1 and answer["error"]["code"] == "no-host", answer
-    assert words in answer["error"]["reason"]
+    assert words in answer["error"]["reason"] and ".." not in answer["error"]["reason"]
     assert mockup.read_bytes() == before and sorted(path.name for path in mockup.parent.iterdir()) == listing
     assert calls(lavish) == []
 

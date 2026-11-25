@@ -46,7 +46,7 @@ def _mockup(path):
 def _no_host(page, cause):
     """The refusal when the launcher runs no host: the developer opens the file itself and notes in chat."""
     uri = page.resolve().as_uri()
-    return Refusal("no-host", f"lavish cannot show the mockup: {cause.strip()}. Give the developer {uri} and take "
+    return Refusal("no-host", f"lavish cannot show the mockup: {cause.strip().rstrip('.')}. Give the developer {uri} and take "
                               "the notes in chat; /afkv2:setup fixes the install", file=uri)
 
 
