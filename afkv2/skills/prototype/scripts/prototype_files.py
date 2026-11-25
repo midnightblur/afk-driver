@@ -27,6 +27,7 @@ sys.path.insert(0, str(PLUGIN / "scripts"))
 sys.path.insert(0, str(SKILL.parent / "to-prd" / "scripts"))
 
 import afkv2_config  # noqa: E402
+import notices  # noqa: E402
 import prd_files  # noqa: E402
 from grill_common import Parser, Refusal, serve  # noqa: E402
 from page_home import ticket_slug  # noqa: E402
@@ -262,6 +263,13 @@ def cmd_settle(argv):
     if problems:
         raise Refusal("bad-prototype", "; ".join(problems), problems=problems)
     files = _written_files(spec_dir)
+    for path, name in files:
+        if path.suffix.lower() in (".html", ".htm"):
+            check_text(_read(path), name)
+    hits = notices.scan_files(files)
+    if hits:
+        where = ", ".join(f"{hit['file']}:{hit['line']} ({hit['shape']})" for hit in hits)
+        raise Refusal("secrets", f"a secret shape at {where}: a prototype holds made-up data only", hits=hits)
     state = f"chosen {date.today().isoformat()}"
     prd_files.set_row(index, INDEX_ROW, FILE_NAME, state)
     return {"ok": True, "scanned": [name for _, name in files], "index_state": state}

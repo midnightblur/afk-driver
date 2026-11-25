@@ -272,3 +272,29 @@ def test_settle_takes_live_verified_with_named_screenshots_and_refuses_it_withou
 def test_settle_takes_source_only_with_no_live_block(repo):
     code, answer = run(repo, "settle", "--ticket", TICKET)
     assert code == 0 and answer["ok"] is True
+
+
+# Built at run time, so no committed file holds a key shape.
+MADE_UP_KEY = "gh" + "p_" + "Made0Up" * 5
+
+
+def test_settle_refuses_secrets_with_the_file_and_line_and_keeps_the_index(repo):
+    edit(spec(repo) / "prototype" / "orders.html", "<td>Made-up Buyer</td>", f"<td>{MADE_UP_KEY}</td>")
+    before = (spec(repo) / "INDEX.md").read_bytes()
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 1 and answer["error"]["code"] == "secrets"
+    assert answer["error"]["hits"] == [{"file": "prototype/orders.html", "line": 14, "shape": "github-token"}]
+    assert "prototype/orders.html:14" in answer["error"]["reason"] and MADE_UP_KEY not in json.dumps(answer)
+    assert (spec(repo) / "INDEX.md").read_bytes() == before
+
+
+@pytest.mark.parametrize("old, new, code_name", [
+    ("<nav id=\"nav\">", "<script src=\"https://cdn.example/a.js\"></script>\n<nav id=\"nav\">", "network-call"),
+    ("</body>", f"{inject.MARK_START}\n{inject.MARK_END}\n</body>", "afkv2-runtime"),
+])
+def test_settle_runs_the_mockup_checks_on_every_mockup_and_keeps_the_index(repo, old, new, code_name):
+    edit(spec(repo) / "prototype" / "orders.html", old, new)
+    before = (spec(repo) / "INDEX.md").read_bytes()
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 1 and answer["error"]["code"] == code_name and answer["error"]["file"] == "prototype/orders.html"
+    assert (spec(repo) / "INDEX.md").read_bytes() == before
