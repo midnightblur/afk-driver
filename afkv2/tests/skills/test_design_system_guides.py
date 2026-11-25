@@ -1,8 +1,11 @@
 """The design-system guides: SKILL.md and the catalog format CATALOG-FORMAT.md (SDD §4, §5, §8; ticket 207 VR-022,
 VR-029; decision D-8).
 
-The quality of the steps is proved by the owner's live check; these tests pin that each rule is stated in the file
-that owns it, that the format names what catalog_files.py reads, and that every verb the guides name exists.
+A static row proves the rule is written in the file that owns it: the plan lowered these rows to static, and the
+quality of the steps is proved by the owner's live check. These tests pin that each rule is stated in the file that owns
+it, that the format names what catalog_files.py reads, and that every verb the guides name exists. A rule check finds
+the section that owns the rule and compares on normalized text (lowercase, whitespace collapsed, backticks and quotes
+removed); its failure names the file, the section, the expected phrase and the actual section text.
 """
 
 import re
@@ -15,26 +18,41 @@ HOME = SKILLS / "design-system"
 SKILL_MD = HOME / "SKILL.md"
 FORMAT_MD = HOME / "CATALOG-FORMAT.md"
 sys.path.insert(0, str(HOME / "scripts"))
+QUOTES = str.maketrans("", "", "`\"'\u2018\u2019\u201c\u201d")
 
 
 def _flat(text):
     return " ".join(text.split())
 
 
+def _norm(text):
+    """Lowercase, quotes and backticks removed, whitespace collapsed to 1 space."""
+    return " ".join(text.translate(QUOTES).lower().split())
+
+
 def _text(path):
-    assert path.is_file(), f"no {path.name} in {path.parent}"
+    assert path.is_file(), f"input: {path}\nexpected: the file exists\nactual: no file"
     return path.read_text("utf-8")
 
 
 def _section(path, heading):
-    """The text under `heading` up to the next heading of the same or a higher level, on 1 line."""
+    """The normalized text under `heading` up to the next heading of the same or a higher level."""
     text = _text(path)
     level, title = heading.split(" ", 1)
-    found = re.search(rf"^{level} +{re.escape(title.strip())}[ \t]*\n", text, re.M)
-    assert found, f"{path.name}: no heading {heading!r}"
+    headings = re.findall(r"^(#+ +.*?)[ \t]*$", text, re.M)
+    found = next((m for m in re.finditer(rf"^{level} +(.*?)[ \t]*$", text, re.M)
+                  if _norm(m.group(1)) == _norm(title)), None)
+    assert found, f"file: {path.relative_to(SKILLS).as_posix()}\nexpected: heading {heading!r}\nactual headings: {headings}"
     rest = text[found.end():]
     stop = re.search(rf"^#{{1,{len(level)}}} ", rest, re.M)
-    return _flat(rest[:stop.start()] if stop else rest)
+    return _norm(rest[:stop.start()] if stop else rest)
+
+
+def _states(path, heading, phrase):
+    """Assert that section `heading` of `path` holds `phrase`."""
+    section = _section(path, heading)
+    assert _norm(phrase) in section, (f"file: {path.relative_to(SKILLS).as_posix()}\nsection: {heading}\n"
+                                      f"expected: holds {phrase!r}\nactual: {section[:600]!r}")
 
 
 # --- VR-029 (PRD AC-025): neither skill names the outward design host or its tools
@@ -81,6 +99,5 @@ HANDS_OFF = "opens no page, writes no file, and parks with the reason that a dev
 
 def test_both_skills_park_a_hands_off_subagent():
     for path in (SKILL_MD, SKILLS / "prototype" / "SKILL.md"):
-        hands_off = _section(path, "## Hands-off")
-        assert "A hands-off subagent" in hands_off, path
-        assert HANDS_OFF in hands_off, path
+        _states(path, "## Hands-off", "A hands-off subagent")
+        _states(path, "## Hands-off", HANDS_OFF)

@@ -4,9 +4,14 @@ VR-023, VR-024, VR-025, VR-026).
 Each start test builds its own scratch git repository with its own spec files, and runs the script by its path with
 `start --ticket PROJ-1`. PROTOTYPE.md is an optional input: a spec folder without it runs as today, with no refusal.
 Each failure names the input, the expected value and the actual value.
+
+The guide tests are static rows: a static row proves the rule is written in the file that owns it (the plan lowered
+these rows to static). Each finds the step or table row that owns the rule and compares on normalized text (lowercase,
+whitespace collapsed, backticks and quotes removed).
 """
 
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -122,45 +127,60 @@ def test_verification_start_never_names_a_missing_prototype_in_missing(tmp_path)
 
 # --- VR-025, VR-026 (PRD AC-027, AC-028): each SKILL.md reads PROTOTYPE.md in its read step and its proposer brief
 
-def _flat(text):
-    return " ".join(text.split())
+QUOTES = str.maketrans("", "", "`\"'\u2018\u2019\u201c\u201d")
+
+
+def _norm(text):
+    """Lowercase, quotes and backticks removed, whitespace collapsed to 1 space."""
+    return " ".join(text.translate(QUOTES).lower().split())
 
 
 def _guide(skill):
-    return (SKILLS / skill / "SKILL.md").read_text("utf-8")
+    path = SKILLS / skill / "SKILL.md"
+    assert path.is_file(), f"input: {path}\nexpected: the file exists\nactual: no file"
+    return path.read_text("utf-8")
 
 
-def _step(text, number):
-    """The text of numbered step `number`, up to the next numbered step, on 1 line."""
-    start = text.index(f"\n{number}. **")
+def _step(skill, text, number):
+    """The normalized text of numbered step `number`, up to the next numbered step."""
+    steps = re.findall(r"^(\d+)\. \*\*", text, re.M)
+    start = text.find(f"\n{number}. **")
+    assert start >= 0, f"file: {skill}/SKILL.md\nexpected: step {number}\nactual steps: {steps}"
     end = text.find(f"\n{number + 1}. **", start)
-    return _flat(text[start:end if end > 0 else None])
+    return _norm(text[start:end if end > 0 else None])
 
 
-def _row(text, label):
-    return _flat(next(line for line in text.splitlines() if line.lstrip().startswith(f"| {label}")))
+def _row(skill, text, label):
+    """The normalized table row whose first cell starts with `label`."""
+    rows = [line for line in text.splitlines() if line.lstrip().startswith("|")]
+    found = next((line for line in rows if _norm(line.lstrip()[1:]).startswith(_norm(label))), None)
+    firsts = [line.strip().split("|")[1].strip() for line in rows if line.strip().count("|") > 1]
+    assert found is not None, f"file: {skill}/SKILL.md\nexpected: table row {label!r}\nactual first cells: {firsts}"
+    return _norm(found)
 
 
 def _holds(skill, where, text, phrase, present=True):
+    """Assert that `text` (the normalized step or row `where`) holds `phrase`, or lacks it when `present` is false."""
     expected = f"{'holds' if present else 'lacks'} {phrase!r}"
-    assert (phrase in text) is present, f"input: {skill}/SKILL.md {where}\nexpected: {expected}\nactual: {text!r}"
+    assert (_norm(phrase) in text) is present, (f"file: {skill}/SKILL.md\nsection: {where}\nexpected: {expected}\n"
+                                                f"actual: {text[:600]!r}")
 
 
 def _optional_input(skill, text):
-    row = _row(text, "`PROTOTYPE.md`")
+    row = _row(skill, text, "`PROTOTYPE.md`")
     _holds(skill, "input row `PROTOTYPE.md`", row, "/afkv2:prototype")
     _holds(skill, "input row `PROTOTYPE.md`", row, "stop", present=False)
-    start = _step(text, 1)
+    start = _step(skill, text, 1)
     _holds(skill, "step 1", start, "`prototype`")
     _holds(skill, "step 1", start, "`prototype_exists`")
-    _holds(skill, "row R-1 Same inputs", _row(text, "R-1 Same inputs"), "`prototype`")
+    _holds(skill, "row R-1 Same inputs", _row(skill, text, "R-1 Same inputs"), "`prototype`")
 
 
 def test_propose_solution_guide_reads_the_prototype_and_cites_each_ui_decision():
     skill = "propose-solution"
     text = _guide(skill)
     _optional_input(skill, text)
-    read = _step(text, 2)
+    read = _step(skill, text, 2)
     _holds(skill, "step 2", read, "`prototype_exists` true: read `prototype`")
     _holds(skill, "step 2", read,
            "each UI decision of it that changes the design in the existing SDD section it changes")
@@ -171,7 +191,7 @@ def test_propose_verification_guide_reads_the_prototype_and_derives_rows_from_it
     skill = "propose-verification"
     text = _guide(skill)
     _optional_input(skill, text)
-    read = _step(text, 2)
+    read = _step(skill, text, 2)
     _holds(skill, "step 2", read, "`prototype_exists` true: read `prototype`")
     _holds(skill, "step 2", read, "`ui-e2e` and `acceptance` rows from each `reachable` row of its Coverage table")
     _holds(skill, "step 2", read, "`story` and `criteria`")
