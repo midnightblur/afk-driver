@@ -50,7 +50,7 @@ def test_chat_only_ends_lavish_for_the_run():
     loop = _section(SKILL_MD, "## Notes loop")
     chat_only = _section(SKILL_MD, "### Chat only")
     assert '"chat only"' in chat_only and "at any time" in chat_only
-    assert "run `end`" in chat_only
+    assert '"chat only", at any time: run `end` when lavish shows a mockup' in chat_only
     assert "every later note of this run in chat" in chat_only
     assert "never shows the mockup in lavish again" in chat_only
     assert "Show the mockup in lavish only when the developer did not ask for chat only." in loop
@@ -64,10 +64,12 @@ def test_each_note_gets_an_edit_or_a_reply_and_a_new_show():
     assert "Give each note an edit of the mockup or a reply, never neither." in loop
     assert "names its element by the `selector`, the `tag` and the `text`" in loop
     lavish = _section(SKILL_MD, "### In lavish")
-    assert "Show the edited mockup: run `show` again." in lavish
+    assert "Show the edited mockup: lavish reloads the saved file in the open session" in lavish
     assert "first give each note of the notes file an edit of the mockup or a reply" in lavish
     chat = _section(SKILL_MD, "### In chat")
     assert "`file://` path" in chat and "an edit of the mockup or a reply" in chat
+    assert "reload the mockup after each edit" in chat
+    assert "`status` `user-ended`" in lavish and 'go on by "In chat"' in lavish
 
 
 def test_mockup_is_clickable_from_the_entry_screen_inside_the_shell():

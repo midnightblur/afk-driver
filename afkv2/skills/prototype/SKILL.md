@@ -49,16 +49,18 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
 
 ## Steps
 
-1. **Start.** Run `start`. Add `--frontend "<name>"` when the developer names the frontend. Keep `spec_dir`, `prd`, `prototype_md`, `mockup_dir`, `frontend`, `anchor`, `live` and `resume` of the answer. Then check for a screen by "No screen, no mockup". On a refusal of `start`, read `PRD.md` in the spec folder of the ticket, and check for a screen by "No screen, no mockup" first. Then:
+`<afkv2 data folder>` is `%LOCALAPPDATA%\afkv2`. `<run>` is the ticket key and the start time of the run, such as `ABC-12-20260101T0930`.
+
+1. **Start.** Run `start`. Add `--frontend "<name>"` when the developer names the frontend. Keep `spec_dir`, `prd`, `prototype_md`, `mockup_dir`, `frontend`, `anchor`, `live` and `resume` of the answer. Then check for a screen by "No screen, no mockup". On a refusal:
 
    | Code | Next action |
    |------|-------------|
    | `missing-input` | the ticket has no PRD: stop, and name `/afkv2:to-prd` |
-   | `no-frontend` | the config names no frontend: stop, and give the developer the command of the reason |
-   | `pick-frontend` | ask the developer which of the listed names, and run `start` again with `--frontend` |
+   | `no-frontend` | the PRD exists: first check for a screen by "No screen, no mockup", in the `PRD.md` of the ticket folder under the `spec_folder` of `.afkv2/config.json`. Then stop, and give the developer the command of the reason |
+   | `pick-frontend` | first check for a screen in the same way. Then ask the developer which of the listed names, and run `start` again with `--frontend` |
    | any other code | the repository config is missing or broken: stop, and give the developer the reason |
 
-   `resume` true: read `PROTOTYPE.md` and the mockups it names. Run step 2, then go to step 4.
+   `resume` true: read `PROTOTYPE.md` and the mockups it names, and run `check` on each mockup. Run step 2, then go to step 4.
 
 2. **Anchor.** Copy the look of the app from the source that `anchor` names:
 
@@ -77,22 +79,34 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
 
    Also map the neighbours of each screen: the screens a story enters from, and the screens the new screen links to.
 
-3. **Draft.** Write 1 mockup per screen into `mockup_dir`, by [MOCKUP.md](MOCKUP.md), with made-up data only: copy the look of the app, and never copy a record from a screenshot, the live screen or its database. The direction is unclear: give 2 to 3 variants in the file. Run `check` on each mockup, and fix each line it names. Done when `check` answers ok for every mockup.
+3. **Draft.** Write 1 mockup per screen into `mockup_dir`, by [MOCKUP.md](MOCKUP.md), with made-up data only: copy the look of the app, and never copy a record from a screenshot, the live screen or its database. A mockup of an earlier run is already in `mockup_dir`: keep it and its edits, and change it instead of a new draft. The direction is unclear: give 2 to 3 variants in the file. Run `check` on each mockup, and fix each line it names. Done when `check` answers ok for every mockup.
 
 4. **Take the notes.** By "Notes loop".
 
-5. **Stop on a PRD gap.** A note or a story needs an answer that the PRD does not hold: stop with `prd_gap`, name the gap, and name `/afkv2:grill-requirements`. Run `end` first when lavish shows the mockup.
+5. **Stop on a PRD gap.** A note or a story needs an answer that the PRD does not hold: stop with `prd_gap`, name the gap, and name `/afkv2:grill-requirements`.
 
 6. **Settle.** Only the developer settles a direction. Then:
    1. Delete the losing variants and the switcher bar from the mockup. Run `check` again.
-   2. **Capability walk.** Click every story and acceptance criterion of the PRD through the mockup, from its entry screen. Each one is `reachable`, or a `gap` in the Coverage table.
+   2. **Capability walk.** Click every story and acceptance criterion of the PRD through the mockup, from its entry screen. The Coverage table holds 1 row per story: `reachable`, or `gap` when the story or one of its criteria cannot be reached. Name each criterion that is a gap in the Decisions section.
    3. **Fidelity pass.** With the app running, put each mockup side by side with the live screenshots, and fix each difference in the shell, the spacing, the type and the components. Record what you compared and each difference left. With no app running, mark the fidelity by the anchor: `catalog` or `source-only`.
    4. Write `PROTOTYPE.md` by [PROTOTYPE-FORMAT.md](PROTOTYPE-FORMAT.md). The fidelity mark comes from the anchor and the fidelity pass.
    5. Run `settle`. `missing-input`: the spec folder has no `INDEX.md`; stop, and name `/afkv2:to-prd`. On any other refusal, fix each named file or problem, and run `settle` again. Never report done before `settle` answers ok: its secret scan covers every file the run wrote.
 
-7. **Stop the app.** Stop only an app that step 2 of this run started, at the end of each run, also after a stop or a refusal. Run the `stop` command of the `live` block, else stop the background command of step 2. Delete the screenshots and the notes file.
+7. **Close the run.** At the end of each run, also after a stop or a refusal:
+   1. Run `end` when lavish shows a mockup.
+   2. Stop only an app that step 2 of this run started. Run the `stop` command of the `live` block, else stop the background command of step 2. Then probe the `address`: while it still answers, stop the process that listens on its port, and report it.
+   3. Delete the screenshots and the notes file.
 
-8. **Report.** End with 1 line: `prototype: <state> — <1-line summary>`, with the state `settled`, `no_ui` or `prd_gap`.
+8. **Report.** End with 1 line: `prototype: <state> — <1-line summary>`.
+
+   | State | When |
+   |-------|------|
+   | `settled` | `settle` answered ok |
+   | `no_ui` | no story adds or changes a screen |
+   | `prd_gap` | step 5 stopped the run |
+   | `stopped` | the developer stopped the run before a settle |
+   | `refused` | a refusal stopped the run; the line names its code |
+   | `parked` | a hands-off subagent parked by "Hands-off" |
 
 ## Notes loop
 
@@ -102,10 +116,10 @@ Each note names its element by the `selector`, the `tag` and the `text` that lav
 
 ### In lavish
 
-1. Run `show`. `no-host`: lavish is missing, at another version or on an unsafe host. Its reason holds the `file://` path: go on by "In chat".
+1. Run `show`. `no-host`: lavish is missing, at another version or on an unsafe host. Its reason holds the `file://` path: go on by "In chat". `status` `user-ended`: the developer ended this session in the browser, and lavish does not open it again: go on by "In chat".
 2. Wait for the notes. On Claude, run `wait` with `--notes-file "<afkv2 data folder>/notes/<run>.json"` as a background command the harness tracks; its exit tells you the notes are in the notes file. On Codex, `show` wrote the waiting record: end your turn, and the Stop hook hands back 1 line per note with its tag, selector and text.
 3. Read each note, and give it an edit of the mockup or a reply.
-4. Show the edited mockup: run `show` again. Then write 1 Markdown line per note to a reply file, the edit made or the answer, and run `reply`.
+4. Show the edited mockup: lavish reloads the saved file in the open session, so run no `show` for it. Write 1 Markdown line per note to a reply file, the edit made or the answer, and run `reply`.
 5. Go to step 2.
 
 | Answer of `wait` | Next action |
@@ -123,4 +137,4 @@ Give the developer the `file://` path of the mockup: they open it in a browser a
 
 ### Chat only
 
-The developer says "chat only", at any time: run `end` when lavish shows a mockup, and take every later note of this run in chat, by "In chat". The run never shows the mockup in lavish again. At the end of a lavish loop, also on a settle or a stop, run `end`.
+The developer says "chat only", at any time: run `end` when lavish shows a mockup, and take every later note of this run in chat, by "In chat". The run never shows the mockup in lavish again.
