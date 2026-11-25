@@ -96,9 +96,10 @@ def _where(findings, name):
 
 def check_text(text, name):
     """Refuse `afkv2-runtime`, then `network-call`, for the text of one written file; `name` names it."""
-    marks = [number for number, line in enumerate(text.split("\n"), 1) if MARK_START in line or MARK_END in line]
+    marks = [number for number, line in enumerate(text.split("\n"), 1) if line.strip() in (MARK_START, MARK_END)]
     if marks:
-        raise Refusal("afkv2-runtime", f"the afkv2 tooltip block at {', '.join(f'{name}:{n}' for n in marks)}: a "
+        where = _where([{"line": number} for number in marks], name)
+        raise Refusal("afkv2-runtime", f"the afkv2 tooltip block at {where}: a "
                                        "committed mockup holds no afkv2 runtime; delete the block between its marks "
                                        "and open the mockup with --plain", file=str(name), lines=marks)
     calls = find_network_calls(text)
