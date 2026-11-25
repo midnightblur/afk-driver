@@ -31,6 +31,11 @@ from grill_common import Parser, Refusal, serve  # noqa: E402
 README = prototype_files.CATALOG_MARK
 # Lockstep with CATALOG-FORMAT.md, which owns the format (decision D-8).
 COLUMNS = ("File", "Kind", "State", "Screenshot")
+SECTIONS = ("Scope", "Cards", "Refresh")
+KINDS = ("token", "component", "shell", "page")
+STATES = ("checked", "unchecked")
+NO_SCREENSHOT = ("", "-", "—", "none")
+TOKENS = "tokens.css"
 
 
 def _relative(value):
@@ -113,8 +118,47 @@ def cmd_start(argv):
             "cards": cards_of(prototype_files._read(readme)) if exists else [], "live": config.get("live")}
 
 
+def _card_problems(card, catalog_dir):
+    name, problems = card["file"], []
+    parts = PurePosixPath(name).parts
+    if not parts or PurePath(name).anchor or ".." in parts or name == README:
+        problems.append(f"card {name or '(empty)'}: not a file in the catalog folder")
+    elif not (catalog_dir / name).is_file():
+        problems.append(f"card {name}: no such file in the catalog folder")
+    if card["kind"] not in KINDS:
+        problems.append(f"card {name}: kind `{card['kind']}` is not one of {', '.join(KINDS)}")
+    if card["state"] not in STATES:
+        problems.append(f"card {name}: state `{card['state']}` is not one of {', '.join(STATES)}")
+    if card["state"] == "checked" and card["screenshot"].lower() in NO_SCREENSHOT:
+        problems.append(f"card {name}: checked, but it names no screenshot it was checked against")
+    return problems
+
+
+def catalog_problems(catalog_dir):
+    """Each way the catalog folder breaks CATALOG-FORMAT.md; empty when it holds."""
+    problems = [] if (catalog_dir / TOKENS).is_file() else [f"no {TOKENS} in the catalog folder"]
+    readme = catalog_dir / README
+    if not readme.is_file():
+        return [f"no {README} in the catalog folder", *problems]
+    sections = dict(prototype_files._sections(prototype_files._read(readme).replace("\r\n", "\n")))
+    problems += [f"no section `## {section}` in {README}" for section in SECTIONS if section not in sections]
+    cards = cards_of(prototype_files._read(readme))
+    if "Cards" in sections and not cards:
+        problems.append("the Cards table has no row")
+    seen = set()
+    for card in cards:
+        if card["file"] in seen:
+            problems.append(f"card {card['file']}: 2 rows in the Cards table")
+        seen.add(card["file"])
+        problems += _card_problems(card, catalog_dir)
+    return problems
+
+
 def cmd_check(argv):
     _, _, catalog_dir = _catalog(argv)
+    problems = catalog_problems(catalog_dir)
+    if problems:
+        raise Refusal("bad-catalog", "; ".join(problems), problems=problems)
     cards = cards_of(prototype_files._read(catalog_dir / README))
     checked = sum(card["state"] == "checked" for card in cards)
     return {"ok": True, "cards": len(cards), "checked": checked, "unchecked": len(cards) - checked}

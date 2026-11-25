@@ -143,3 +143,67 @@ def test_check_answers_ok_with_3_checked_cards(repo, catalog):
     code, answer = run(repo, "check", "--frontend", "web")
     assert code == 0, answer
     assert answer["cards"] == 3 and answer["checked"] == 3 and answer["unchecked"] == 0
+
+
+# --- check refuses bad-catalog (VR-019) ---------------------------------------------------------------------------
+
+def edit(path, old, new):
+    text = path.read_text(encoding="utf-8")
+    assert old in text, old
+    path.write_text(text.replace(old, new), encoding="utf-8")
+
+
+def test_check_refuses_bad_catalog_for_a_missing_card_file_then_counts_the_unchecked_cards(repo, catalog):
+    readme = catalog / "README.md"
+    edit(readme, "| cards/button.html | component | checked | orders-list.png |",
+         "| cards/button.html | component | unchecked | — |")
+    edit(readme, "| cards/list-page.html | page | checked | orders-list.png |",
+         "| cards/detail-page.html | page | unchecked | — |")
+    code, answer = run(repo, "check", "--frontend", "web")
+    assert code == 1 and answer["error"]["code"] == "bad-catalog", answer
+    assert answer["error"]["problems"] == ["card cards/detail-page.html: no such file in the catalog folder"]
+    assert "cards/detail-page.html" in answer["error"]["reason"]
+    shutil.copyfile(catalog / "cards" / "list-page.html", catalog / "cards" / "detail-page.html")
+    code, answer = run(repo, "check", "--frontend", "web")
+    assert code == 0, answer
+    assert answer["cards"] == 3 and answer["checked"] == 1 and answer["unchecked"] == 2
+
+
+@pytest.mark.parametrize("old, new, words", [
+    ("| cards/shell.html | shell | checked | shell.png |", "| cards/shell.html | widget | checked | shell.png |",
+     "kind `widget`"),
+    ("| cards/shell.html | shell | checked | shell.png |", "| cards/shell.html | shell | done | shell.png |",
+     "state `done`"),
+    ("| cards/shell.html | shell | checked | shell.png |", "| cards/shell.html | shell | checked | — |",
+     "names no screenshot"),
+    ("| cards/shell.html | shell | checked | shell.png |", "| ../shell.html | shell | checked | shell.png |",
+     "not a file in the catalog folder"),
+    ("| cards/button.html | component | checked | orders-list.png |",
+     "| cards/shell.html | component | checked | orders-list.png |", "2 rows"),
+    ("## Refresh", "## Later", "no section `## Refresh`"),
+    ("## Scope", "## Range", "no section `## Scope`"),
+])
+def test_check_names_each_problem_of_the_format(repo, catalog, old, new, words):
+    edit(catalog / "README.md", old, new)
+    code, answer = run(repo, "check", "--frontend", "web")
+    assert code == 1 and answer["error"]["code"] == "bad-catalog", answer
+    assert any(words in problem for problem in answer["error"]["problems"]), answer["error"]["problems"]
+
+
+def test_check_refuses_bad_catalog_with_no_readme_no_tokens_or_no_card(repo, catalog):
+    (catalog / "tokens.css").unlink()
+    code, answer = run(repo, "check", "--frontend", "web")
+    assert code == 1 and answer["error"]["problems"] == ["no tokens.css in the catalog folder"]
+    (catalog / "README.md").unlink()
+    code, answer = run(repo, "check", "--frontend", "web")
+    assert code == 1 and answer["error"]["code"] == "bad-catalog"
+    assert "no README.md in the catalog folder" in answer["error"]["problems"]
+
+
+def test_check_refuses_a_cards_table_with_no_row(repo, catalog):
+    readme = catalog / "README.md"
+    text = readme.read_text(encoding="utf-8")
+    kept = [line for line in text.splitlines() if not line.startswith("| cards/")]
+    readme.write_text("\n".join(kept) + "\n", encoding="utf-8")
+    code, answer = run(repo, "check", "--frontend", "web")
+    assert code == 1 and answer["error"]["problems"] == ["the Cards table has no row"]
