@@ -6,7 +6,7 @@ A developer who uses afkv2 for real work in another repository cannot use an afk
 
 | Artifact | Where | State |
 |---|---|---|
-| PRD | PRD.md | draft |
+| PRD | PRD.md | published to GitHub 2026-11-25 |
 | Requirement ADRs | adr/requirements/ | 3 records |
 | Prototype | PROTOTYPE.md | — |
 | SDD | SDD.md | — |
