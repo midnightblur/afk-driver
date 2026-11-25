@@ -65,7 +65,12 @@ def run(cwd, *args, pinned=False):
     done = subprocess.run([*head, *args], cwd=cwd, capture_output=True, text=True, encoding="utf-8",
                           stdin=subprocess.DEVNULL)
     given = f"prototype_files.py {' '.join(args)}" + (f" after: {'; '.join(CHANGES)}" if CHANGES else "")
-    return Ran(done.returncode, json.loads(done.stdout), given)
+    try:
+        answer = json.loads(done.stdout)
+    except ValueError:
+        pytest.fail(f"\ninput: {given}\nexpected: 1 JSON answer\nactual: exit {done.returncode}, "
+                    f"stdout {done.stdout!r}, stderr {done.stderr!r}")
+    return Ran(done.returncode, answer, given)
 
 
 def expect(actual, expected, given):
@@ -165,13 +170,27 @@ def test_check_refuses_network_call_naming_each_line_with_a_call(tmp_path):
     expect_in("orders.html:12", ran.answer["error"]["reason"], ran.given)
 
 
+def clean_lf():
+    """clean.html with LF line ends, 539 bytes on every checkout."""
+    return (FIXTURES / "clean.html").read_bytes().replace(b"\r\n", b"\n")
+
+
 def test_check_answers_ok_on_a_clean_mockup(tmp_path):
-    shutil.copyfile(FIXTURES / "clean.html", tmp_path / "orders.html")
-    note("orders.html is fixtures/prototype/clean.html, 539 bytes")
+    (tmp_path / "orders.html").write_bytes(clean_lf())
+    note("orders.html is fixtures/prototype/clean.html with LF line ends, 539 bytes")
     ran = run(tmp_path, "check", "--mockup", "orders.html")
     expect_ok(ran)
     expect(ran.answer["file"], "orders.html", ran.given)
     expect(ran.answer["bytes"], 539, ran.given)
+
+
+def test_check_echoes_an_absolute_mockup_path(tmp_path):
+    (tmp_path / "orders.html").write_bytes(clean_lf())
+    note("orders.html is clean.html, given as an absolute path")
+    ran = run(tmp_path, "check", "--mockup", str(tmp_path / "orders.html"))
+    expect_ok(ran)
+    expect(Path(ran.answer["file"]).is_absolute(), True, f"{ran.given} (answer {ran.answer!r})")
+    expect(Path(ran.answer["file"]).name, "orders.html", ran.given)
 
 
 def test_check_refuses_unreadable_for_a_missing_file(tmp_path):
@@ -180,13 +199,15 @@ def test_check_refuses_unreadable_for_a_missing_file(tmp_path):
 
 
 def test_check_refuses_afkv2_runtime_on_the_tooltip_block(tmp_path):
-    clean = (FIXTURES / "clean.html").read_text(encoding="utf-8")
-    (tmp_path / "orders.html").write_text(inject.inject(clean, {"mockup": "a made-up term"}), encoding="utf-8")
-    note("orders.html is clean.html with the afkv2 tooltip block injected")
+    clean = clean_lf().decode("utf-8")
+    (tmp_path / "orders.html").write_text(inject.inject(clean, {"mockup": "a made-up term"}), encoding="utf-8",
+                                          newline="\n")
+    expect_in(inject.MARK_START, (tmp_path / "orders.html").read_text(encoding="utf-8"), "inject.inject(clean.html)")
+    note("orders.html is clean.html with the afkv2 tooltip block injected: start mark line 17, end mark line 434")
     ran = run(tmp_path, "check", "--mockup", "orders.html")
     expect_refusal(ran, 1, "afkv2-runtime")
     expect(ran.answer["error"]["file"], "orders.html", ran.given)
-    expect(bool(ran.answer["error"]["lines"]), True, f"{ran.given} (answer {ran.answer!r})")
+    expect(ran.answer["error"]["lines"], [17, 434], ran.given)
 
 
 def test_check_refuses_a_tooltip_mark_that_shares_its_line(tmp_path):
@@ -195,17 +216,6 @@ def test_check_refuses_a_tooltip_mark_that_shares_its_line(tmp_path):
     ran = run(tmp_path, "check", "--mockup", "orders.html")
     expect_refusal(ran, 1, "afkv2-runtime")
     expect(ran.answer["error"]["lines"], [2], ran.given)
-
-
-def test_check_answers_ok_on_the_clean_mockup_after_the_tooltip_refusal(tmp_path):
-    clean = (FIXTURES / "clean.html").read_text(encoding="utf-8")
-    (tmp_path / "tooltip.html").write_text(inject.inject(clean, {"mockup": "a made-up term"}), encoding="utf-8")
-    shutil.copyfile(FIXTURES / "clean.html", tmp_path / "clean.html")
-    note("tooltip.html is clean.html with the tooltip block; clean.html is fixtures/prototype/clean.html")
-    first = run(tmp_path, "check", "--mockup", "tooltip.html")
-    expect_refusal(first, 1, "afkv2-runtime")
-    second = run(tmp_path, "check", "--mockup", "clean.html")
-    expect_ok(second)
 
 
 # --- start (VR-007) ------------------------------------------------------------------------------------------------
@@ -244,7 +254,11 @@ def repo(tmp_path):
 
 
 def relative(path, repo):
-    return Path(path).relative_to(repo).as_posix()
+    """The answered path from the repository root; the raw path when it is not under it, so expect shows it."""
+    try:
+        return Path(path).relative_to(repo).as_posix()
+    except ValueError:
+        return path
 
 
 def test_start_with_no_frontend_refuses_naming_the_add_frontend_command(repo):
@@ -284,6 +298,7 @@ def test_start_answers_the_paths_and_the_source_anchor(repo):
     ran = run(repo, "start", "--ticket", TICKET)
     expect(ran.code, 0, f"{ran.given} (answer {ran.answer!r})")
     paths = {key: relative(ran.answer[key], repo) for key in ("spec_dir", "prd", "index", "prototype_md", "mockup_dir")}
+    expect([key for key in paths if "\\" in ran.answer[key]], [], f"{ran.given} (answer {ran.answer!r})")
     expect(paths, {"spec_dir": "docs/PROJ-7", "prd": "docs/PROJ-7/PRD.md", "index": "docs/PROJ-7/INDEX.md",
                    "prototype_md": "docs/PROJ-7/PROTOTYPE.md", "mockup_dir": "docs/PROJ-7/prototype"}, ran.given)
     expect(ran.answer["frontend"], {"name": "web", "source": "frontend/web", "catalog": "design/web"}, ran.given)
@@ -336,10 +351,12 @@ def test_settle_refuses_bad_prototype_for_a_story_with_no_coverage_row_then_sets
          "so that I find an open order.\n3. As a buyer, I want to cancel an order, so that I stop a mistake.\n")
     edit(spec(repo) / "PROTOTYPE.md", "| 2 | nav Orders → status filter → Open | reachable |",
          "| 3 | nav Orders → order → Cancel | gap |")
+    before = (spec(repo) / "INDEX.md").read_bytes()
     ran = run(repo, "settle", "--ticket", TICKET, pinned=True)
     expect_refusal(ran, 1, "bad-prototype")
     expect_problem("no coverage row for story 2", ran)
     expect(prototype_row(repo), FIXTURE_ROW, ran.given)
+    expect((spec(repo) / "INDEX.md").read_bytes() == before, True, f"{ran.given}: INDEX.md bytes unchanged")
     edit(spec(repo) / "PROTOTYPE.md", "| 3 | nav Orders → order → Cancel | gap |",
          "| 2 | nav Orders → status filter → Open | reachable |\n| 3 | nav Orders → order → Cancel | gap |")
     ran = run(repo, "settle", "--ticket", TICKET, pinned=True)
@@ -427,6 +444,7 @@ def test_settle_with_no_index_refuses_missing_input_naming_to_prd(repo):
 
 def test_settle_refuses_secrets_with_the_file_and_line_and_keeps_the_index(repo):
     edit(spec(repo) / "prototype" / "orders.html", "<td>Made-up Buyer</td>", f"<td>{MADE_UP_KEY}</td>")
+    before = (spec(repo) / "INDEX.md").read_bytes()
     ran = run(repo, "settle", "--ticket", TICKET)
     expect_refusal(ran, 1, "secrets")
     expect(ran.answer["error"]["hits"], [{"file": "prototype/orders.html", "line": 14, "shape": "github-token"}],
@@ -434,6 +452,7 @@ def test_settle_refuses_secrets_with_the_file_and_line_and_keeps_the_index(repo)
     expect_in("prototype/orders.html:14", ran.answer["error"]["reason"], ran.given)
     expect(MADE_UP_KEY in json.dumps(ran.answer), False, f"{ran.given} (answer {ran.answer!r})")
     expect(prototype_row(repo), FIXTURE_ROW, ran.given)
+    expect((spec(repo) / "INDEX.md").read_bytes() == before, True, f"{ran.given}: INDEX.md bytes unchanged")
 
 
 @pytest.mark.parametrize("old, new, code_name", [
@@ -442,10 +461,12 @@ def test_settle_refuses_secrets_with_the_file_and_line_and_keeps_the_index(repo)
 ])
 def test_settle_runs_the_mockup_checks_on_every_mockup_and_keeps_the_index(repo, old, new, code_name):
     edit(spec(repo) / "prototype" / "orders.html", old, new)
+    before = (spec(repo) / "INDEX.md").read_bytes()
     ran = run(repo, "settle", "--ticket", TICKET)
     expect_refusal(ran, 1, code_name)
     expect(ran.answer["error"]["file"], "prototype/orders.html", ran.given)
     expect(prototype_row(repo), FIXTURE_ROW, ran.given)
+    expect((spec(repo) / "INDEX.md").read_bytes() == before, True, f"{ran.given}: INDEX.md bytes unchanged")
 
 
 def test_settle_checks_every_file_of_the_mockup_folder(repo):
@@ -469,8 +490,11 @@ def test_settle_refuses_a_mockup_outside_the_mockup_folder(repo):
 def test_settle_keeps_a_retired_row_of_a_story_the_prd_dropped(repo):
     edit(spec(repo) / "PROTOTYPE.md", "| 2 | nav Orders → status filter → Open | reachable |",
          "| 2 | nav Orders → status filter → Open | reachable |\n| 3 | nav Orders → order → Cancel | retired |")
-    ran = run(repo, "settle", "--ticket", TICKET)
+    ran = run(repo, "settle", "--ticket", TICKET, pinned=True)
     expect_ok(ran)
+    expect(prototype_row(repo), PINNED_ROW, ran.given)
+    expect_in("| 3 | nav Orders → order → Cancel | retired |",
+              (spec(repo) / "PROTOTYPE.md").read_text(encoding="utf-8"), ran.given)
 
 
 def test_settle_counts_only_top_level_stories(repo):
@@ -531,6 +555,7 @@ def test_settle_refuses_a_mockup_path_that_climbs_out_of_the_mockup_folder(repo)
     edit(spec(repo) / "PROTOTYPE.md", "| prototype/orders.html |", "| prototype/../other/orders.html |")
     ran = run(repo, "settle", "--ticket", TICKET)
     expect_refusal(ran, 1, "bad-prototype")
+    expect_problem("mockup prototype/../other/orders.html is not a file in prototype/", ran)
 
 
 def test_settle_with_no_prototype_md_refuses_bad_prototype(repo):
