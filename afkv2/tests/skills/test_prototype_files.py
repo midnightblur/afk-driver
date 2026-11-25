@@ -255,3 +255,20 @@ def test_the_format_file_names_each_section_settle_reads():
         assert f"| `{section}` |" in text
     for state in prototype_files.STATES:
         assert f"`{state}`" in text
+
+
+def test_settle_takes_live_verified_with_named_screenshots_and_refuses_it_without(repo):
+    set_config(repo, frontends=[WEB], live=LIVE)
+    edit(spec(repo) / "PROTOTYPE.md", "> Fidelity: source-only", "> Fidelity: live-verified · screenshots: shell.png, orders.png")
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 0, answer
+    assert prototype_row(repo) == f"| Prototype | PROTOTYPE.md | chosen {date.today().isoformat()} |"
+    edit(spec(repo) / "PROTOTYPE.md", " · screenshots: shell.png, orders.png", "")
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 1 and answer["error"]["code"] == "bad-prototype"
+    assert any("screenshot" in problem for problem in answer["error"]["problems"]), answer
+
+
+def test_settle_takes_source_only_with_no_live_block(repo):
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 0 and answer["ok"] is True

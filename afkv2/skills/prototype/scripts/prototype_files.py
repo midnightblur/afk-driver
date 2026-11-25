@@ -197,6 +197,8 @@ def _header_problems(markdown, frontends):
     fidelity = FIDELITY.search(markdown)
     if not fidelity:
         problems.append(f"no header line `> Fidelity: <mark>` with a mark of {', '.join(MARKS)}")
+    elif fidelity.group(1) == "live-verified" and not [n for n in (fidelity.group(2) or "").split(",") if n.strip()]:
+        problems.append("fidelity live-verified names no screenshot: add ` · screenshots: <file>, <file>`")
     if not re.search(r"^> Date: *\d{4}-\d{2}-\d{2}\s*$", markdown, re.M):
         problems.append("no header line `> Date: <YYYY-MM-DD>`")
     return problems
