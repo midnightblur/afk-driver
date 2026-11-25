@@ -6,6 +6,9 @@
 `mockup_show.py wait --mockup FILE --notes-file NOTES`: one host poll; writes each note to NOTES as
   `{uid, prompt, selector, tag, text}` and answers `count` and `ended`; a closed page or browser writes no
   note and answers `ended`. Refuses `no-session`, and `no-host` as show does.
+`mockup_show.py reply --mockup FILE --reply-file REPLY`: shows REPLY (Markdown) on the open mockup. Refuses
+  `no-session`.
+`mockup_show.py end --mockup FILE`: ends the session and clears the waiting record. Never refuses on the host.
 
 Each answer is one JSON object; exit 0 ok, 1 refused, 2 unreadable input.
 """
@@ -91,13 +94,45 @@ def cmd_wait(argv):
             "notes_file": str(notes_file)}
 
 
+def cmd_reply(argv):
+    """Show a reply on the open mockup; the host returns once it takes the reply."""
+    parser = Parser(add_help=False)
+    parser.add_argument("--mockup", required=True)
+    parser.add_argument("--reply-file", required=True)
+    args = parser.parse_args(argv)
+    page = _mockup(args.mockup)
+    if not Path(args.reply_file).is_file():
+        raise Refusal("unreadable", f"reply file {args.reply_file} does not exist", 2)
+    code, out = launcher.run(["reply", str(page), "--agent-reply-file", str(args.reply_file)])
+    if code in launcher.FALLBACK_EXITS:
+        raise _no_host(page, out)
+    if code != 0:
+        parsed = launcher.parse_host_output(out)
+        if parsed.get("code") == "NOT_FOUND":
+            raise Refusal("no-session", f"no lavish session shows {page}; run show first")
+        raise Refusal("host-error", f"lavish reply: exit {code}: {parsed.get('error') or out.strip()}")
+    return {"ok": True}
+
+
+def cmd_end(argv):
+    """End the session and forget the Codex waiting record. Never refuses on the host: `host` says what it answered."""
+    parser = Parser(add_help=False)
+    parser.add_argument("--mockup", required=True)
+    args = parser.parse_args(argv)
+    page = _mockup(args.mockup)
+    code, out = launcher.run(["end", str(page)])
+    _clear_waiting_record()
+    parsed = {} if code in launcher.FALLBACK_EXITS else launcher.parse_host_output(out)
+    return {"ok": True, "ended": code == 0, "host": str(parsed.get("error") or out.strip())}
+
+
 def _clear_waiting_record():
     thread = os.environ.get(THREAD_VARIABLE)
     if thread:
         launcher.clear_waiting_record(data_folder(), thread)
 
 
-VERBS = {"show": cmd_show, "wait": cmd_wait}
+VERBS = {"show": cmd_show, "wait": cmd_wait, "reply": cmd_reply, "end": cmd_end}
 
 
 def main(argv):

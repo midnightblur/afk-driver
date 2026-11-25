@@ -251,3 +251,36 @@ def test_wait_status_with_no_host_refuses_no_host_with_the_file_path(lavish, moc
     monkeypatch.setattr(launcher.shutil, "which", lambda name: None)
     code, answer = show_cli(capsys, "wait", "--mockup", mockup, "--notes-file", tmp_path / "notes.json")
     assert code == 1 and answer["error"]["code"] == "no-host" and mockup.resolve().as_uri() in answer["error"]["reason"]
+
+
+def test_reply_end_shows_the_reply_file_and_end_closes_the_session(lavish, mockup, tmp_path, capsys, data_home,
+                                                                    monkeypatch):
+    monkeypatch.setenv("CODEX_THREAD_ID", "thread-1")
+    reply = tmp_path / "reply.md"
+    reply.write_text("Moved Open first.\n", "utf-8")
+    assert show_cli(capsys, "show", "--mockup", mockup)[0] == 0
+    code, answer = show_cli(capsys, "reply", "--mockup", mockup, "--reply-file", reply)
+    assert code == 0 and answer["ok"] is True, answer
+    code, answer = show_cli(capsys, "end", "--mockup", mockup)
+    assert code == 0 and answer["ok"] is True, answer
+    assert calls(lavish)[1:] == [["reply", str(mockup), "--agent-reply-file", str(reply)], ["end", str(mockup)]]
+    assert launcher.read_waiting_record(data_home / "afkv2", "thread-1") is None
+
+
+def test_reply_end_reply_with_no_session_refuses_no_session(lavish, mockup, tmp_path, capsys):
+    reply = tmp_path / "reply.md"
+    reply.write_text("Moved Open first.\n", "utf-8")
+    shutil.copyfile(HOST_FIXTURES / "host-error-missing.txt", lavish / "reply.txt")
+    (lavish / "reply.code").write_text("1", "utf-8")
+    code, answer = show_cli(capsys, "reply", "--mockup", mockup, "--reply-file", reply)
+    assert code == 1 and answer["error"]["code"] == "no-session", answer
+
+
+def test_reply_end_end_never_refuses_on_the_host(lavish, mockup, capsys, monkeypatch):
+    shutil.copyfile(HOST_FIXTURES / "host-error-missing.txt", lavish / "end.txt")
+    (lavish / "end.code").write_text("1", "utf-8")
+    code, answer = show_cli(capsys, "end", "--mockup", mockup)
+    assert code == 0 and answer["ok"] is True and "No active" in answer["host"], answer
+    monkeypatch.setattr(launcher.shutil, "which", lambda name: None)
+    code, answer = show_cli(capsys, "end", "--mockup", mockup)
+    assert code == 0 and answer["ok"] is True and "not on PATH" in answer["host"], answer
