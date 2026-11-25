@@ -62,7 +62,7 @@ def expect_not_in(part, whole, input_):
 
 def expect_ok(ran):
     expect(ran.code, 0, ran.about("exit code"))
-    expect(ran.answer.get("ok"), True, ran.about("`ok`"))
+    expect_field(ran, "ok", True)
 
 
 def expect_refusal(ran, code):
@@ -72,6 +72,8 @@ def expect_refusal(ran, code):
 
 def expect_field(ran, field, expected):
     expect(ran.answer.get(field), expected, ran.about(f"field {field!r}"))
+    if isinstance(expected, bool):
+        expect(type(ran.answer.get(field)), bool, ran.about(f"type of field {field!r}"))
 
 
 def expect_error_field(ran, field, expected):
@@ -103,7 +105,14 @@ def run(cwd, *args):
 def read_config(cwd):
     done = subprocess.run([sys.executable, str(CONFIG_READER), "read"], cwd=cwd, capture_output=True, text=True,
                           encoding="utf-8", stdin=subprocess.DEVNULL)
-    return json.loads(done.stdout)
+    try:
+        answer = json.loads(done.stdout)
+    except json.JSONDecodeError:
+        answer = None
+    if done.returncode != 0 or not isinstance(answer, dict):
+        pytest.fail(f"\ninput: {given('afkv2_config.py read')}\nexpected: exit 0 and one JSON object on stdout\n"
+                    f"actual exit: {done.returncode}\nactual stdout: {done.stdout!r}\nactual stderr: {done.stderr!r}")
+    return answer
 
 
 def config_bytes(repo):
@@ -305,7 +314,7 @@ def test_check_refuses_bad_catalog_with_no_readme_no_tokens_or_no_card(repo, cat
     note("README.md removed")
     ran = run(repo, "check", "--frontend", "web")
     expect_refusal(ran, "bad-catalog")
-    expect_any_problem(ran, "no README.md in the catalog folder")
+    expect_in("no README.md in the catalog folder", ran.answer["error"].get("problems", []), ran.about("problems"))
 
 
 def test_check_refuses_a_cards_table_with_no_row(repo, catalog):
@@ -325,15 +334,19 @@ def test_check_refuses_a_cards_table_with_no_row(repo, catalog):
 MADE_UP_KEY = "gh" + "p_" + "Made0Up" * 5
 
 
+def put_made_up_key(path):
+    """Replace the placeholder MADE_UP_KEY in `path` by the key; the note leaves the value out of the messages."""
+    path.write_text(path.read_text(encoding="utf-8").replace("MADE_UP_KEY", MADE_UP_KEY), encoding="utf-8")
+    note(f"{path.name}: MADE_UP_KEY replaced by a made-up github-token-shaped value")
+
+
 def call_places(ran):
     return [(call.get("file"), call.get("line")) for call in ran.answer.get("error", {}).get("calls", [])]
 
 
 def test_check_refuses_secrets_with_the_file_and_line(repo, catalog):
     edit(catalog / "cards" / "list-page.html", "<td>Made-up Buyer</td>", "<td>MADE_UP_KEY</td>")
-    (catalog / "cards" / "list-page.html").write_text(
-        (catalog / "cards" / "list-page.html").read_text(encoding="utf-8").replace("MADE_UP_KEY", MADE_UP_KEY),
-        encoding="utf-8")
+    put_made_up_key(catalog / "cards" / "list-page.html")
     ran = run(repo, "check", "--frontend", "web")
     expect_refusal(ran, "secrets")
     expect_error_field(ran, "hits", [{"file": "cards/list-page.html", "line": 4, "shape": "github-token"}])
@@ -355,8 +368,7 @@ def test_check_scans_the_readme_for_secrets_but_lets_it_name_the_calls_of_the_ap
          "- App address: http://127.0.0.1:4999, which loads its rows with `fetch('/api/orders')`")
     expect_ok(run(repo, "check", "--frontend", "web"))
     edit(catalog / "README.md", "## Refresh", "## Refresh\n\nMADE_UP_KEY")
-    readme = catalog / "README.md"
-    readme.write_text(readme.read_text(encoding="utf-8").replace("MADE_UP_KEY", MADE_UP_KEY), encoding="utf-8")
+    put_made_up_key(catalog / "README.md")
     ran = run(repo, "check", "--frontend", "web")
     expect_refusal(ran, "secrets")
     hits = ran.answer.get("error", {}).get("hits") or [{}]
