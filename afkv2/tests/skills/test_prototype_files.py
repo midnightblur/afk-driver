@@ -6,6 +6,9 @@ host, live app or browser runs here.
 
 from __future__ import annotations
 
+import json
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -63,3 +66,33 @@ def test_the_network_check_gives_one_finding_per_line():
 
 def test_the_network_check_flags_a_protocol_relative_address():
     assert [f["line"] for f in prototype_files.find_network_calls('<img src="//cdn.example/a.png">')] == [1]
+
+
+# --- check (VR-008, VR-009) ----------------------------------------------------------------------------------------
+
+def run(cwd, *args):
+    done = subprocess.run([sys.executable, str(SCRIPT), *args], cwd=cwd, capture_output=True, text=True,
+                          encoding="utf-8", stdin=subprocess.DEVNULL)
+    return done.returncode, json.loads(done.stdout)
+
+
+def test_check_refuses_network_call_naming_each_line_with_a_call(tmp_path):
+    mockup = tmp_path / "orders.html"
+    shutil.copyfile(FIXTURES / "network.html", mockup)
+    code, answer = run(tmp_path, "check", "--mockup", str(mockup))
+    assert code == 1 and answer["error"]["code"] == "network-call"
+    assert [finding["line"] for finding in answer["error"]["lines"]] == [6, 12]
+    assert "6" in answer["error"]["reason"] and "12" in answer["error"]["reason"]
+
+
+def test_check_answers_ok_on_a_clean_mockup(tmp_path):
+    mockup = tmp_path / "orders.html"
+    shutil.copyfile(FIXTURES / "clean.html", mockup)
+    code, answer = run(tmp_path, "check", "--mockup", str(mockup))
+    assert code == 0 and answer["ok"] is True
+    assert answer["file"] == str(mockup) and answer["bytes"] == mockup.stat().st_size
+
+
+def test_check_refuses_unreadable_for_a_missing_file(tmp_path):
+    code, answer = run(tmp_path, "check", "--mockup", str(tmp_path / "none.html"))
+    assert code == 2 and answer["error"]["code"] == "unreadable"

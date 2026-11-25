@@ -22,7 +22,7 @@ SKILL = Path(__file__).resolve().parents[1]
 PLUGIN = SKILL.parents[1]
 sys.path.insert(0, str(SKILL.parent / "use-lavish" / "scripts"))
 
-from grill_common import Refusal, serve  # noqa: E402
+from grill_common import Parser, Refusal, serve  # noqa: E402
 
 # A scheme URL counts only where a browser loads it (decision D-3): an attribute that fetches or navigates, a CSS
 # url() or @import, and an ES import from an address. A scheme here is any `<letters>:` or `//`, except the inline
@@ -62,7 +62,35 @@ def find_network_calls(text):
     return [{"line": line, "found": found, "text": lines[line - 1].strip()} for line, found in sorted(kinds.items())]
 
 
-VERBS = {}
+def _read(path):
+    try:
+        return Path(path).read_bytes().decode("utf-8")
+    except (OSError, UnicodeDecodeError) as error:
+        raise Refusal("unreadable", f"{path}: {error}", 2) from error
+
+
+def _where(findings, name):
+    return ", ".join(f"{name}:{finding['line']}" for finding in findings)
+
+
+def check_text(text, name):
+    """Refuse `network-call` for the text of one written file; `name` names it in the reason."""
+    calls = find_network_calls(text)
+    if calls:
+        raise Refusal("network-call", f"a network call or a scheme URL at {_where(calls, name)}: a mockup makes no "
+                                      "network call; inline the asset or use a #id link", file=str(name), lines=calls)
+
+
+def cmd_check(argv):
+    parser = Parser(add_help=False)
+    parser.add_argument("--mockup", required=True)
+    args = parser.parse_args(argv)
+    text = _read(args.mockup)
+    check_text(text, args.mockup)
+    return {"ok": True, "file": args.mockup, "bytes": len(text.encode("utf-8"))}
+
+
+VERBS = {"check": cmd_check}
 
 
 def main(argv):
