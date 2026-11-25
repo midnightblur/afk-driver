@@ -123,7 +123,9 @@ def cmd_start(argv):
 def _card_problems(card, catalog_dir):
     name, problems = card["file"], []
     parts = PurePosixPath(name).parts
-    if not parts or PurePath(name).anchor or ".." in parts or name == README:
+    resolved = (catalog_dir / name).resolve()
+    if (not parts or "\\" in name or PurePath(name).anchor or ".." in parts or name == README
+            or catalog_dir not in resolved.parents):
         problems.append(f"card {name or '(empty)'}: not a file in the catalog folder")
     elif not (catalog_dir / name).is_file():
         problems.append(f"card {name}: no such file in the catalog folder")

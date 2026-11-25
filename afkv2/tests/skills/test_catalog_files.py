@@ -249,3 +249,18 @@ def test_check_refuses_a_file_too_large_to_scan(repo, catalog):
     code, answer = run(repo, "check", "--frontend", "web")
     assert code == 1 and answer["error"]["code"] == "bad-catalog"
     assert any("cards/big.html" in problem for problem in answer["error"]["problems"])
+
+
+def test_check_refuses_a_card_path_that_climbs_out_by_backslashes(repo, catalog):
+    (catalog.parent / "out.html").write_text("<p>outside</p>\n", encoding="utf-8")
+    edit(catalog / "README.md", "| cards/shell.html | shell |", "| cards\\..\\..\\out.html | shell |")
+    code, answer = run(repo, "check", "--frontend", "web")
+    assert code == 1 and answer["error"]["code"] == "bad-catalog", answer
+    assert any("not a file in the catalog folder" in problem for problem in answer["error"]["problems"])
+
+
+def test_check_refuses_network_call_in_a_card(repo, catalog):
+    edit(catalog / "cards" / "shell.html", "<main id=\"main\"", "<img src=\"https://cdn.example/a.png\">\n  <main id=\"main\"")
+    code, answer = run(repo, "check", "--frontend", "web")
+    assert code == 1 and answer["error"]["code"] == "network-call", answer
+    assert [(call["file"], call["line"]) for call in answer["error"]["calls"]] == [("cards/shell.html", 4)]
