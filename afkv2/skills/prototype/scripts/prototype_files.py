@@ -52,7 +52,7 @@ LOCAL_SCHEMES = ("data", "blob", "javascript", "mailto", "tel", "about")
 _ADDRESS = rf"(?:(?!(?:{'|'.join(LOCAL_SCHEMES)}):)[A-Za-z][A-Za-z0-9+.-]*:|//)"
 NETWORK = {
     "attribute": re.compile(rf"\b(?:src|href|action|formaction|poster|background)\s*=\s*[\"']?\s*{_ADDRESS}", re.I),
-    "srcset": re.compile(rf"\bsrcset\s*=\s*[\"'][^\"']*?(?<=[\"'\s,])\s*{_ADDRESS}", re.I),
+    "srcset": re.compile(rf"\bsrcset\s*=\s*(?:[\"'][^\"']*?(?<=[\"'\s,])\s*)?{_ADDRESS}", re.I),
     "object-data": re.compile(rf"<object\b[^>]*\bdata\s*=\s*[\"']?\s*{_ADDRESS}", re.I),
     "css-url": re.compile(rf"\burl\(\s*[\"']?\s*{_ADDRESS}", re.I),
     "css-import": re.compile(rf"@import\s+[\"']\s*{_ADDRESS}", re.I),
@@ -186,9 +186,11 @@ def _table(body):
 
 
 def prd_stories(markdown):
-    """The story numbers of the PRD `## User Stories` list, as text."""
+    """The story numbers of the PRD `## User Stories` list, as text: the number of a numbered item, else the
+    position of a top-level bullet item, from 1. Indented items are no stories."""
     body = dict(_sections(markdown)).get("User Stories", "")
-    return list(dict.fromkeys(match.group(1) for match in re.finditer(r"^(\d+)\.\s", body, re.M)))
+    items = re.findall(r"^(?:(\d+)\.|[-*+])\s", body, re.M)
+    return list(dict.fromkeys(number or str(position) for position, number in enumerate(items, 1)))
 
 
 def _header_problems(markdown, frontends):
@@ -243,7 +245,7 @@ def prototype_problems(markdown, stories, spec_dir, frontends):
         if state not in STATES:
             problems.append(f"story {story}: state `{state}` is not one of {', '.join(STATES)}")
     if not stories:
-        problems.append("the PRD numbers no story: its `## User Stories` list needs items `1.`, `2.`, ...")
+        problems.append("the PRD holds no story: its `## User Stories` section has no top-level list item")
     if "Coverage" in bodies:
         problems += [f"no coverage row for story {story}" for story in stories if story not in covered]
     return problems

@@ -51,7 +51,7 @@ At least 1 row. Each mockup file exists in `prototype/`.
 |-------|------|-------|
 | the story number of the PRD `## User Stories` list | the clicks from the entry screen | `reachable`, `gap` or `retired` |
 
-1 row per story of the PRD, which numbers its stories as top-level list items. No row for a story the PRD does not hold, except a `retired` row. A `gap` row logs a story the mockup cannot reach. A story that the PRD dropped keeps its row with the state `retired`; a story the PRD holds is never `retired`. Readers trace by the story number.
+1 row per story of the PRD: a top-level item of its `## User Stories` list, numbered by its own number, or a bullet item by its position from 1. No row for a story the PRD does not hold, except a `retired` row. A `gap` row logs a story the mockup cannot reach. A story that the PRD dropped keeps its row with the state `retired`; a story the PRD holds is never `retired`. Readers trace by the story number.
 
 ## Checks at settle
 

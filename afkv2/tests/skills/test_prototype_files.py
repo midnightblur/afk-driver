@@ -45,6 +45,7 @@ FLAGGED = [
     ("navigator.sendBeacon('/beacon', data);", "sendBeacon"),
     ('<video poster="https://cdn.example/p.png"></video>', "scheme URL in poster"),
     ('<object data="https://cdn.example/o.svg"></object>', "scheme URL in object data"),
+    ("<img srcset=https://cdn.example/a.png>", "scheme URL in an unquoted srcset"),
 ]
 PASSED = [
     '<a href="#orders">Orders</a>',
@@ -254,6 +255,7 @@ def test_settle_refuses_a_coverage_row_for_a_story_the_prd_does_not_hold(repo):
     ("| 1 | nav Orders → the order list | reachable |",
      "| 1 | nav Orders → the order list | reachable |\n| 1 | nav Orders | reachable |", "2 coverage rows"),
     ("> Date: 2026-11-25\n", "", "Date"),
+    ("> Date: 2026-11-25", "> Date: soon", "Date"),
     ("> Fidelity: source-only", "> Fidelity: guessed", "Fidelity"),
     ("| Orders | prototype/orders.html | the Orders link of the nav bar | 1, 2 |\n", "", "Screens table has no row"),
     ("## Screens", "## PRD gaps\n\nnone\n\n## Screens", "order"),
@@ -367,12 +369,22 @@ def test_settle_refuses_a_file_too_large_to_scan(repo):
 
 # --- round 2 of the review -----------------------------------------------------------------------------------------
 
-def test_settle_refuses_a_prd_that_numbers_no_story(repo):
+def test_settle_numbers_bullet_stories_by_their_position(repo):
     edit(spec(repo) / "PRD.md", "1. As a buyer, I want to see", "- As a buyer, I want to see")
-    edit(spec(repo) / "PRD.md", "2. As a buyer, I want to filter", "- As a buyer, I want to filter")
+    edit(spec(repo) / "PRD.md", "2. As a buyer, I want to filter", "* As a buyer, I want to filter")
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 0, answer
+    edit(spec(repo) / "PROTOTYPE.md", "| 2 | nav Orders → status filter → Open | reachable |\n", "")
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 1 and "no coverage row for story 2" in answer["error"]["problems"]
+
+
+def test_settle_refuses_a_prd_with_no_story(repo):
+    edit(spec(repo) / "PRD.md", "1. As a buyer, I want to see", "As a buyer, I want to see")
+    edit(spec(repo) / "PRD.md", "2. As a buyer, I want to filter", "As a buyer, I want to filter")
     code, answer = run(repo, "settle", "--ticket", TICKET)
     assert code == 1 and answer["error"]["code"] == "bad-prototype"
-    assert any("numbers no story" in problem for problem in answer["error"]["problems"]), answer
+    assert any("no story" in problem for problem in answer["error"]["problems"]), answer
 
 
 def test_settle_refuses_retired_for_a_story_the_prd_holds(repo):
