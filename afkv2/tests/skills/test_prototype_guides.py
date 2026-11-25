@@ -53,16 +53,19 @@ def test_chat_only_ends_lavish_for_the_run():
     assert "run `end`" in chat_only
     assert "every later note of this run in chat" in chat_only
     assert "never shows the mockup in lavish again" in chat_only
-    assert "chat only" in loop.split("### Chat only")[0], "the loop picks lavish only when the developer did not ask for chat only"
+    assert "Show the mockup in lavish only when the developer did not ask for chat only." in loop
+    assert "chat only" not in _section(SKILL_MD, "### In lavish")
 
 
 # --- VR-016 (PRD AC-007, AC-013): clickable from the entry screen, and each note gets an edit or a reply
 
 def test_each_note_gets_an_edit_or_a_reply_and_a_new_show():
     loop = _section(SKILL_MD, "## Notes loop")
-    assert "an edit of the mockup or a reply" in loop
-    assert "run `show` again" in loop
-    assert "selector" in loop and "tag" in loop and "text" in loop
+    assert "Give each note an edit of the mockup or a reply, never neither." in loop
+    assert "names its element by the `selector`, the `tag` and the `text`" in loop
+    lavish = _section(SKILL_MD, "### In lavish")
+    assert "Show the edited mockup: run `show` again." in lavish
+    assert "first give each note of the notes file an edit of the mockup or a reply" in lavish
     chat = _section(SKILL_MD, "### In chat")
     assert "`file://` path" in chat and "an edit of the mockup or a reply" in chat
 
@@ -89,10 +92,24 @@ def test_every_verb_the_guides_name_exists():
 def test_only_made_up_rows_at_most_50_per_screen():
     data = _section(MOCKUP_MD, "## Made-up data")
     assert "every row is made up" in data
-    assert "at most 50 rows per screen" in data
+    assert "Use at most 50 rows per screen." in data
     assert "1 JSON script" in data
     assert "never a record copied from the live app or its database" in data
     regions = _section(MOCKUP_MD, "## Regions")
     assert "an `id` on every region the developer may note" in regions
     draft = _section(SKILL_MD, "## Steps")
     assert "made-up data" in draft and "never copy a record" in draft
+
+
+# --- the live app: the run starts it only on a free address, and stops only what it started (SDD §7; D-7)
+
+def test_live_app_starts_on_a_free_address_and_stops_only_what_the_run_started():
+    steps = _section(SKILL_MD, "## Steps")
+    assert "already answers before the start: start no app" in steps
+    assert "Stop only an app that step 2 of this run started" in steps
+
+
+def test_the_screen_check_comes_before_a_frontend_refusal():
+    start = _section(SKILL_MD, "## Steps").split("2. **Anchor.**")[0]
+    assert "by \"No screen, no mockup\"" in start
+    assert start.index("No screen, no mockup") < start.index("`no-frontend`")
