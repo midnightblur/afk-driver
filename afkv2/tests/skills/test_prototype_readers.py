@@ -52,3 +52,50 @@ def test_verification_start_answers_the_prototype_path_with_and_without_the_file
     code, present = _verification_start(repo)
     assert code == 0 and present["ok"] is True and present["prototype_exists"] is True
     assert present["prototype"] == without["prototype"]
+
+
+# --- VR-025, VR-026 (PRD AC-027, AC-028): each SKILL.md reads PROTOTYPE.md in its read step and its proposer brief
+
+def _flat(text):
+    return " ".join(text.split())
+
+
+def _guide(skill):
+    return (Path(VERIFICATION_FILES).parents[2] / skill / "SKILL.md").read_text("utf-8")
+
+
+def _step(text, number):
+    """The text of numbered step `number`, up to the next numbered step, on 1 line."""
+    start = text.index(f"\n{number}. **")
+    end = text.find(f"\n{number + 1}. **", start)
+    return _flat(text[start:end if end > 0 else None])
+
+
+def _row(text, label):
+    return _flat(next(line for line in text.splitlines() if line.lstrip().startswith(f"| {label}")))
+
+
+def _optional_input(text):
+    row = _row(text, "`PROTOTYPE.md`")
+    assert "/afkv2:prototype" in row and "stop" not in row, row
+    start = _step(text, 1)
+    assert "`prototype`" in start and "`prototype_exists`" in start
+    assert "`prototype`" in _row(text, "R-1 Same inputs")
+
+
+def test_propose_solution_guide_reads_the_prototype_and_cites_each_ui_decision():
+    text = _guide("propose-solution")
+    _optional_input(text)
+    read = _step(text, 2)
+    assert "`prototype_exists` true: read `prototype`" in read
+    assert "each UI decision of it that changes the design in the existing SDD section it changes" in read
+    assert "no new section" in read
+
+
+def test_propose_verification_guide_reads_the_prototype_and_derives_rows_from_its_coverage():
+    text = _guide("propose-verification")
+    _optional_input(text)
+    read = _step(text, 2)
+    assert "`prototype_exists` true: read `prototype`" in read
+    assert "`ui-e2e` and `acceptance` rows from each `reachable` row of its Coverage table" in read
+    assert "`story` and `criteria`" in read and "no new column" in read
