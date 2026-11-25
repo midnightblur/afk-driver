@@ -171,6 +171,7 @@ def test_start_with_no_prd_refuses_missing_input_naming_to_prd(repo):
 
 
 def test_start_answers_the_paths_and_the_source_anchor(repo):
+    (repo / "docs" / TICKET / "PROTOTYPE.md").unlink()
     code, answer = run(repo, "start", "--ticket", TICKET)
     assert code == 0, answer
     spec = (repo / "docs" / TICKET).as_posix()
@@ -187,7 +188,6 @@ def test_start_picks_the_named_frontend_and_answers_the_catalog_and_live_anchors
     assert answer["live"]["address"] == LIVE["address"]
     (repo / "design" / "admin").mkdir(parents=True)
     (repo / "design" / "admin" / "README.md").write_text("# Catalog\n", encoding="utf-8")
-    (repo / "docs" / TICKET / "PROTOTYPE.md").write_text("# Prototype\n", encoding="utf-8")
     code, answer = run(repo, "start", "--ticket", TICKET, "--frontend", "admin")
     assert answer["catalog_exists"] is True and answer["anchor"] == "catalog" and answer["resume"] is True
 
