@@ -69,7 +69,7 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
 
    With a `live` block in the answer, also on the `catalog` anchor, start the app: run the `start` command of the block as a background command the harness tracks, and wait until its `address` answers, at most `ready_seconds`. Take the screenshots with the browser driver into `<afkv2 data folder>/shots/<run>/`. The app does not answer, or the browser driver fails: use the next anchor (`catalog`, else `source`), and record the cause for the Fidelity section. Also map each screen's neighbours: the screens a story enters from, and the screens the new screen links to.
 
-4. **Draft.** Write 1 mockup per screen into `mockup_dir`, by [MOCKUP.md](MOCKUP.md). The direction is unclear: give 2 to 3 variants in the file. Run `check` on each mockup, and fix each line it names. Done when `check` answers ok for every mockup.
+4. **Draft.** Write 1 mockup per screen into `mockup_dir`, by [MOCKUP.md](MOCKUP.md), with made-up data only: copy the look of the app, and never copy a record from a screenshot, the live page or its database. The direction is unclear: give 2 to 3 variants in the file. Run `check` on each mockup, and fix each line it names. Done when `check` answers ok for every mockup.
 
 5. **Take the notes.** By "Notes loop".
 
@@ -85,3 +85,32 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
 8. **Stop the app.** At the end of each run, also after a stop or a refusal: run the `stop` command of the `live` block, else stop the background command of step 3. Delete the screenshots and the notes file.
 
 9. **Report.** End with 1 line: `prototype: <state> — <1-line summary>`, with the state `settled`, `no_ui` or `prd_gap`.
+
+## Notes loop
+
+Show the mockup in lavish when the developer did not ask for chat only. Else, or when `show` refuses, take the notes in chat. With several screens, show the entry screen; the developer clicks through to the others.
+
+Each note names its element by the `selector`, the `tag` and the `text` that lavish pins on it; a note in chat names it in words. Give each note an edit of the mockup or a reply, never neither. Run `check` after each edit. Repeat the loop until the developer settles a direction or stops.
+
+### In lavish
+
+1. Run `show`. `no-host`: lavish is missing, at another version or on an unsafe host. Its reason holds the `file://` path: go on by "In chat".
+2. Wait for the notes. On Claude, run `wait` with `--notes-file "<afkv2 data folder>/notes/<run>.json"` as a background command the harness tracks; its exit tells you the notes are in the notes file. On Codex, `show` wrote the waiting record: end your turn, and the Stop hook hands back 1 line per note with its tag, selector and text.
+3. Read each note, and give it an edit of the mockup or a reply.
+4. Show the edited mockup: run `show` again. Then write 1 Markdown line per note to a reply file, the edit made or the answer, and run `reply`.
+5. Go to step 2.
+
+| Answer of `wait` | Next action |
+|------------------|-------------|
+| `count` 0 and `ended` false | run `wait` again |
+| `ended` true | the developer closed the page or the browser: ask in chat whether to run `show` again or to go on in chat |
+| `no-session` | run `show`, then `wait` |
+| `no-host` or `host-error` | go on by "In chat", with the `file://` path of the mockup |
+
+### In chat
+
+Give the developer the `file://` path of the mockup: they open it in a browser and give their notes in chat. Give each note an edit of the mockup or a reply, and tell the developer to reload the page after each edit.
+
+### Chat only
+
+The developer says "chat only", at any time: run `end`, and take every later note of this run in chat, by "In chat". The run never shows the mockup in lavish again. At the end of a lavish loop, also on a settle or a stop, run `end`.
