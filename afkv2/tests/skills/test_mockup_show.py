@@ -228,3 +228,26 @@ def test_a_refused_show_on_codex_writes_no_waiting_record(lavish, mockup, data_h
     monkeypatch.setattr(launcher.shutil, "which", lambda name: None)
     assert show_cli(capsys, "show", "--mockup", mockup)[0] == 1
     assert launcher.read_waiting_record(data_home / "afkv2", "thread-1") is None
+
+
+@pytest.mark.parametrize("fixture", ["host-poll-ended.txt", "host-poll-disconnected.txt"])
+def test_wait_status_after_the_browser_closed_answers_ended_with_no_notes(lavish, mockup, tmp_path, capsys, fixture):
+    shutil.copyfile(HOST_FIXTURES / fixture, lavish / "poll.txt")
+    notes = tmp_path / "notes.json"
+    code, answer = show_cli(capsys, "wait", "--mockup", mockup, "--notes-file", notes)
+    assert code == 0 and answer["ended"] is True and answer["count"] == 0, answer
+    assert json.loads(notes.read_text("utf-8")) == []
+
+
+def test_wait_status_with_no_session_refuses_no_session(lavish, mockup, tmp_path, capsys):
+    shutil.copyfile(HOST_FIXTURES / "host-error-missing.txt", lavish / "poll.txt")
+    (lavish / "poll.code").write_text("1", "utf-8")
+    code, answer = show_cli(capsys, "wait", "--mockup", mockup, "--notes-file", tmp_path / "notes.json")
+    assert code == 1 and answer["error"]["code"] == "no-session", answer
+    assert not (tmp_path / "notes.json").exists()
+
+
+def test_wait_status_with_no_host_refuses_no_host_with_the_file_path(lavish, mockup, tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(launcher.shutil, "which", lambda name: None)
+    code, answer = show_cli(capsys, "wait", "--mockup", mockup, "--notes-file", tmp_path / "notes.json")
+    assert code == 1 and answer["error"]["code"] == "no-host" and mockup.resolve().as_uri() in answer["error"]["reason"]

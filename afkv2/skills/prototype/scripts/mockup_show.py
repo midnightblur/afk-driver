@@ -1,9 +1,11 @@
 """A mockup in lavish, through the launcher: a page with no page document (SDD §3; ADR-0003 of ticket 207).
 
 `mockup_show.py show --mockup FILE`: opens the file itself with `--plain` and answers `url`; on Codex
-  (`CODEX_THREAD_ID` set) it writes the waiting record with a null document.
+  (`CODEX_THREAD_ID` set) it writes the waiting record with a null document. Refuses `no-host` when the launcher runs no
+  host (lavish missing, at another version, or `LAVISH_AXI_HOST` set); its reason holds the `file://` path.
 `mockup_show.py wait --mockup FILE --notes-file NOTES`: one host poll; writes each note to NOTES as
-  `{uid, prompt, selector, tag, text}` and answers `count` and `ended`. Refuses `no-session`.
+  `{uid, prompt, selector, tag, text}` and answers `count` and `ended`; a closed page or browser writes no
+  note and answers `ended`. Refuses `no-session`, and `no-host` as show does.
 
 Each answer is one JSON object; exit 0 ok, 1 refused, 2 unreadable input.
 """
@@ -27,6 +29,7 @@ from grill_common import Parser, Refusal, serve  # noqa: E402
 from shell import inject  # noqa: E402
 
 THREAD_VARIABLE = "CODEX_THREAD_ID"
+ENDED = ("ended", "browser_disconnected")  # the developer closed the page or the browser
 NOTE_FIELDS = ("uid", "prompt", "selector", "tag", "text")  # lavish poll at 0.1.86 (SDD §9b)
 
 
@@ -37,6 +40,13 @@ def _mockup(path):
     return page
 
 
+def _no_host(page, cause):
+    """The refusal when the launcher runs no host: the developer opens the file itself and notes in chat."""
+    uri = page.resolve().as_uri()
+    return Refusal("no-host", f"lavish cannot show the mockup: {cause.strip()}. Give the developer {uri} and take "
+                              "the notes in chat; /afkv2:setup fixes the install", file=uri)
+
+
 def cmd_show(argv):
     """Open the mockup as it is: `--plain` writes no afkv2 runtime into the file."""
     parser = Parser(add_help=False)
@@ -45,9 +55,7 @@ def cmd_show(argv):
     page = _mockup(args.mockup)
     code, out = launcher.run(["open", str(page), launcher.PLAIN_FLAG])
     if code in launcher.FALLBACK_EXITS:
-        raise Refusal("no-host", f"lavish cannot show the mockup: {out.strip()}. Give the developer "
-                                 f"{page.resolve().as_uri()} and take the notes in chat; /afkv2:setup fixes the install",
-                      file=page.resolve().as_uri())
+        raise _no_host(page, out)
     if code != 0:
         raise Refusal("host-error", f"lavish open: exit {code}: {out.strip()}")
     session = launcher.parse_host_output(out).get("session") or {}
@@ -66,14 +74,20 @@ def cmd_wait(argv):
     args = parser.parse_args(argv)
     page = _mockup(args.mockup)
     status, detail = launcher.poll_status(["poll", str(page)])
-    if status != "feedback":
+    if status == "fallback":
+        raise _no_host(page, detail["reason"])
+    if status == "no-session":
+        raise Refusal("no-session", f"no lavish session shows {page}; run show first")
+    if status not in ("feedback", *ENDED):
         raise Refusal("host-error", f"lavish poll: {status}: {detail.get('reason')}")
-    notes = [{field: prompt.get(field) for field in NOTE_FIELDS} for prompt in detail["prompts"]]
+    prompts = detail["prompts"] if status == "feedback" else []
+    notes = [{field: prompt.get(field) for field in NOTE_FIELDS} for prompt in prompts]
     notes_file = Path(args.notes_file)
     notes_file.parent.mkdir(parents=True, exist_ok=True)
     inject.write_if_changed(notes_file, json.dumps(notes, indent=2, ensure_ascii=False).encode("utf-8"))
     _clear_waiting_record()
-    return {"ok": True, "status": status, "count": len(notes), "ended": detail["session_ended"],
+    return {"ok": True, "status": status, "count": len(notes),
+            "ended": status in ENDED or detail["session_ended"],
             "notes_file": str(notes_file)}
 
 
