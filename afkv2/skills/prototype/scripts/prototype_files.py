@@ -17,7 +17,7 @@ import bisect
 import re
 import sys
 from datetime import date
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 SKILL = Path(__file__).resolve().parents[1]
 PLUGIN = SKILL.parents[1]
@@ -188,7 +188,7 @@ def _table(body):
 def prd_stories(markdown):
     """The story numbers of the PRD `## User Stories` list, as text."""
     body = dict(_sections(markdown)).get("User Stories", "")
-    return [match.group(1) for match in re.finditer(r"^\s*(\d+)\.\s", body, re.M)]
+    return list(dict.fromkeys(match.group(1) for match in re.finditer(r"^(\d+)\.\s", body, re.M)))
 
 
 def _header_problems(markdown, frontends):
@@ -225,7 +225,10 @@ def prototype_problems(markdown, stories, spec_dir, frontends):
         problems.append("the Screens table has no row")
     for screen in screens:
         mockup = screen.get("Mockup", "").strip("` ")
-        if not mockup or not (spec_dir / mockup).is_file():
+        parts = PurePosixPath(mockup).parts
+        if len(parts) < 2 or parts[0] != MOCKUP_DIR or ".." in parts:
+            problems.append(f"screen {screen.get('Screen')!r}: mockup {mockup or '(empty)'} is not a file in {MOCKUP_DIR}/")
+        elif not (spec_dir / mockup).is_file():
             problems.append(f"screen {screen.get('Screen')!r}: no mockup file {mockup or '(empty)'} in {spec_dir.as_posix()}")
     covered = []
     for row in _table(bodies.get("Coverage", "")):
@@ -233,7 +236,7 @@ def prototype_problems(markdown, stories, spec_dir, frontends):
         if story in covered:
             problems.append(f"story {story} has 2 coverage rows")
         covered.append(story)
-        if story not in stories:
+        if story not in stories and state != "retired":
             problems.append(f"a coverage row for story {story}, which the PRD does not hold")
         if state not in STATES:
             problems.append(f"story {story}: state `{state}` is not one of {', '.join(STATES)}")
@@ -263,12 +266,13 @@ def cmd_settle(argv):
     stories = prd_stories(_read(spec_dir / "PRD.md").replace("\r\n", "\n"))
     frontends = [entry["name"] for entry in config["frontends"]]
     problems = prototype_problems(_read(prototype_md).replace("\r\n", "\n"), stories, spec_dir, frontends)
+    files = _written_files(spec_dir)
+    problems += [f"{name} is over {notices.MAX_SCAN_BYTES} bytes, past what the secret scan reads"
+                 for path, name in files if path.stat().st_size > notices.MAX_SCAN_BYTES]
     if problems:
         raise Refusal("bad-prototype", "; ".join(problems), problems=problems)
-    files = _written_files(spec_dir)
     for path, name in files:
-        if path.suffix.lower() in (".html", ".htm"):
-            check_text(_read(path), name)
+        check_text(path.read_bytes().decode("utf-8", "replace"), name)
     hits = notices.scan_files(files)
     if hits:
         where = ", ".join(f"{hit['file']}:{hit['line']} ({hit['shape']})" for hit in hits)

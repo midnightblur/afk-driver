@@ -43,7 +43,7 @@ The sections come in this order, each a `##` heading with the name in the first 
 |--------|--------|-------------|---------|
 | the screen name | the mockup file from the spec folder, such as `prototype/orders.html` | where the user enters the screen | the story numbers, such as `1, 2` |
 
-At least 1 row. Each mockup file exists.
+At least 1 row. Each mockup file exists in `prototype/`.
 
 ## Coverage table
 
@@ -51,8 +51,8 @@ At least 1 row. Each mockup file exists.
 |-------|------|-------|
 | the story number of the PRD `## User Stories` list | the clicks from the entry screen | `reachable`, `gap` or `retired` |
 
-1 row per PRD story, and no row for a story the PRD does not hold. A `gap` row logs a story the mockup cannot reach. A retired story keeps its row with the state `retired`. Readers trace by the story number.
+1 row per story of the PRD, which numbers its stories as top-level list items. No row for a story the PRD does not hold, except a `retired` row. A `gap` row logs a story the mockup cannot reach. A retired story keeps its row with the state `retired`. Readers trace by the story number.
 
 ## Checks at settle
 
-Settle checks every mockup in `prototype/` for `network-call` and `afkv2-runtime`, and scans `PROTOTYPE.md` and every file in `prototype/` for secrets (`secrets`, with file, line and shape). Only after every check passes does settle set the `INDEX.md` Prototype row to `chosen <YYYY-MM-DD>`.
+Settle checks every file in `prototype/` for `network-call` and `afkv2-runtime`, and scans `PROTOTYPE.md` and every file in `prototype/` for secrets (`secrets`, with file, line and shape). A file over 2 MiB (2 097 152 bytes), past what the scan reads, refuses `bad-prototype`. Only after every check passes does settle set the `INDEX.md` Prototype row to `chosen <YYYY-MM-DD>`.

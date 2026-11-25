@@ -327,3 +327,39 @@ def test_settle_runs_the_mockup_checks_on_every_mockup_and_keeps_the_index(repo,
     code, answer = run(repo, "settle", "--ticket", TICKET)
     assert code == 1 and answer["error"]["code"] == code_name and answer["error"]["file"] == "prototype/orders.html"
     assert (spec(repo) / "INDEX.md").read_bytes() == before
+
+
+def test_settle_checks_every_file_of_the_mockup_folder(repo):
+    (spec(repo) / "prototype" / "app.js").write_text("fetch('/api/orders');\n", encoding="utf-8")
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 1 and answer["error"]["code"] == "network-call" and answer["error"]["file"] == "prototype/app.js"
+
+
+def test_settle_refuses_a_mockup_outside_the_mockup_folder(repo):
+    (spec(repo) / "other").mkdir()
+    shutil.copyfile(FIXTURES / "clean.html", spec(repo) / "other" / "orders.html")
+    edit(spec(repo) / "PROTOTYPE.md", "| prototype/orders.html |", "| other/orders.html |")
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 1 and answer["error"]["code"] == "bad-prototype"
+    assert any("prototype/" in problem for problem in answer["error"]["problems"]), answer
+
+
+def test_settle_keeps_a_retired_row_of_a_story_the_prd_dropped(repo):
+    edit(spec(repo) / "PROTOTYPE.md", "| 2 | nav Orders → status filter → Open | reachable |",
+         "| 2 | nav Orders → status filter → Open | reachable |\n| 3 | nav Orders → order → Cancel | retired |")
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 0, answer
+
+
+def test_settle_counts_only_top_level_stories(repo):
+    edit(spec(repo) / "PRD.md", "so that I know what I bought.\n",
+         "so that I know what I bought.\n   1. a note under story 1\n   7. another note\n")
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 0, answer
+
+
+def test_settle_refuses_a_file_too_large_to_scan(repo):
+    (spec(repo) / "prototype" / "big.svg").write_text("<svg>" + "x" * (2 * 1024 * 1024) + "</svg>\n", encoding="utf-8")
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 1 and answer["error"]["code"] == "bad-prototype"
+    assert any("prototype/big.svg" in problem for problem in answer["error"]["problems"]), answer
