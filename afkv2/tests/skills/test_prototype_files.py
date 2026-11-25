@@ -162,7 +162,8 @@ def test_the_network_check_flags_a_protocol_relative_address():
 
 def test_check_refuses_network_call_naming_each_line_with_a_call(tmp_path):
     shutil.copyfile(FIXTURES / "network.html", tmp_path / "orders.html")
-    note("orders.html is fixtures/prototype/network.html: a CDN script on line 6, a #orders link on line 9, a fetch on line 12")
+    note("orders.html is fixtures/prototype/network.html: a CDN script on line 6, a #orders link on line 9, "
+         "a fetch on line 12")
     ran = run(tmp_path, "check", "--mockup", "orders.html")
     expect_refusal(ran, 1, "network-call")
     expect([finding["line"] for finding in ran.answer["error"]["lines"]], [6, 12], ran.given)
@@ -189,8 +190,7 @@ def test_check_echoes_an_absolute_mockup_path(tmp_path):
     note("orders.html is clean.html, given as an absolute path")
     ran = run(tmp_path, "check", "--mockup", str(tmp_path / "orders.html"))
     expect_ok(ran)
-    expect(Path(ran.answer["file"]).is_absolute(), True, f"{ran.given} (answer {ran.answer!r})")
-    expect(Path(ran.answer["file"]).name, "orders.html", ran.given)
+    expect(ran.answer["file"], str(tmp_path / "orders.html"), ran.given)
 
 
 def test_check_refuses_unreadable_for_a_missing_file(tmp_path):
@@ -356,7 +356,8 @@ def test_settle_refuses_bad_prototype_for_a_story_with_no_coverage_row_then_sets
     expect_refusal(ran, 1, "bad-prototype")
     expect_problem("no coverage row for story 2", ran)
     expect(prototype_row(repo), FIXTURE_ROW, ran.given)
-    expect((spec(repo) / "INDEX.md").read_bytes() == before, True, f"{ran.given}: INDEX.md bytes unchanged")
+    after = (spec(repo) / "INDEX.md").read_bytes()
+    expect(after.decode("utf-8"), before.decode("utf-8"), f"{ran.given}: INDEX.md unchanged")
     edit(spec(repo) / "PROTOTYPE.md", "| 3 | nav Orders → order → Cancel | gap |",
          "| 2 | nav Orders → status filter → Open | reachable |\n| 3 | nav Orders → order → Cancel | gap |")
     ran = run(repo, "settle", "--ticket", TICKET, pinned=True)
@@ -452,7 +453,8 @@ def test_settle_refuses_secrets_with_the_file_and_line_and_keeps_the_index(repo)
     expect_in("prototype/orders.html:14", ran.answer["error"]["reason"], ran.given)
     expect(MADE_UP_KEY in json.dumps(ran.answer), False, f"{ran.given} (answer {ran.answer!r})")
     expect(prototype_row(repo), FIXTURE_ROW, ran.given)
-    expect((spec(repo) / "INDEX.md").read_bytes() == before, True, f"{ran.given}: INDEX.md bytes unchanged")
+    after = (spec(repo) / "INDEX.md").read_bytes()
+    expect(after.decode("utf-8"), before.decode("utf-8"), f"{ran.given}: INDEX.md unchanged")
 
 
 @pytest.mark.parametrize("old, new, code_name", [
@@ -466,7 +468,8 @@ def test_settle_runs_the_mockup_checks_on_every_mockup_and_keeps_the_index(repo,
     expect_refusal(ran, 1, code_name)
     expect(ran.answer["error"]["file"], "prototype/orders.html", ran.given)
     expect(prototype_row(repo), FIXTURE_ROW, ran.given)
-    expect((spec(repo) / "INDEX.md").read_bytes() == before, True, f"{ran.given}: INDEX.md bytes unchanged")
+    after = (spec(repo) / "INDEX.md").read_bytes()
+    expect(after.decode("utf-8"), before.decode("utf-8"), f"{ran.given}: INDEX.md unchanged")
 
 
 def test_settle_checks_every_file_of_the_mockup_folder(repo):
