@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -93,3 +94,68 @@ def test_wait_on_recorded_poll_output_writes_each_note_with_uid_prompt_selector_
         {"uid": "2", "prompt": "- second\nline", "selector": None, "tag": "choice", "text": "y"},
     ]
     assert calls(lavish) == [["poll", str(mockup)]]
+
+
+# --- the start, show and wait chain on a scratch frontend (VR-001) -------------------------------------------------
+
+PROTOTYPE_FIXTURES = Path(__file__).resolve().parent / "fixtures" / "prototype"
+TICKET = "PROJ-7"
+WEB = {"name": "web", "source": "frontend/web", "catalog": "design/web"}
+LIVE = {"start": "python -m http.server 4999", "address": "http://127.0.0.1:4999"}
+
+
+def git(repo, *args):
+    done = subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+    assert done.returncode == 0, done.stderr
+    return done.stdout.strip()
+
+
+def prototype_files(repo, *args):
+    done = subprocess.run([sys.executable, str(SCRIPTS / "prototype_files.py"), *args], cwd=repo, capture_output=True,
+                          text=True, encoding="utf-8", stdin=subprocess.DEVNULL)
+    return done.returncode, json.loads(done.stdout)
+
+
+@pytest.fixture
+def frontend_repo(tmp_path):
+    """A scratch git repository: 1 frontend in the config, its source folder, and a spec folder with 2 screen stories."""
+    def make(**config):
+        root = tmp_path / "repo"
+        (root / ".afkv2").mkdir(parents=True)
+        git(root, "init", "-q", "-b", "main")
+        (root / ".afkv2" / "config.json").write_text(json.dumps({"spec_folder": "docs", "frontends": [WEB], **config}),
+                                                     "utf-8")
+        (root / "frontend" / "web").mkdir(parents=True)
+        shutil.copytree(PROTOTYPE_FIXTURES / "spec", root / "docs" / TICKET)
+        return root
+    return make
+
+
+def test_start_show_and_wait_show_the_mockup_itself_and_bring_back_the_note_with_its_element(frontend_repo, lavish,
+                                                                                               capsys):
+    repo = frontend_repo(live=LIVE)
+    catalog = repo / "design" / "web"
+    catalog.mkdir(parents=True)
+    (catalog / "README.md").write_text("# Catalog\n", "utf-8")
+    (catalog / "tokens.css").write_text(":root { --accent: #36c; }\n", "utf-8")
+    code, start = prototype_files(repo, "start", "--ticket", TICKET)
+    assert code == 0, start
+    assert start["frontend"] == WEB and start["live"]["address"] == LIVE["address"] and start["anchor"] == "catalog"
+    mockup = Path(start["mockup_dir"]) / "orders.html"
+    shutil.copyfile(FIXTURES / "orders.html", mockup)
+    before = mockup.read_bytes()
+
+    code, shown = show_cli(capsys, "show", "--mockup", mockup)
+    assert code == 0, shown
+    assert shown["url"].startswith("http://127.0.0.1:") and shown["page"] == str(mockup)
+    assert mockup.read_bytes() == before
+    assert calls(lavish) == [[str(mockup)]]
+
+    shutil.copyfile(FIXTURES / "poll-one-note.txt", lavish / "poll.txt")
+    notes = repo.parent / "local" / "afkv2" / "notes" / "run-1.json"
+    code, waited = show_cli(capsys, "wait", "--mockup", mockup, "--notes-file", notes)
+    assert code == 0 and waited["count"] == 1 and waited["ended"] is False, waited
+    assert json.loads(notes.read_text("utf-8")) == [{"uid": "1", "prompt": "Put Open first in the filter bar",
+                                                     "selector": "#filters > button:nth-of-type(2)", "tag": "button",
+                                                     "text": "Open"}]
+    assert mockup.read_bytes() == before

@@ -1,5 +1,6 @@
 """A mockup in lavish, through the launcher: a page with no page document (SDD §3; ADR-0003 of ticket 207).
 
+`mockup_show.py show --mockup FILE`: opens the file itself with `--plain` and answers `url`.
 `mockup_show.py wait --mockup FILE --notes-file NOTES`: one host poll; writes each note to NOTES as
   `{uid, prompt, selector, tag, text}` and answers `count` and `ended`. Refuses `no-session`.
 
@@ -32,6 +33,19 @@ def _mockup(path):
     return page
 
 
+def cmd_show(argv):
+    """Open the mockup as it is: `--plain` writes no afkv2 runtime into the file."""
+    parser = Parser(add_help=False)
+    parser.add_argument("--mockup", required=True)
+    args = parser.parse_args(argv)
+    page = _mockup(args.mockup)
+    code, out = launcher.run(["open", str(page), launcher.PLAIN_FLAG])
+    if code != 0:
+        raise Refusal("host-error", f"lavish open: exit {code}: {out.strip()}")
+    session = launcher.parse_host_output(out).get("session") or {}
+    return {"ok": True, "page": str(page), "url": session.get("url"), "status": session.get("status")}
+
+
 def cmd_wait(argv):
     """One host poll. The host hands a send over once, so the notes file is written before the answer."""
     parser = Parser(add_help=False)
@@ -50,7 +64,7 @@ def cmd_wait(argv):
             "notes_file": str(notes_file)}
 
 
-VERBS = {"wait": cmd_wait}
+VERBS = {"show": cmd_show, "wait": cmd_wait}
 
 
 def main(argv):
