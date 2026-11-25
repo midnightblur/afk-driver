@@ -218,6 +218,19 @@ def test_the_judge_runs_once_when_every_row_passed_and_its_verdict_lands_in_the_
     assert answer["judge"] == {"provider": "codex", "model": "m", "effort": "medium"}
 
 
+def test_a_record_with_only_no_test_entries_gives_the_judge_the_test_files_of_the_row_command(tmp_path, monkeypatch):
+    """After a send-back that changed only tests, the record holds `no-test` entries with no test path."""
+    gate = make_gate(tmp_path, monkeypatch, PASSING)
+    tdd = gate.plan / "review" / "0001-a.tdd.json"
+    tdd.parent.mkdir(exist_ok=True)
+    record = {"cycles": [], "no_test": [{"row": "VR-001", "why": "tests only", "head": "h"}]}
+    tdd.write_text(json.dumps(record), encoding="utf-8")
+    judge = FakeJudge()
+    gate.run(judge)
+    seen = judge.calls[0]["tests"]
+    assert seen == ["checks/pass.py"], f"record {record}, command {PASSING['VR-001']['check']}: expected ['checks/pass.py'], got {seen}"
+
+
 def test_a_judge_fail_sends_the_row_back_with_the_failed_check_and_counts_as_a_failed_run(tmp_path, monkeypatch):
     gate = make_gate(tmp_path, monkeypatch, PASSING)
     answer = gate.run(FakeJudge({"VR-002": "fail"}))
