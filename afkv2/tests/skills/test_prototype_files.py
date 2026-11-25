@@ -10,6 +10,7 @@ import json
 import shutil
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -189,3 +190,68 @@ def test_start_picks_the_named_frontend_and_answers_the_catalog_and_live_anchors
     (repo / "docs" / TICKET / "PROTOTYPE.md").write_text("# Prototype\n", encoding="utf-8")
     code, answer = run(repo, "start", "--ticket", TICKET, "--frontend", "admin")
     assert answer["catalog_exists"] is True and answer["anchor"] == "catalog" and answer["resume"] is True
+
+
+# --- settle (VR-011, VR-002, VR-012) -------------------------------------------------------------------------------
+
+def spec(repo):
+    return repo / "docs" / TICKET
+
+
+def prototype_row(repo):
+    lines = (spec(repo) / "INDEX.md").read_text(encoding="utf-8").splitlines()
+    return next(line for line in lines if line.startswith("| Prototype |"))
+
+
+def edit(path, old, new):
+    text = path.read_text(encoding="utf-8")
+    assert old in text, old
+    path.write_text(text.replace(old, new), encoding="utf-8")
+
+
+def test_settle_refuses_bad_prototype_for_a_story_with_no_coverage_row_then_sets_the_index_row(repo):
+    edit(spec(repo) / "PRD.md", "so that I find an open order.\n",
+         "so that I find an open order.\n3. As a buyer, I want to cancel an order, so that I stop a mistake.\n")
+    edit(spec(repo) / "PROTOTYPE.md", "| 2 | nav Orders → status filter → Open | reachable |",
+         "| 3 | nav Orders → order → Cancel | gap |")
+    before = (spec(repo) / "INDEX.md").read_bytes()
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 1 and answer["error"]["code"] == "bad-prototype"
+    assert any("story 2" in problem for problem in answer["error"]["problems"]), answer
+    assert (spec(repo) / "INDEX.md").read_bytes() == before
+    edit(spec(repo) / "PROTOTYPE.md", "| 3 | nav Orders → order → Cancel | gap |",
+         "| 2 | nav Orders → status filter → Open | reachable |\n| 3 | nav Orders → order → Cancel | gap |")
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 0, answer
+    today = date.today().isoformat()
+    assert answer["index_state"] == f"chosen {today}"
+    assert prototype_row(repo) == f"| Prototype | PROTOTYPE.md | chosen {today} |"
+    assert sorted(answer["scanned"]) == ["PROTOTYPE.md", "prototype/orders.html"]
+
+
+def test_settle_refuses_a_coverage_row_for_a_story_the_prd_does_not_hold(repo):
+    edit(spec(repo) / "PROTOTYPE.md", "| 2 | nav Orders → status filter → Open | reachable |",
+         "| 2 | nav Orders → status filter → Open | reachable |\n| 9 | nowhere | gap |")
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 1 and any("story 9" in problem for problem in answer["error"]["problems"])
+
+
+@pytest.mark.parametrize("old, new, words", [
+    ("## Decisions", "## Choices", "Decisions"),
+    ("> Frontend: web", "> Frontend: shop", "shop"),
+    ("prototype/orders.html |", "prototype/list.html |", "prototype/list.html"),
+    ("| 1 | nav Orders → the order list | reachable |", "| 1 | nav Orders → the order list | done |", "done"),
+])
+def test_settle_names_each_problem_of_the_format(repo, old, new, words):
+    edit(spec(repo) / "PROTOTYPE.md", old, new)
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 1 and answer["error"]["code"] == "bad-prototype"
+    assert any(words in problem for problem in answer["error"]["problems"]), answer
+
+
+def test_the_format_file_names_each_section_settle_reads():
+    text = (SKILL_DIR / "PROTOTYPE-FORMAT.md").read_text(encoding="utf-8")
+    for section in prototype_files.SECTIONS:
+        assert f"| `{section}` |" in text
+    for state in prototype_files.STATES:
+        assert f"`{state}`" in text

@@ -16,6 +16,7 @@ from __future__ import annotations
 import bisect
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 SKILL = Path(__file__).resolve().parents[1]
@@ -23,8 +24,10 @@ PLUGIN = SKILL.parents[1]
 sys.path.insert(0, str(SKILL.parent / "use-lavish" / "scripts"))
 sys.path.insert(0, str(PLUGIN / "engine"))
 sys.path.insert(0, str(PLUGIN / "scripts"))
+sys.path.insert(0, str(SKILL.parent / "to-prd" / "scripts"))
 
 import afkv2_config  # noqa: E402
+import prd_files  # noqa: E402
 from grill_common import Parser, Refusal, serve  # noqa: E402
 from page_home import ticket_slug  # noqa: E402
 from shell.inject import MARK_END, MARK_START  # noqa: E402
@@ -34,6 +37,12 @@ ADD_FRONTEND = "catalog_files.py add-frontend --name N --source S --catalog C"
 CATALOG_MARK = "README.md"
 FILE_NAME = "PROTOTYPE.md"
 MOCKUP_DIR = "prototype"
+INDEX_ROW = "Prototype"
+# Lockstep with PROTOTYPE-FORMAT.md, which owns the format; a test checks that it names each of these.
+SECTIONS = ("Screens", "Coverage", "Fidelity", "Decisions", "PRD gaps")
+STATES = ("reachable", "gap", "retired")
+MARKS = ("live-verified", "catalog", "source-only")
+FIDELITY = re.compile(rf"^> Fidelity: *({'|'.join(MARKS)})(?: · screenshots: *(.*?))?\s*$", re.M)
 
 # A scheme URL counts only where a browser loads it (decision D-3): an attribute that fetches or navigates, a CSS
 # url() or @import, and an ES import from an address. A scheme here is any `<letters>:` or `//`, except the inline
@@ -156,7 +165,107 @@ def cmd_start(argv):
             "resume": prototype_md.is_file()}
 
 
-VERBS = {"start": cmd_start, "check": cmd_check}
+def _sections(markdown):
+    """[(name, body)] of each `##` section, in order."""
+    parts = re.split(r"^## +(.+?)[ \t]*$", markdown, flags=re.M)
+    return list(zip(parts[1::2], parts[2::2]))
+
+
+def _table(body):
+    """The rows of the first table in `body` as {header cell: cell}."""
+    lines = [line.strip() for line in body.splitlines() if line.strip().startswith("|")]
+    cells = [[cell.strip() for cell in line.strip("|").split("|")] for line in lines]
+    if not cells:
+        return []
+    head = cells[0]
+    return [dict(zip(head, row)) for row in cells[1:] if not all(set(cell) <= set("-: ") for cell in row)]
+
+
+def prd_stories(markdown):
+    """The story numbers of the PRD `## User Stories` list, as text."""
+    body = dict(_sections(markdown)).get("User Stories", "")
+    return [match.group(1) for match in re.finditer(r"^\s*(\d+)\.\s", body, re.M)]
+
+
+def _header_problems(markdown, frontends):
+    problems = []
+    frontend = re.search(r"^> Frontend: *(\S.*?)\s*$", markdown, re.M)
+    if not frontend:
+        problems.append("no header line `> Frontend: <name>`")
+    elif frontend.group(1) not in frontends:
+        problems.append(f"frontend `{frontend.group(1)}` is not in the config frontends list ({', '.join(frontends)})")
+    fidelity = FIDELITY.search(markdown)
+    if not fidelity:
+        problems.append(f"no header line `> Fidelity: <mark>` with a mark of {', '.join(MARKS)}")
+    if not re.search(r"^> Date: *\d{4}-\d{2}-\d{2}\s*$", markdown, re.M):
+        problems.append("no header line `> Date: <YYYY-MM-DD>`")
+    return problems
+
+
+def prototype_problems(markdown, stories, spec_dir, frontends):
+    """Each way PROTOTYPE.md breaks PROTOTYPE-FORMAT.md; empty when it holds."""
+    problems = _header_problems(markdown, frontends)
+    sections = _sections(markdown)
+    names = [name for name, _ in sections]
+    for section in SECTIONS:
+        if section not in names:
+            problems.append(f"no section `## {section}`")
+    present = [name for name in names if name in SECTIONS]
+    if not problems and present != list(SECTIONS):
+        problems.append(f"the sections come in the order {', '.join(SECTIONS)}")
+    bodies = dict(sections)
+    screens = _table(bodies.get("Screens", ""))
+    if "Screens" in bodies and not screens:
+        problems.append("the Screens table has no row")
+    for screen in screens:
+        mockup = screen.get("Mockup", "").strip("` ")
+        if not mockup or not (spec_dir / mockup).is_file():
+            problems.append(f"screen {screen.get('Screen')!r}: no mockup file {mockup or '(empty)'} in {spec_dir.as_posix()}")
+    covered = []
+    for row in _table(bodies.get("Coverage", "")):
+        story, state = row.get("Story", ""), row.get("State", "").strip("` ")
+        if story in covered:
+            problems.append(f"story {story} has 2 coverage rows")
+        covered.append(story)
+        if story not in stories:
+            problems.append(f"a coverage row for story {story}, which the PRD does not hold")
+        if state not in STATES:
+            problems.append(f"story {story}: state `{state}` is not one of {', '.join(STATES)}")
+    if "Coverage" in bodies:
+        problems += [f"no coverage row for story {story}" for story in stories if story not in covered]
+    return problems
+
+
+def _written_files(spec_dir):
+    """PROTOTYPE.md and every file in the mockup folder, from the spec folder."""
+    files = [spec_dir / FILE_NAME, *sorted(p for p in (spec_dir / MOCKUP_DIR).rglob("*") if p.is_file())]
+    return [(path, path.relative_to(spec_dir).as_posix()) for path in files]
+
+
+def cmd_settle(argv):
+    parser = Parser(add_help=False)
+    parser.add_argument("--ticket", required=True)
+    args = parser.parse_args(argv)
+    config = _config()
+    spec_dir = _spec(config, args.ticket)
+    index, prototype_md = spec_dir / "INDEX.md", spec_dir / FILE_NAME
+    if not index.is_file():
+        raise Refusal("missing-input", f"missing {index.as_posix()}; {TO_PRD} writes it", missing=index.as_posix(),
+                      writer=TO_PRD)
+    if not prototype_md.is_file():
+        raise Refusal("bad-prototype", f"no {prototype_md.as_posix()}", problems=[f"no {FILE_NAME}"])
+    stories = prd_stories(_read(spec_dir / "PRD.md").replace("\r\n", "\n"))
+    frontends = [entry["name"] for entry in config["frontends"]]
+    problems = prototype_problems(_read(prototype_md).replace("\r\n", "\n"), stories, spec_dir, frontends)
+    if problems:
+        raise Refusal("bad-prototype", "; ".join(problems), problems=problems)
+    files = _written_files(spec_dir)
+    state = f"chosen {date.today().isoformat()}"
+    prd_files.set_row(index, INDEX_ROW, FILE_NAME, state)
+    return {"ok": True, "scanned": [name for _, name in files], "index_state": state}
+
+
+VERBS = {"start": cmd_start, "check": cmd_check, "settle": cmd_settle}
 
 
 def main(argv):
