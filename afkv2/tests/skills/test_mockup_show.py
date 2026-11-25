@@ -54,7 +54,21 @@ def _given(command, args):
 
 
 def expect(actual, expected, given):
-    assert actual == expected, f"\ninput: {given}\nexpected: {expected!r}\nactual: {actual!r}"
+    same = actual is expected if isinstance(expected, bool) or expected is None else actual == expected
+    assert same, f"\ninput: {given}\nexpected: {expected!r}\nactual: {actual!r}"
+
+
+def parse_answer(code, out, err, given):
+    try:
+        return json.loads(out)
+    except ValueError:
+        pytest.fail(f"\ninput: {given}\nexpected: 1 JSON value\nactual: exit {code}, stdout {out!r}, stderr {err!r}")
+
+
+def read_notes(path, ran):
+    """The notes file that `wait` wrote, parsed; a missing or bad file fails with the command and its answer."""
+    expect(path.is_file(), True, f"{ran.given} (the notes file {path} exists; answer {ran.answer!r})")
+    return parse_answer(ran.code, path.read_text("utf-8"), "", f"{ran.given} (the notes file {path})")
 
 
 def expect_in(part, whole, given):
@@ -90,6 +104,7 @@ def data_home(tmp_path, monkeypatch):
     monkeypatch.setenv("LOCALAPPDATA", str(home))
     monkeypatch.delenv("CODEX_THREAD_ID", raising=False)
     monkeypatch.delenv("LAVISH_AXI_HOST", raising=False)
+    note(f"LOCALAPPDATA={home}; CODEX_THREAD_ID and LAVISH_AXI_HOST unset")
     return home
 
 
@@ -114,7 +129,7 @@ def lavish(tmp_path, monkeypatch, data_home):
         found = {"lavish-axi": str(shim)}
     monkeypatch.setattr(launcher.shutil, "which", lambda name: found.get(name) or shutil.which(name))
     shutil.copyfile(HOST_FIXTURES / "host-open.txt", package / "open.txt")
-    note(f"lavish-axi {launcher.PIN} stub on PATH")
+    note(f"lavish-axi {launcher.PIN} stub on PATH; lavish open answers host-open.txt")
     return package
 
 
@@ -141,13 +156,16 @@ def mockup(tmp_path):
     page = tmp_path / "spec" / "prototype" / "orders.html"
     page.parent.mkdir(parents=True)
     shutil.copyfile(FIXTURES / "orders.html", page)
+    note(f"mockup {page} copied from fixtures/mockup_show/orders.html")
     return page
 
 
 def show_cli(capsys, *args):
     args = [str(arg) for arg in args]
     code = mockup_show.main(args)
-    return Ran(code, json.loads(capsys.readouterr().out), _given("mockup_show.py", args))
+    given = _given("mockup_show.py", args)
+    captured = capsys.readouterr()
+    return Ran(code, parse_answer(code, captured.out, captured.err, given), given)
 
 
 # --- wait on recorded poll output (VR-013) -------------------------------------------------------------------------
@@ -160,7 +178,7 @@ def test_wait_on_recorded_poll_output_writes_each_note_with_uid_prompt_selector_
     expect_ok(ran)
     expect_field(ran, "count", 2)
     expect_field(ran, "ended", True)
-    expect(json.loads(notes.read_text("utf-8")), [
+    expect(read_notes(notes, ran), [
         {"uid": "1", "prompt": "first, with a comma", "selector": "p", "tag": "note", "text": "x"},
         {"uid": "2", "prompt": "- second\nline", "selector": None, "tag": "choice", "text": "y"},
     ], f"{ran.given} (the notes file)")
@@ -184,7 +202,8 @@ def git(repo, *args):
 def prototype_files(repo, *args):
     done = subprocess.run([sys.executable, str(SCRIPTS / "prototype_files.py"), *args], cwd=repo, capture_output=True,
                           text=True, encoding="utf-8", stdin=subprocess.DEVNULL)
-    return Ran(done.returncode, json.loads(done.stdout), _given("prototype_files.py", args))
+    given = _given("prototype_files.py", args)
+    return Ran(done.returncode, parse_answer(done.returncode, done.stdout, done.stderr, given), given)
 
 
 @pytest.fixture
@@ -235,7 +254,7 @@ def test_start_show_and_wait_show_the_mockup_itself_and_bring_back_the_note_with
     expect(waited.code, 0, f"{waited.given} (answer {waited.answer!r})")
     expect_field(waited, "count", 1)
     expect_field(waited, "ended", False)
-    expect(json.loads(notes.read_text("utf-8")), [{"uid": "1", "prompt": "Put Open first in the filter bar",
+    expect(read_notes(notes, waited), [{"uid": "1", "prompt": "Put Open first in the filter bar",
                                                    "selector": "#filters > button:nth-of-type(2)", "tag": "button",
                                                    "text": "Open"}], f"{waited.given} (the notes file)")
     expect(mockup.read_bytes(), before, f"{waited.given} (the mockup bytes)")
@@ -269,6 +288,7 @@ def test_show_with_no_usable_host_refuses_no_host_naming_the_cause_and_writes_no
     expect_refusal(ran, "no-host")
     reason = ran.answer["error"].get("reason", "")
     expect_in(words, reason, f"{ran.given} (the reason)")
+    expect_in(mockup.resolve().as_uri(), reason, f"{ran.given} (the reason)")
     expect_not_in("..", reason, f"{ran.given} (the reason)")
     expect(mockup.read_bytes(), before, f"{ran.given} (the mockup bytes)")
     expect(sorted(path.name for path in mockup.parent.iterdir()), listing, f"{ran.given} (the mockup folder)")
@@ -304,6 +324,7 @@ def test_show_on_codex_writes_the_waiting_record_with_no_document_and_wait_clear
     shown = show_cli(capsys, "show", "--mockup", mockup)
     expect(shown.code, 0, f"{shown.given} (answer {shown.answer!r})")
     record = launcher.read_waiting_record(data_home / "afkv2", "thread-1") or {}
+    expect("document" in record, True, f"{shown.given} (key 'document' in waiting record {record!r})")
     expect(record.get("document"), None, f"{shown.given} (field 'document' of waiting record {record!r})")
     expect(record.get("page"), str(mockup), f"{shown.given} (field 'page' of waiting record {record!r})")
     expect_field(shown, "waiting_record", str(launcher._waiting_path(data_home / "afkv2", "thread-1")))
@@ -318,7 +339,7 @@ def test_a_refused_show_on_codex_writes_no_waiting_record(lavish, mockup, data_h
     note("CODEX_THREAD_ID=thread-1")
     no_lavish_on_path(monkeypatch)
     shown = show_cli(capsys, "show", "--mockup", mockup)
-    expect(shown.code, 1, f"{shown.given} (answer {shown.answer!r})")
+    expect_refusal(shown, "no-host")
     expect(launcher.read_waiting_record(data_home / "afkv2", "thread-1"), None, f"{shown.given} (the waiting record)")
 
 
@@ -330,7 +351,7 @@ def test_wait_status_after_the_browser_closed_answers_ended_with_no_notes(lavish
     expect(ran.code, 0, f"{ran.given} (answer {ran.answer!r})")
     expect_field(ran, "ended", True)
     expect_field(ran, "count", 0)
-    expect(json.loads(notes.read_text("utf-8")), [], f"{ran.given} (the notes file)")
+    expect(read_notes(notes, ran), [], f"{ran.given} (the notes file)")
 
 
 def test_wait_status_with_no_session_refuses_no_session(lavish, mockup, tmp_path, capsys):
