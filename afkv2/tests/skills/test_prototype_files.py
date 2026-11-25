@@ -251,6 +251,12 @@ def test_settle_refuses_a_coverage_row_for_a_story_the_prd_does_not_hold(repo):
     ("> Frontend: web", "> Frontend: shop", "shop"),
     ("prototype/orders.html |", "prototype/list.html |", "prototype/list.html"),
     ("| 1 | nav Orders → the order list | reachable |", "| 1 | nav Orders → the order list | done |", "done"),
+    ("| 1 | nav Orders → the order list | reachable |",
+     "| 1 | nav Orders → the order list | reachable |\n| 1 | nav Orders | reachable |", "2 coverage rows"),
+    ("> Date: 2026-11-25\n", "", "Date"),
+    ("> Fidelity: source-only", "> Fidelity: guessed", "Fidelity"),
+    ("| Orders | prototype/orders.html | the Orders link of the nav bar | 1, 2 |\n", "", "Screens table has no row"),
+    ("## Screens", "## PRD gaps\n\nnone\n\n## Screens", "order"),
 ])
 def test_settle_names_each_problem_of_the_format(repo, old, new, words):
     edit(spec(repo) / "PROTOTYPE.md", old, new)
@@ -286,6 +292,19 @@ def test_settle_takes_source_only_with_no_live_block(repo):
 
 # Built at run time, so no committed file holds a key shape.
 MADE_UP_KEY = "gh" + "p_" + "Made0Up" * 5
+
+
+def test_settle_refuses_secrets_in_prototype_md_itself(repo):
+    edit(spec(repo) / "PROTOTYPE.md", "Differences left: none.", f"Differences left: none. {MADE_UP_KEY}")
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 1 and answer["error"]["code"] == "secrets"
+    assert answer["error"]["hits"] == [{"file": "PROTOTYPE.md", "line": 22, "shape": "github-token"}]
+
+
+def test_settle_with_no_index_refuses_missing_input_naming_to_prd(repo):
+    (spec(repo) / "INDEX.md").unlink()
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 1 and answer["error"]["code"] == "missing-input" and answer["error"]["writer"] == "/afkv2:to-prd"
 
 
 def test_settle_refuses_secrets_with_the_file_and_line_and_keeps_the_index(repo):
