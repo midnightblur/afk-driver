@@ -21,8 +21,10 @@ from pathlib import Path
 SKILL = Path(__file__).resolve().parents[1]
 PLUGIN = SKILL.parents[1]
 sys.path.insert(0, str(SKILL.parent / "use-lavish" / "scripts"))
+sys.path.insert(0, str(PLUGIN / "engine"))
 
 from grill_common import Parser, Refusal, serve  # noqa: E402
+from shell.inject import MARK_END, MARK_START  # noqa: E402
 
 # A scheme URL counts only where a browser loads it (decision D-3): an attribute that fetches or navigates, a CSS
 # url() or @import, and an ES import from an address. A scheme here is any `<letters>:` or `//`, except the inline
@@ -74,7 +76,12 @@ def _where(findings, name):
 
 
 def check_text(text, name):
-    """Refuse `network-call` for the text of one written file; `name` names it in the reason."""
+    """Refuse `afkv2-runtime`, then `network-call`, for the text of one written file; `name` names it."""
+    marks = [number for number, line in enumerate(text.split("\n"), 1) if MARK_START in line or MARK_END in line]
+    if marks:
+        raise Refusal("afkv2-runtime", f"the afkv2 tooltip block at {', '.join(f'{name}:{n}' for n in marks)}: a "
+                                       "committed mockup holds no afkv2 runtime; delete the block between its marks "
+                                       "and open the mockup with --plain", file=str(name), lines=marks)
     calls = find_network_calls(text)
     if calls:
         raise Refusal("network-call", f"a network call or a scheme URL at {_where(calls, name)}: a mockup makes no "

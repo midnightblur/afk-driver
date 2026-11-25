@@ -19,8 +19,10 @@ SKILL_DIR = PLUGIN / "skills" / "prototype"
 SCRIPT = SKILL_DIR / "scripts" / "prototype_files.py"
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "prototype"
 sys.path.insert(0, str(SKILL_DIR / "scripts"))
+sys.path.insert(0, str(PLUGIN / "engine"))
 
 import prototype_files  # noqa: E402
+from shell import inject  # noqa: E402
 
 
 # --- the network check (VR-017) ------------------------------------------------------------------------------------
@@ -96,3 +98,13 @@ def test_check_answers_ok_on_a_clean_mockup(tmp_path):
 def test_check_refuses_unreadable_for_a_missing_file(tmp_path):
     code, answer = run(tmp_path, "check", "--mockup", str(tmp_path / "none.html"))
     assert code == 2 and answer["error"]["code"] == "unreadable"
+
+
+def test_check_refuses_afkv2_runtime_on_the_tooltip_block(tmp_path):
+    mockup = tmp_path / "orders.html"
+    clean = (FIXTURES / "clean.html").read_text(encoding="utf-8")
+    mockup.write_text(inject.inject(clean, {"mockup": "a made-up term"}), encoding="utf-8")
+    assert inject.MARK_START in mockup.read_text(encoding="utf-8")
+    code, answer = run(tmp_path, "check", "--mockup", str(mockup))
+    assert code == 1 and answer["error"]["code"] == "afkv2-runtime"
+    assert answer["error"]["file"] == str(mockup) and answer["error"]["lines"]
