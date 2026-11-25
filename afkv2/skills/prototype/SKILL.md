@@ -60,7 +60,7 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
    | `pick-frontend` | first check for a screen in the same way. Then ask the developer which of the listed names, and run `start` again with `--frontend` |
    | any other code | the repository config is missing or broken: stop, and give the developer the reason |
 
-   `resume` true: read `PROTOTYPE.md` and the mockups it names, and run `check` on each mockup. Run step 2, then go to step 4.
+   `resume` true: read `PROTOTYPE.md` and the mockups it names, and run `check` on each mockup; fix each line it names, as in step 3. Run step 2, then go to step 4.
 
 2. **Anchor.** Copy the look of the app from the source that `anchor` names:
 
@@ -72,10 +72,11 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
 
    With a `live` block in the answer, also on the `catalog` anchor, start the app:
    1. Probe the `address` of the block. It already answers before the start: start no app, because another server holds the address. Use the next anchor, and record the cause for the Fidelity section.
-   2. Run the `start` command of the block as a background command the harness tracks.
-   3. Wait until the `address` answers, at most `ready_seconds`.
-   4. Take the screenshots with the browser driver into `<afkv2 data folder>/shots/<run>/`.
-   5. The app does not answer, or the browser driver fails: use the next anchor (`catalog`, else `source`), and record the cause for the Fidelity section.
+   2. Check that each variable that `needs` names is set. A variable is missing: start no app, use the next anchor, and name the missing variables for the Fidelity section.
+   3. Run the `start` command of the block as a background command the harness tracks, in `/bin/sh`, or in Git Bash on Windows: the block holds POSIX shell syntax.
+   4. Wait until the `address` answers, at most `ready_seconds`.
+   5. Take the screenshots with the browser driver into `<afkv2 data folder>/shots/<run>/`.
+   6. The app does not answer, or the browser driver fails: use the next anchor (`catalog`, else `source`), and record the cause for the Fidelity section.
 
    Also map the neighbours of each screen: the screens a story enters from, and the screens the new screen links to.
 
@@ -94,7 +95,7 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
 
 7. **Close the run.** At the end of each run, also after a stop or a refusal:
    1. Run `end` when lavish shows a mockup.
-   2. Stop only an app that step 2 of this run started. Run the `stop` command of the `live` block, else stop the background command of step 2. Then probe the `address`: while it still answers, stop the process that listens on its port, and report it.
+   2. Stop only an app that step 2 of this run started. Run the `stop` command of the `live` block in the same shell, else stop the background command of step 2. Then probe the `address`. While it still answers and its host is `localhost`, `127.0.0.1`, `::1` or `0.0.0.0`, stop the process that listens on its port. Report an address that still answers.
    3. Delete the screenshots and the notes file.
 
 8. **Report.** End with 1 line: `prototype: <state> — <1-line summary>`.
@@ -116,8 +117,8 @@ Each note names its element by the `selector`, the `tag` and the `text` that lav
 
 ### In lavish
 
-1. Run `show`. `no-host`: lavish is missing, at another version or on an unsafe host. Its reason holds the `file://` path: go on by "In chat". `status` `user-ended`: the developer ended this session in the browser, and lavish does not open it again: go on by "In chat".
-2. Wait for the notes. On Claude, run `wait` with `--notes-file "<afkv2 data folder>/notes/<run>.json"` as a background command the harness tracks; its exit tells you the notes are in the notes file. On Codex, `show` wrote the waiting record: end your turn, and the Stop hook hands back 1 line per note with its tag, selector and text.
+1. Run `show`. `no-host`: lavish is missing, at another version or on an unsafe host. Its reason holds the `file://` path: go on by "In chat". `status` `user-ended`: the developer ended this session in the browser, and lavish does not open it again: run `end`, and go on by "In chat".
+2. Wait for the notes. On Claude, run `wait` with `--notes-file "<afkv2 data folder>/notes/<run>.json"` as a background command the harness tracks; its exit tells you the notes are in the notes file. On Codex, run `show` before you end each turn: the Stop hook waits only on the waiting record that `show` writes, and it clears the record after each wait. Then end your turn, and the Stop hook hands back 1 line per note with its tag, selector and text.
 3. Read each note, and give it an edit of the mockup or a reply.
 4. Show the edited mockup: lavish reloads the saved file in the open session, so run no `show` for it. Write 1 Markdown line per note to a reply file, the edit made or the answer, and run `reply`.
 5. Go to step 2.
@@ -125,11 +126,11 @@ Each note names its element by the `selector`, the `tag` and the `text` that lav
 | Answer of `wait` | Next action |
 |------------------|-------------|
 | `count` 0 and `ended` false | run `wait` again |
-| `ended` true | the developer closed the mockup or the browser: first give each note of the notes file an edit of the mockup or a reply, then ask in chat whether to run `show` again or to go on in chat |
+| `ended` true | first give each note of the notes file an edit of the mockup or a reply. `status` `browser_disconnected`: the developer closed the browser; ask in chat whether to run `show` again or to go on by "In chat". Any other `status`: the developer ended the session, and lavish does not open it again; go on by "In chat" |
 | `no-session` | run `show`, then `wait` |
 | `no-host` or `host-error` | go on by "In chat", with the `file://` path of the mockup |
 
-On Codex, the Stop hook can hand back a message with no note: the wait timed out, the developer closed the mockup, no session shows it, or lavish fell back. Ask in chat whether to run `show` again or to go on by "In chat".
+On Codex, the Stop hook can end the wait with no note: the wait timed out, the developer closed the mockup, no session shows it, or lavish fell back. Its message goes to the developer, and your turn ends. At the next chat message of the developer, ask whether to run `show` again or to go on by "In chat".
 
 ### In chat
 

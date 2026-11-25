@@ -70,6 +70,8 @@ def test_each_note_gets_an_edit_or_a_reply_and_a_new_show():
     assert "`file://` path" in chat and "an edit of the mockup or a reply" in chat
     assert "reload the mockup after each edit" in chat
     assert "`status` `user-ended`" in lavish and 'go on by "In chat"' in lavish
+    # the Codex Stop hook clears the waiting record after each wait, and only `show` writes it
+    assert "On Codex, run `show` before you end each turn" in lavish
 
 
 def test_mockup_is_clickable_from_the_entry_screen_inside_the_shell():
