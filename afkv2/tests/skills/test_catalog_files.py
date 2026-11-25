@@ -96,3 +96,50 @@ def test_add_frontend_stores_posix_paths_relative_to_the_repository(repo):
     code, answer = run(repo, "add-frontend", "--name", "web", "--source", "frontend/web/", "--catalog", "./design/web")
     assert code == 0, answer
     assert read_config(repo)["frontends"] == [WEB]
+
+
+# --- start and check on a whole catalog (VR-018) ----------------------------------------------------------------
+
+ADMIN = {"name": "admin", "source": "frontend/admin", "catalog": "design/admin"}
+LIVE = {"start": "python -m http.server 4999", "address": "http://127.0.0.1:4999"}
+
+
+@pytest.fixture
+def catalog(repo):
+    """The repository with the frontend web and its catalog of tokens.css and 3 checked cards."""
+    set_config(repo, frontends=[WEB])
+    shutil.copytree(FIXTURES, repo / "design" / "web")
+    return repo / "design" / "web"
+
+
+def test_start_answers_the_frontend_its_catalog_folder_and_the_cards(repo, catalog):
+    code, answer = run(repo, "start", "--frontend", "web")
+    assert code == 0, answer
+    assert answer["frontend"] == WEB and answer["catalog_dir"] == catalog.resolve().as_posix()
+    assert answer["catalog_exists"] is True and answer["live"] is None
+    assert [card["file"] for card in answer["cards"]] == ["cards/shell.html", "cards/button.html", "cards/list-page.html"]
+    assert answer["cards"][0] == {"file": "cards/shell.html", "kind": "shell", "state": "checked",
+                                  "screenshot": "shell.png"}
+
+
+def test_start_with_no_catalog_answers_no_cards_and_the_live_block(repo):
+    set_config(repo, frontends=[WEB], live=LIVE)
+    code, answer = run(repo, "start")
+    assert code == 0, answer
+    assert answer["catalog_exists"] is False and answer["cards"] == []
+    assert answer["live"]["address"] == LIVE["address"]
+
+
+def test_start_refuses_no_frontend_and_pick_frontend(repo):
+    code, answer = run(repo, "start")
+    assert code == 1 and answer["error"]["code"] == "no-frontend"
+    assert "catalog_files.py add-frontend" in answer["error"]["reason"]
+    set_config(repo, frontends=[WEB, ADMIN])
+    code, answer = run(repo, "start")
+    assert code == 1 and answer["error"]["code"] == "pick-frontend" and answer["error"]["names"] == ["web", "admin"]
+
+
+def test_check_answers_ok_with_3_checked_cards(repo, catalog):
+    code, answer = run(repo, "check", "--frontend", "web")
+    assert code == 0, answer
+    assert answer["cards"] == 3 and answer["checked"] == 3 and answer["unchecked"] == 0

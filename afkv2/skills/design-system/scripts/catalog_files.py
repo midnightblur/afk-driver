@@ -1,8 +1,12 @@
 """The disk side of design-system, from the repository root (SDD §3, §8 row "skills/design-system").
 
+`catalog_files.py start [--frontend NAME]`: the frontend of the config, its catalog folder, the cards of its README
+  and the live block. Refuses `no-frontend`, `pick-frontend`.
 `catalog_files.py add-frontend --name N --source S --catalog C`: the only writer of the config `frontends` list
   (ADR-0002 design). Refuses `bad-value` for a duplicate name or catalog, a path outside the repository or a missing
   source folder; the config stays as it is on each refusal.
+`catalog_files.py check [--frontend NAME]`: checks the catalog folder against CATALOG-FORMAT.md, then counts the
+  checked and unchecked cards.
 
 Each answer is one JSON object; exit 0 ok, 1 refused, 2 unreadable input.
 """
@@ -23,6 +27,10 @@ sys.path.insert(0, str(PLUGIN / "scripts"))
 import afkv2_config  # noqa: E402
 import prototype_files  # noqa: E402
 from grill_common import Parser, Refusal, serve  # noqa: E402
+
+README = prototype_files.CATALOG_MARK
+# Lockstep with CATALOG-FORMAT.md, which owns the format (decision D-8).
+COLUMNS = ("File", "Kind", "State", "Screenshot")
 
 
 def _relative(value):
@@ -77,7 +85,42 @@ def cmd_add_frontend(argv):
     return {"ok": True, "entry": entry, "config_file": Path(config["config_file"]).as_posix()}
 
 
-VERBS = {"add-frontend": cmd_add_frontend}
+def _cell(row, column):
+    return row.get(column, "").strip("` ")
+
+
+def cards_of(readme):
+    """The rows of the README Cards table as {file, kind, state, screenshot}, in order."""
+    body = dict(prototype_files._sections(readme.replace("\r\n", "\n"))).get("Cards", "")
+    return [{column.lower(): _cell(row, column) for column in COLUMNS} for row in prototype_files._table(body)]
+
+
+def _catalog(argv):
+    """(config, frontend entry, catalog folder) of the run."""
+    parser = Parser(add_help=False)
+    parser.add_argument("--frontend")
+    args = parser.parse_args(argv)
+    config = prototype_files._config()
+    frontend = prototype_files._frontend(config["frontends"], args.frontend)
+    return config, frontend, (Path(config["repo_root"]) / frontend["catalog"]).resolve()
+
+
+def cmd_start(argv):
+    config, frontend, catalog_dir = _catalog(argv)
+    readme = catalog_dir / README
+    exists = readme.is_file()
+    return {"ok": True, "frontend": frontend, "catalog_dir": catalog_dir.as_posix(), "catalog_exists": exists,
+            "cards": cards_of(prototype_files._read(readme)) if exists else [], "live": config.get("live")}
+
+
+def cmd_check(argv):
+    _, _, catalog_dir = _catalog(argv)
+    cards = cards_of(prototype_files._read(catalog_dir / README))
+    checked = sum(card["state"] == "checked" for card in cards)
+    return {"ok": True, "cards": len(cards), "checked": checked, "unchecked": len(cards) - checked}
+
+
+VERBS = {"start": cmd_start, "add-frontend": cmd_add_frontend, "check": cmd_check}
 
 
 def main(argv):
