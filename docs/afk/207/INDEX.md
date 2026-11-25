@@ -13,7 +13,7 @@ afkv2 has no step that settles a new or changed screen before the design, and no
 | Design ADRs | adr/design/ | 4 records |
 | Design brief | DESIGN-BRIEF.md | — |
 | Verification plan | VERIFICATION.md | draft |
-| Plan | plan/PLAN.md | — |
+| Plan | feat/afkv2-207-prototype-run:plan/PLAN.md | 9 subtasks; division approved 2026-11-25 |
 | Smoke gate | plan/PLAN.md | — |
 | Understanding | understanding/index.html | — |
 | Design review plan | DESIGN-REVIEW-PLAN.md | — |
