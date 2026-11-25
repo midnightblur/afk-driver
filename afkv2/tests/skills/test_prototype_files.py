@@ -363,3 +363,54 @@ def test_settle_refuses_a_file_too_large_to_scan(repo):
     code, answer = run(repo, "settle", "--ticket", TICKET)
     assert code == 1 and answer["error"]["code"] == "bad-prototype"
     assert any("prototype/big.svg" in problem for problem in answer["error"]["problems"]), answer
+
+
+# --- round 2 of the review -----------------------------------------------------------------------------------------
+
+def test_settle_refuses_a_prd_that_numbers_no_story(repo):
+    edit(spec(repo) / "PRD.md", "1. As a buyer, I want to see", "- As a buyer, I want to see")
+    edit(spec(repo) / "PRD.md", "2. As a buyer, I want to filter", "- As a buyer, I want to filter")
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 1 and answer["error"]["code"] == "bad-prototype"
+    assert any("numbers no story" in problem for problem in answer["error"]["problems"]), answer
+
+
+def test_settle_refuses_retired_for_a_story_the_prd_holds(repo):
+    edit(spec(repo) / "PROTOTYPE.md", "| 2 | nav Orders → status filter → Open | reachable |", "| 2 | — | retired |")
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 1 and any("story 2" in problem and "retired" in problem for problem in answer["error"]["problems"])
+
+
+def test_settle_lets_prototype_md_describe_the_calls_of_the_live_app(repo):
+    edit(spec(repo) / "PROTOTYPE.md", "- The status filter sits above the list",
+         "- The live app loads the rows with fetch() from the orders API; the mockup inlines them.\n"
+         "- The status filter sits above the list")
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 0, answer
+
+
+def test_check_refuses_a_tooltip_mark_that_shares_its_line(tmp_path):
+    mockup = tmp_path / "orders.html"
+    mockup.write_text(f"<p>x</p>\n<p>y</p>{inject.MARK_START}<style></style>\n", encoding="utf-8")
+    code, answer = run(tmp_path, "check", "--mockup", str(mockup))
+    assert code == 1 and answer["error"]["code"] == "afkv2-runtime" and answer["error"]["lines"] == [2]
+
+
+def test_settle_refuses_a_mockup_path_that_climbs_out_of_the_mockup_folder(repo):
+    (spec(repo) / "other").mkdir()
+    shutil.copyfile(FIXTURES / "clean.html", spec(repo) / "other" / "orders.html")
+    edit(spec(repo) / "PROTOTYPE.md", "| prototype/orders.html |", "| prototype/../other/orders.html |")
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 1 and answer["error"]["code"] == "bad-prototype"
+
+
+def test_settle_with_no_prototype_md_refuses_bad_prototype(repo):
+    (spec(repo) / "PROTOTYPE.md").unlink()
+    code, answer = run(repo, "settle", "--ticket", TICKET)
+    assert code == 1 and answer["error"]["code"] == "bad-prototype" and answer["error"]["problems"] == ["no PROTOTYPE.md"]
+
+
+@pytest.mark.parametrize("snippet", ['<a href="javascript:void(0)">x</a>', '<img src="blob:abc">',
+                                     '<a href="tel:123">call</a>', '<iframe src="about:blank"></iframe>'])
+def test_the_network_check_passes_each_local_scheme(snippet):
+    assert prototype_files.find_network_calls(snippet) == []

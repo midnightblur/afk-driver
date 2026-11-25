@@ -98,7 +98,7 @@ def _where(findings, name):
 
 def check_text(text, name):
     """Refuse `afkv2-runtime`, then `network-call`, for the text of one written file; `name` names it."""
-    marks = [number for number, line in enumerate(text.split("\n"), 1) if line.strip() in (MARK_START, MARK_END)]
+    marks = [number for number, line in enumerate(text.split("\n"), 1) if MARK_START in line or MARK_END in line]
     if marks:
         where = _where([{"line": number} for number in marks], name)
         raise Refusal("afkv2-runtime", f"the afkv2 tooltip block at {where}: a "
@@ -122,7 +122,7 @@ def cmd_check(argv):
 def _config():
     config = afkv2_config.read_config()
     if not config["ok"]:
-        raise Refusal(config["error"]["code"], config["error"]["reason"])
+        raise Refusal(config["error"]["code"], config["error"]["reason"], afkv2_config.exit_code(config))
     return config
 
 
@@ -232,14 +232,18 @@ def prototype_problems(markdown, stories, spec_dir, frontends):
             problems.append(f"screen {screen.get('Screen')!r}: no mockup file {mockup or '(empty)'} in {spec_dir.as_posix()}")
     covered = []
     for row in _table(bodies.get("Coverage", "")):
-        story, state = row.get("Story", ""), row.get("State", "").strip("` ")
+        story, state = row.get("Story", "").strip("` "), row.get("State", "").strip("` ")
         if story in covered:
             problems.append(f"story {story} has 2 coverage rows")
         covered.append(story)
         if story not in stories and state != "retired":
             problems.append(f"a coverage row for story {story}, which the PRD does not hold")
+        if story in stories and state == "retired":
+            problems.append(f"story {story} is in the PRD, so it is not retired: use reachable or gap")
         if state not in STATES:
             problems.append(f"story {story}: state `{state}` is not one of {', '.join(STATES)}")
+    if not stories:
+        problems.append("the PRD numbers no story: its `## User Stories` list needs items `1.`, `2.`, ...")
     if "Coverage" in bodies:
         problems += [f"no coverage row for story {story}" for story in stories if story not in covered]
     return problems
@@ -271,7 +275,7 @@ def cmd_settle(argv):
                  for path, name in files if path.stat().st_size > notices.MAX_SCAN_BYTES]
     if problems:
         raise Refusal("bad-prototype", "; ".join(problems), problems=problems)
-    for path, name in files:
+    for path, name in files[1:]:  # the mockup folder; PROTOTYPE.md may name the calls of the live app
         check_text(path.read_bytes().decode("utf-8", "replace"), name)
     hits = notices.scan_files(files)
     if hits:
