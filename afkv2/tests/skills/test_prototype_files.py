@@ -108,3 +108,84 @@ def test_check_refuses_afkv2_runtime_on_the_tooltip_block(tmp_path):
     code, answer = run(tmp_path, "check", "--mockup", str(mockup))
     assert code == 1 and answer["error"]["code"] == "afkv2-runtime"
     assert answer["error"]["file"] == str(mockup) and answer["error"]["lines"]
+
+
+# --- start (VR-007) ------------------------------------------------------------------------------------------------
+
+TICKET = "PROJ-7"
+
+
+def git(repo, *args):
+    done = subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+    assert done.returncode == 0, done.stderr
+    return done.stdout.strip()
+
+
+def set_config(repo, **values):
+    config = {"spec_folder": "docs", **values}
+    (repo / ".afkv2" / "config.json").write_text(json.dumps(config), encoding="utf-8")
+
+
+WEB = {"name": "web", "source": "frontend/web", "catalog": "design/web"}
+ADMIN = {"name": "admin", "source": "frontend/admin", "catalog": "design/admin"}
+LIVE = {"start": "python -m http.server 4999", "address": "http://127.0.0.1:4999"}
+
+
+@pytest.fixture
+def repo(tmp_path):
+    root = tmp_path / "repo"
+    (root / ".afkv2").mkdir(parents=True)
+    git(root, "init", "-q", "-b", "main")
+    set_config(root, frontends=[WEB])
+    (root / "frontend" / "web").mkdir(parents=True)
+    shutil.copytree(FIXTURES / "spec", root / "docs" / TICKET)
+    return root
+
+
+def test_start_with_no_frontend_refuses_naming_the_add_frontend_command(repo):
+    set_config(repo)
+    code, answer = run(repo, "start", "--ticket", TICKET)
+    assert code == 1 and answer["error"]["code"] == "no-frontend"
+    assert "catalog_files.py add-frontend" in answer["error"]["reason"]
+
+
+def test_start_with_2_frontends_and_no_choice_refuses_pick_frontend_listing_both(repo):
+    set_config(repo, frontends=[WEB, ADMIN])
+    code, answer = run(repo, "start", "--ticket", TICKET)
+    assert code == 1 and answer["error"]["code"] == "pick-frontend"
+    assert answer["error"]["names"] == ["web", "admin"]
+    assert "web" in answer["error"]["reason"] and "admin" in answer["error"]["reason"]
+
+
+def test_start_with_an_unknown_frontend_refuses_no_frontend_naming_it(repo):
+    code, answer = run(repo, "start", "--ticket", TICKET, "--frontend", "shop")
+    assert code == 1 and answer["error"]["code"] == "no-frontend"
+    assert "shop" in answer["error"]["reason"] and "catalog_files.py add-frontend" in answer["error"]["reason"]
+
+
+def test_start_with_no_prd_refuses_missing_input_naming_to_prd(repo):
+    (repo / "docs" / TICKET / "PRD.md").unlink()
+    code, answer = run(repo, "start", "--ticket", TICKET)
+    assert code == 1 and answer["error"]["code"] == "missing-input" and answer["error"]["writer"] == "/afkv2:to-prd"
+
+
+def test_start_answers_the_paths_and_the_source_anchor(repo):
+    code, answer = run(repo, "start", "--ticket", TICKET)
+    assert code == 0, answer
+    spec = (repo / "docs" / TICKET).as_posix()
+    assert answer["spec_dir"] == spec and answer["prd"] == f"{spec}/PRD.md" and answer["index"] == f"{spec}/INDEX.md"
+    assert answer["prototype_md"] == f"{spec}/PROTOTYPE.md" and answer["mockup_dir"] == f"{spec}/prototype"
+    assert answer["frontend"] == WEB and answer["catalog_exists"] is False
+    assert answer["live"] is None and answer["anchor"] == "source" and answer["resume"] is False
+
+
+def test_start_picks_the_named_frontend_and_answers_the_catalog_and_live_anchors(repo):
+    set_config(repo, frontends=[WEB, ADMIN], live=LIVE)
+    code, answer = run(repo, "start", "--ticket", TICKET, "--frontend", "admin")
+    assert code == 0 and answer["frontend"] == ADMIN and answer["anchor"] == "live"
+    assert answer["live"]["address"] == LIVE["address"]
+    (repo / "design" / "admin").mkdir(parents=True)
+    (repo / "design" / "admin" / "README.md").write_text("# Catalog\n", encoding="utf-8")
+    (repo / "docs" / TICKET / "PROTOTYPE.md").write_text("# Prototype\n", encoding="utf-8")
+    code, answer = run(repo, "start", "--ticket", TICKET, "--frontend", "admin")
+    assert answer["catalog_exists"] is True and answer["anchor"] == "catalog" and answer["resume"] is True

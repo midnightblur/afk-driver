@@ -22,9 +22,18 @@ SKILL = Path(__file__).resolve().parents[1]
 PLUGIN = SKILL.parents[1]
 sys.path.insert(0, str(SKILL.parent / "use-lavish" / "scripts"))
 sys.path.insert(0, str(PLUGIN / "engine"))
+sys.path.insert(0, str(PLUGIN / "scripts"))
 
+import afkv2_config  # noqa: E402
 from grill_common import Parser, Refusal, serve  # noqa: E402
+from page_home import ticket_slug  # noqa: E402
 from shell.inject import MARK_END, MARK_START  # noqa: E402
+
+TO_PRD = "/afkv2:to-prd"
+ADD_FRONTEND = "catalog_files.py add-frontend --name N --source S --catalog C"
+CATALOG_MARK = "README.md"
+FILE_NAME = "PROTOTYPE.md"
+MOCKUP_DIR = "prototype"
 
 # A scheme URL counts only where a browser loads it (decision D-3): an attribute that fetches or navigates, a CSS
 # url() or @import, and an ES import from an address. A scheme here is any `<letters>:` or `//`, except the inline
@@ -97,7 +106,57 @@ def cmd_check(argv):
     return {"ok": True, "file": args.mockup, "bytes": len(text.encode("utf-8"))}
 
 
-VERBS = {"check": cmd_check}
+def _config():
+    config = afkv2_config.read_config()
+    if not config["ok"]:
+        raise Refusal(config["error"]["code"], config["error"]["reason"])
+    return config
+
+
+def _spec(config, ticket):
+    """The spec folder of the ticket, with its PRD; a missing PRD refuses `missing-input`."""
+    spec_dir = Path(config["spec_folder"]) / ticket_slug(ticket)
+    prd = spec_dir / "PRD.md"
+    if not prd.is_file():
+        raise Refusal("missing-input", f"missing {prd.as_posix()}; {TO_PRD} writes it", missing=prd.as_posix(),
+                      writer=TO_PRD)
+    return spec_dir
+
+
+def _frontend(frontends, name):
+    """The config entry the run uses: the named one, else the only one."""
+    names = [entry["name"] for entry in frontends]
+    if name is not None and name not in names:
+        raise Refusal("no-frontend", f"the config names no frontend {name!r} (it names {names or 'none'}); add it "
+                                     f"with `{ADD_FRONTEND}`")
+    if not frontends:
+        raise Refusal("no-frontend", f"the config names no frontend; add one with `{ADD_FRONTEND}`")
+    if name is None and len(frontends) > 1:
+        raise Refusal("pick-frontend", f"the config names {len(names)} frontends: {', '.join(names)}; give one with "
+                                       "--frontend", names=names)
+    return next(entry for entry in frontends if name in (None, entry["name"]))
+
+
+def cmd_start(argv):
+    parser = Parser(add_help=False)
+    parser.add_argument("--ticket", required=True)
+    parser.add_argument("--frontend")
+    args = parser.parse_args(argv)
+    config = _config()
+    spec_dir = _spec(config, args.ticket)
+    frontend = _frontend(config["frontends"], args.frontend)
+    # A catalog exists when its folder holds the catalog README (decision D-2); config paths stay relative (D-1).
+    catalog_exists = (Path(config["repo_root"]) / frontend["catalog"] / CATALOG_MARK).is_file()
+    live = config.get("live")
+    prototype_md = spec_dir / FILE_NAME
+    return {"ok": True, "ticket": args.ticket, "spec_dir": spec_dir.as_posix(), "prd": (spec_dir / "PRD.md").as_posix(),
+            "index": (spec_dir / "INDEX.md").as_posix(), "prototype_md": prototype_md.as_posix(),
+            "mockup_dir": (spec_dir / MOCKUP_DIR).as_posix(), "frontend": frontend, "catalog_exists": catalog_exists,
+            "live": live, "anchor": "catalog" if catalog_exists else "live" if live else "source",
+            "resume": prototype_md.is_file()}
+
+
+VERBS = {"start": cmd_start, "check": cmd_check}
 
 
 def main(argv):
