@@ -7,6 +7,10 @@ description: /afkv2:design-system — builds or refreshes the design catalog of 
 
 1 run builds or refreshes the catalog of 1 frontend: its tokens and 1 card per repeating shape. Write the catalog by [CATALOG-FORMAT.md](CATALOG-FORMAT.md). The run writes only inside the catalog folder of the frontend; `add-frontend` alone writes the `frontends` entry of the repository config. The run sends nothing to any host.
 
+## Hands-off
+
+A hands-off subagent, such as an autopilot executor, has no developer at the keyboard. It opens no page, writes no file, and parks with the reason that a developer must run the design-system, to compare each card with the live app.
+
 ## The commands
 
 Run each command from the repository root, in the worktree of the branch. `<python>` is the Python in the setup install record (line `python`). Every answer is 1 JSON object: `{"ok": true, ...}` or `{"ok": false, "error": {"code", "reason"}}`; exit 0 is ok, 1 is refused, 2 is unreadable input.
