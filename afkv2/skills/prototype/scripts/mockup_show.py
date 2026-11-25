@@ -41,7 +41,9 @@ def cmd_show(argv):
     page = _mockup(args.mockup)
     code, out = launcher.run(["open", str(page), launcher.PLAIN_FLAG])
     if code in launcher.FALLBACK_EXITS:
-        raise Refusal("no-host", f"lavish cannot show the mockup: {out.strip()}")
+        raise Refusal("no-host", f"lavish cannot show the mockup: {out.strip()}. Give the developer "
+                                 f"{page.resolve().as_uri()} and take the notes in chat; /afkv2:setup fixes the install",
+                      file=page.resolve().as_uri())
     if code != 0:
         raise Refusal("host-error", f"lavish open: exit {code}: {out.strip()}")
     session = launcher.parse_host_output(out).get("session") or {}

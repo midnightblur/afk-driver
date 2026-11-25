@@ -188,3 +188,21 @@ def test_show_with_no_usable_host_refuses_no_host_naming_the_cause_and_writes_no
     assert words in answer["error"]["reason"]
     assert mockup.read_bytes() == before and sorted(path.name for path in mockup.parent.iterdir()) == listing
     assert calls(lavish) == []
+
+
+# --- the source-only chain: no live block, no lavish (VR-003) ------------------------------------------------------
+
+def test_start_show_and_settle_with_no_live_block_and_no_lavish_give_the_file_path_and_settle_source_only(
+        frontend_repo, data_home, monkeypatch, capsys):
+    repo = frontend_repo()
+    monkeypatch.setattr(launcher.shutil, "which", lambda name: None)
+    code, start = prototype_files(repo, "start", "--ticket", TICKET)
+    assert code == 0, start
+    assert start["live"] is None and start["anchor"] == "source"
+    mockup = Path(start["mockup_dir"]) / "orders.html"
+    code, answer = show_cli(capsys, "show", "--mockup", mockup)
+    assert code == 1 and answer["error"]["code"] == "no-host"
+    assert mockup.resolve().as_uri() in answer["error"]["reason"]
+    assert "> Fidelity: source-only" in (Path(start["prototype_md"])).read_text("utf-8")
+    code, settled = prototype_files(repo, "settle", "--ticket", TICKET)
+    assert code == 0 and settled["ok"] is True, settled
