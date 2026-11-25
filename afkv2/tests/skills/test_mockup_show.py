@@ -206,3 +206,25 @@ def test_start_show_and_settle_with_no_live_block_and_no_lavish_give_the_file_pa
     assert "> Fidelity: source-only" in (Path(start["prototype_md"])).read_text("utf-8")
     code, settled = prototype_files(repo, "settle", "--ticket", TICKET)
     assert code == 0 and settled["ok"] is True, settled
+
+
+# --- the Codex waiting record, the other poll statuses, reply and end (VR-001) -------------------------------------
+
+def test_show_on_codex_writes_the_waiting_record_with_no_document_and_wait_clears_it(lavish, mockup, data_home,
+                                                                                    monkeypatch, capsys, tmp_path):
+    monkeypatch.setenv("CODEX_THREAD_ID", "thread-1")
+    code, shown = show_cli(capsys, "show", "--mockup", mockup)
+    assert code == 0, shown
+    record = launcher.read_waiting_record(data_home / "afkv2", "thread-1")
+    assert record["document"] is None and record["page"] == str(mockup)
+    assert shown["waiting_record"] == str(launcher._waiting_path(data_home / "afkv2", "thread-1"))
+    shutil.copyfile(FIXTURES / "poll-one-note.txt", lavish / "poll.txt")
+    assert show_cli(capsys, "wait", "--mockup", mockup, "--notes-file", tmp_path / "notes.json")[0] == 0
+    assert launcher.read_waiting_record(data_home / "afkv2", "thread-1") is None
+
+
+def test_a_refused_show_on_codex_writes_no_waiting_record(lavish, mockup, data_home, monkeypatch, capsys):
+    monkeypatch.setenv("CODEX_THREAD_ID", "thread-1")
+    monkeypatch.setattr(launcher.shutil, "which", lambda name: None)
+    assert show_cli(capsys, "show", "--mockup", mockup)[0] == 1
+    assert launcher.read_waiting_record(data_home / "afkv2", "thread-1") is None
