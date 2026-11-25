@@ -7,6 +7,7 @@ Each skill writes only its own rows, with `prd_files.set_row`. A row for an arti
 | Row | Writer |
 |-----|--------|
 | summary, `PRD`, `Requirement ADRs` | `/afkv2:to-prd` |
+| `Prototype` | `/afkv2:prototype` |
 | `SDD`, `Design ADRs` | `/afkv2:propose-solution` |
 | `Plan` | `/afkv2:to-subtasks` |
 
@@ -42,4 +43,4 @@ Each skill writes only its own rows, with `prd_files.set_row`. A row for an arti
 6. plan/review/INDEX.md: what the quality checks found.
 ```
 
-State values: `PRD` is `draft`, `published to Jira <date>` or `published to GitHub <date>`. `Requirement ADRs` is `<n> records`.
+State values: `PRD` is `draft`, `published to Jira <date>` or `published to GitHub <date>`. `Requirement ADRs` is `<n> records`. `Prototype` is `chosen <date>`.
