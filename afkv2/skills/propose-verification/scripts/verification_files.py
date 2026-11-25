@@ -2,6 +2,7 @@
 
 `verification_files.py start --ticket KEY [--target REF]`: the session paths, and the live state of the repository
   config: {block, proven_here}. Refuses `missing-input` naming the writer of a missing PRD, SDD or grill log.
+  `prototype` and `prototype_exists`: PROTOTYPE.md, an optional input kept out of `WRITERS`; a missing one is no refusal.
   The newest session with a page document and no `written` row resumes.
 `verification_files.py sync --doc FILE --log FILE`: copies each new note of the page into this skill's log section.
 `verification_files.py write --spec-dir DIR --plan FILE --doc FILE [--target REF]`: writes VERIFICATION.md.
@@ -44,6 +45,7 @@ WRITTEN = "- Settled: verification written"
 NOTE_ROW = re.compile(r"^- Note: (\S+) · ")
 FILE_NAME = "VERIFICATION.md"
 INDEX_ROW = "Verification plan"
+PROTOTYPE_NAME = "PROTOTYPE.md"
 WRITERS = {"PRD.md": "/afkv2:to-prd", "SDD.md": "/afkv2:propose-solution", "GRILL-LOG.md": "/afkv2:grill-requirements"}
 TARGETS = ("origin/HEAD", "origin/main", "origin/master", "main", "master")
 GIT_SECONDS = 60
@@ -199,12 +201,13 @@ def start(argv):
     resumed = sessions[-1] if sessions and not _written(log, sessions[-1]) else None
     session = resumed or _new_session(pages)
     doc, raw_file = pages / f"{DOC_PREFIX}{session}.json", pages / f"{DOC_PREFIX}{session}.raw.txt"
-    verification = spec_dir / FILE_NAME
+    verification, prototype = spec_dir / FILE_NAME, spec_dir / PROTOTYPE_NAME
     return {"ok": True, "ticket": args.ticket, "spec_dir": spec_dir.as_posix(), "prd": (spec_dir / "PRD.md").as_posix(),
             "sdd": (spec_dir / "SDD.md").as_posix(), "log": log.as_posix(),
             "requirement_adrs": (spec_dir / "adr" / "requirements").as_posix(),
             "design_adrs": (spec_dir / "adr" / "design").as_posix(), "verification": verification.as_posix(),
-            "verification_exists": verification.is_file(), "doc": doc.as_posix(), "session": session,
+            "verification_exists": verification.is_file(), "prototype": prototype.as_posix(),
+            "prototype_exists": prototype.is_file(), "doc": doc.as_posix(), "session": session,
             "resume": resumed is not None, "raw_file": raw_file.as_posix(),
             "live": live_state(config["repo_root"], args.target)}
 
