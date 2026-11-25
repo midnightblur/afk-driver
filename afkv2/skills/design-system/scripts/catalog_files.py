@@ -22,9 +22,11 @@ SKILL = Path(__file__).resolve().parents[1]
 PLUGIN = SKILL.parents[1]
 sys.path.insert(0, str(SKILL.parent / "prototype" / "scripts"))
 sys.path.insert(0, str(SKILL.parent / "use-lavish" / "scripts"))
+sys.path.insert(0, str(PLUGIN / "engine"))
 sys.path.insert(0, str(PLUGIN / "scripts"))
 
 import afkv2_config  # noqa: E402
+import notices  # noqa: E402
 import prototype_files  # noqa: E402
 from grill_common import Parser, Refusal, serve  # noqa: E402
 
@@ -154,11 +156,40 @@ def catalog_problems(catalog_dir):
     return problems
 
 
+def _files(catalog_dir):
+    """(path, name) of every file in the catalog folder, by name; `name` is relative to the folder."""
+    files = sorted(path for path in catalog_dir.rglob("*") if path.is_file())
+    return [(path, path.relative_to(catalog_dir).as_posix()) for path in files]
+
+
+def _network_calls(files):
+    """1 finding `{file, line, found, text}` per line with a network call, in file order. README.md may name the
+    calls of the live app, so the check skips it (decision D-8)."""
+    calls = []
+    for path, name in files:
+        if name != README:
+            text = path.read_bytes().decode("utf-8", "replace")
+            calls += [{"file": name, **call} for call in prototype_files.find_network_calls(text)]
+    return calls
+
+
 def cmd_check(argv):
     _, _, catalog_dir = _catalog(argv)
     problems = catalog_problems(catalog_dir)
+    files = _files(catalog_dir)
+    problems += [f"{name} is over {notices.MAX_SCAN_BYTES} bytes, past what the secret scan reads"
+                 for path, name in files if path.stat().st_size > notices.MAX_SCAN_BYTES]
     if problems:
         raise Refusal("bad-catalog", "; ".join(problems), problems=problems)
+    calls = _network_calls(files)
+    if calls:
+        where = ", ".join(f"{call['file']}:{call['line']}" for call in calls)
+        raise Refusal("network-call", f"a network call or a scheme URL at {where}: a catalog card makes no network "
+                                      "call; inline the asset or use a #id link", calls=calls)
+    hits = notices.scan_files(files)
+    if hits:
+        where = ", ".join(f"{hit['file']}:{hit['line']} ({hit['shape']})" for hit in hits)
+        raise Refusal("secrets", f"a secret shape at {where}: a catalog holds made-up data only", hits=hits)
     cards = cards_of(prototype_files._read(catalog_dir / README))
     checked = sum(card["state"] == "checked" for card in cards)
     return {"ok": True, "cards": len(cards), "checked": checked, "unchecked": len(cards) - checked}

@@ -207,3 +207,45 @@ def test_check_refuses_a_cards_table_with_no_row(repo, catalog):
     readme.write_text("\n".join(kept) + "\n", encoding="utf-8")
     code, answer = run(repo, "check", "--frontend", "web")
     assert code == 1 and answer["error"]["problems"] == ["the Cards table has no row"]
+
+
+# --- check refuses secrets and network-call (VR-021) ----------------------------------------------------------------
+
+# Built at run time, so no committed file holds a key shape.
+MADE_UP_KEY = "gh" + "p_" + "Made0Up" * 5
+
+
+def test_check_refuses_secrets_with_the_file_and_line(repo, catalog):
+    edit(catalog / "cards" / "list-page.html", "<td>Made-up Buyer</td>", f"<td>{MADE_UP_KEY}</td>")
+    code, answer = run(repo, "check", "--frontend", "web")
+    assert code == 1 and answer["error"]["code"] == "secrets", answer
+    assert answer["error"]["hits"] == [{"file": "cards/list-page.html", "line": 4, "shape": "github-token"}]
+    assert "cards/list-page.html:4" in answer["error"]["reason"] and MADE_UP_KEY not in json.dumps(answer)
+
+
+def test_check_refuses_network_call_with_the_file_and_line(repo, catalog):
+    edit(catalog / "tokens.css", "  --font-body: system-ui, sans-serif;",
+         "  --font-body: system-ui, sans-serif;\n  src: url('https://fonts.example/body.woff2');")
+    code, answer = run(repo, "check", "--frontend", "web")
+    assert code == 1 and answer["error"]["code"] == "network-call", answer
+    assert [(call["file"], call["line"]) for call in answer["error"]["calls"]] == [("tokens.css", 9)]
+    assert "tokens.css:9" in answer["error"]["reason"]
+
+
+def test_check_scans_the_readme_for_secrets_but_lets_it_name_the_calls_of_the_app(repo, catalog):
+    edit(catalog / "README.md", "- App address: http://127.0.0.1:4999",
+         "- App address: http://127.0.0.1:4999, which loads its rows with `fetch('/api/orders')`")
+    assert run(repo, "check", "--frontend", "web")[0] == 0
+    edit(catalog / "README.md", "## Refresh", f"## Refresh\n\n{MADE_UP_KEY}")
+    code, answer = run(repo, "check", "--frontend", "web")
+    assert code == 1 and answer["error"]["code"] == "secrets"
+    assert answer["error"]["hits"][0]["file"] == "README.md"
+
+
+def test_check_refuses_a_file_too_large_to_scan(repo, catalog):
+    sys.path.insert(0, str(PLUGIN / "engine"))
+    import notices
+    (catalog / "cards" / "big.html").write_bytes(b"a" * (notices.MAX_SCAN_BYTES + 1))
+    code, answer = run(repo, "check", "--frontend", "web")
+    assert code == 1 and answer["error"]["code"] == "bad-catalog"
+    assert any("cards/big.html" in problem for problem in answer["error"]["problems"])
