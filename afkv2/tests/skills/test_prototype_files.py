@@ -38,6 +38,13 @@ FLAGGED = [
     ("const socket = new WebSocket('/live');", "WebSocket"),
     ("const events = new EventSource('/stream');", "EventSource"),
     ("import('./chart.js').then(draw);", "dynamic import"),
+    ('import "https://cdn.example/side.js";', "side-effect import from an address"),
+    ("import { chart } from 'https://cdn.example/chart.js';", "import from an address"),
+    ('<img srcset="a.png 1x, https://cdn.example/b.png 2x">', "scheme URL in a later srcset candidate"),
+    ("@import 'https://cdn.example/a.css';", "CSS import"),
+    ("navigator.sendBeacon('/beacon', data);", "sendBeacon"),
+    ('<video poster="https://cdn.example/p.png"></video>', "scheme URL in poster"),
+    ('<object data="https://cdn.example/o.svg"></object>', "scheme URL in object data"),
 ]
 PASSED = [
     '<a href="#orders">Orders</a>',
@@ -45,6 +52,8 @@ PASSED = [
     '<img src="data:image/png;base64,iVBORw0KGgo=" alt="">',
     '<a href="mailto:someone@example.test">Mail</a>',
     '<link rel="stylesheet" href="local.css">',
+    'const data = "status: open";',
+    '<img srcset="a.png 1x, b.png 2x">',
 ]
 
 
@@ -65,6 +74,7 @@ def test_the_network_check_gives_one_finding_per_line():
     text = "fetch('/a'); fetch('/b'); new WebSocket('wss://x.test');\n<a href=\"#x\">x</a>\n"
     found = prototype_files.find_network_calls(text)
     assert [finding["line"] for finding in found] == [1]
+    assert found[0]["found"] == ["fetch", "WebSocket"]
 
 
 def test_the_network_check_flags_a_protocol_relative_address():

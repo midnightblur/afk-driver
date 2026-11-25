@@ -51,11 +51,13 @@ FIDELITY = re.compile(rf"^> Fidelity: *({'|'.join(MARKS)})(?: · screenshots: *(
 LOCAL_SCHEMES = ("data", "blob", "javascript", "mailto", "tel", "about")
 _ADDRESS = rf"(?:(?!(?:{'|'.join(LOCAL_SCHEMES)}):)[A-Za-z][A-Za-z0-9+.-]*:|//)"
 NETWORK = {
-    "attribute": re.compile(rf"\b(?:src|href|action|formaction|srcset|poster|data|background)\s*=\s*[\"']?\s*{_ADDRESS}",
-                            re.I),
+    "attribute": re.compile(rf"\b(?:src|href|action|formaction|poster|background)\s*=\s*[\"']?\s*{_ADDRESS}", re.I),
+    "srcset": re.compile(rf"\bsrcset\s*=\s*[\"'][^\"']*?(?<=[\"'\s,])\s*{_ADDRESS}", re.I),
+    "object-data": re.compile(rf"<object\b[^>]*\bdata\s*=\s*[\"']?\s*{_ADDRESS}", re.I),
     "css-url": re.compile(rf"\burl\(\s*[\"']?\s*{_ADDRESS}", re.I),
     "css-import": re.compile(rf"@import\s+[\"']\s*{_ADDRESS}", re.I),
     "import-from": re.compile(rf"\bfrom\s*[\"']\s*{_ADDRESS}"),
+    "import": re.compile(rf"\bimport\s*[\"']\s*{_ADDRESS}"),
     "fetch": re.compile(r"\bfetch\s*\("),
     "XMLHttpRequest": re.compile(r"\bXMLHttpRequest\b"),
     "WebSocket": re.compile(r"\bWebSocket\s*\("),
