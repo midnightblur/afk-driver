@@ -40,6 +40,8 @@ def cmd_show(argv):
     args = parser.parse_args(argv)
     page = _mockup(args.mockup)
     code, out = launcher.run(["open", str(page), launcher.PLAIN_FLAG])
+    if code in launcher.FALLBACK_EXITS:
+        raise Refusal("no-host", f"lavish cannot show the mockup: {out.strip()}")
     if code != 0:
         raise Refusal("host-error", f"lavish open: exit {code}: {out.strip()}")
     session = launcher.parse_host_output(out).get("session") or {}

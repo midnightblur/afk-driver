@@ -159,3 +159,32 @@ def test_start_show_and_wait_show_the_mockup_itself_and_bring_back_the_note_with
                                                      "selector": "#filters > button:nth-of-type(2)", "tag": "button",
                                                      "text": "Open"}]
     assert mockup.read_bytes() == before
+
+
+# --- no host: lavish missing, at the wrong pin, or LAVISH_AXI_HOST set (VR-010) ------------------------------------
+
+def no_lavish(monkeypatch, package):
+    monkeypatch.setattr(launcher.shutil, "which", lambda name: None)
+
+
+def old_pin(monkeypatch, package):
+    (package / "package.json").write_text(json.dumps({"name": "lavish-axi", "version": "0.1.85",
+                                                      "bin": {"lavish-axi": "stub.py"}}), "utf-8")
+
+
+def unsafe_host(monkeypatch, package):
+    monkeypatch.setenv("LAVISH_AXI_HOST", "0.0.0.0")
+
+
+@pytest.mark.parametrize("cause, words", [(no_lavish, "not on PATH"), (old_pin, "0.1.85"),
+                                          (unsafe_host, "LAVISH_AXI_HOST")], ids=["missing", "pin", "host"])
+def test_show_with_no_usable_host_refuses_no_host_naming_the_cause_and_writes_nothing(lavish, mockup, capsys,
+                                                                                         monkeypatch, cause, words):
+    cause(monkeypatch, lavish)
+    before = mockup.read_bytes()
+    listing = sorted(path.name for path in mockup.parent.iterdir())
+    code, answer = show_cli(capsys, "show", "--mockup", mockup)
+    assert code == 1 and answer["error"]["code"] == "no-host", answer
+    assert words in answer["error"]["reason"]
+    assert mockup.read_bytes() == before and sorted(path.name for path in mockup.parent.iterdir()) == listing
+    assert calls(lavish) == []
