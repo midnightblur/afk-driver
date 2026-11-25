@@ -1,57 +1,109 @@
 """The 2 readers of PROTOTYPE.md: propose-solution and propose-verification (SDD §14; ADR-0004 design; ticket 207
 VR-023, VR-024, VR-025, VR-026).
 
-The start tests run each script through its command line in a scratch git repository. PROTOTYPE.md is an optional
-input: a spec folder without it runs as today, with no refusal.
+Each start test builds its own scratch git repository and runs the script by its path, through its command line, as
+SKILL.md states it. PROTOTYPE.md is an optional input: a spec folder without it runs as today, with no refusal. Each
+failure message names the input, the expected value and the actual value.
 """
 
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-from test_propose_solution import World
-from test_propose_verification import SCRIPT as VERIFICATION_FILES, TICKET, git, repo  # noqa: F401
-
+PLUGIN = Path(__file__).resolve().parents[2]
+SKILLS = PLUGIN / "skills"
+DESIGN_FILES = SKILLS / "propose-solution" / "scripts" / "design_files.py"
+VERIFICATION_FILES = SKILLS / "propose-verification" / "scripts" / "verification_files.py"
+SPEC_FIXTURE = Path(__file__).resolve().parent / "fixtures" / "propose_solution" / "spec"
+TICKET = "PROJ-1"
 PROTOTYPE = "# Prototype — sample\n\n> Frontend: web\n> Fidelity: source-only\n> Date: 2026-11-25\n"
 
 
-def _git_init(root):
-    git(root, "init", "-q", "-b", "main")
+def _git(root, *args):
+    done = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+    assert done.returncode == 0, (f"input: git {' '.join(args)}\nexpected: exit 0\nactual: exit {done.returncode}\n"
+                                  f"{done.stderr}")
+
+
+def _repo(tmp_path):
+    """A scratch git repository: config with spec_folder docs, and docs/PROJ-1 with PRD.md, SDD.md, a GRILL-LOG.md whose
+    exit gate passed and its page document. No PROTOTYPE.md."""
+    root = tmp_path / "repo"
+    root.mkdir()
+    _git(root, "init", "-q", "-b", "main")
+    (root / ".afkv2").mkdir()
+    (root / ".afkv2" / "config.json").write_text(json.dumps({"spec_folder": "docs", "tracker": {"kind": "jira"}}),
+                                                 "utf-8")
+    shutil.copytree(SPEC_FIXTURE, root / "docs" / TICKET)
+    (root / "docs" / TICKET / "SDD.md").write_text("# SDD\n", "utf-8")
+    return root
+
+
+def _start(script, root, state):
+    """Run `<script> start --ticket PROJ-1` in `root`; return its input line, exit code and JSON answer."""
+    command = [sys.executable, str(script), "start", "--ticket", TICKET]
+    done = subprocess.run(command, cwd=root, capture_output=True, text=True, encoding="utf-8",
+                          stdin=subprocess.DEVNULL, timeout=120)
+    given = f"{script.name} start --ticket {TICKET}, with {state}"
+    try:
+        answer = json.loads(done.stdout)
+    except json.JSONDecodeError:
+        raise AssertionError(f"input: {given}\nexpected: 1 JSON answer\nactual: exit {done.returncode}\n"
+                             f"stdout: {done.stdout!r}\nstderr: {done.stderr!r}") from None
+    return given, done.returncode, answer
+
+
+def _expect(given, field, actual, expected, answer):
+    assert actual == expected, (f"input: {given}\nfield: {field}\nexpected: {expected!r}\nactual: {actual!r}\n"
+                                f"answer: {json.dumps(answer)}")
+
+
+def _relative(root, path):
+    """The answer path, relative to the repository, or the answer path itself when it lies outside."""
+    resolved, base = Path(path).resolve(), root.resolve()
+    return resolved.relative_to(base).as_posix() if resolved.is_relative_to(base) else path
+
+
+def _check_start(script, root, state, exists):
+    given, code, answer = _start(script, root, state)
+    _expect(given, "exit code", code, 0, answer)
+    _expect(given, "ok", answer.get("ok"), True, answer)
+    _expect(given, "prototype_exists", answer.get("prototype_exists"), exists, answer)
+    _expect(given, "prototype", _relative(root, answer.get("prototype", "")), "docs/PROJ-1/PROTOTYPE.md",
+            answer)
+    return given, answer
 
 
 # --- VR-023 (PRD AC-027, AC-029): design_files.py start answers prototype and prototype_exists
 
-def test_design_start_answers_the_prototype_path_with_and_without_the_file(tmp_path):
-    world = World(tmp_path)
-    _git_init(world.repo)
-    without = world.run("start", ticket_key="PROJ-1")
-    assert without["ok"] is True and without["prototype_exists"] is False
-    assert Path(world.repo / without["prototype"]).resolve() == (world.spec / "PROTOTYPE.md").resolve()
-    (world.spec / "PROTOTYPE.md").write_text(PROTOTYPE, "utf-8")
-    present = world.run("start", ticket_key="PROJ-1")
-    assert present["ok"] is True and present["prototype_exists"] is True
-    assert present["prototype"] == without["prototype"]
+def test_design_start_with_the_prototype_answers_true_and_the_path(tmp_path):
+    root = _repo(tmp_path)
+    (root / "docs" / TICKET / "PROTOTYPE.md").write_text(PROTOTYPE, "utf-8")
+    _check_start(DESIGN_FILES, root, "docs/PROJ-1/PROTOTYPE.md present", True)
+
+
+def test_design_start_without_the_prototype_answers_false_and_no_refusal(tmp_path):
+    root = _repo(tmp_path)
+    _check_start(DESIGN_FILES, root, "no docs/PROJ-1/PROTOTYPE.md", False)
 
 
 # --- VR-024 (PRD AC-028, AC-029): verification_files.py start answers prototype and prototype_exists
 
-def _verification_start(root):
-    done = subprocess.run([sys.executable, str(VERIFICATION_FILES), "start", "--ticket", TICKET], cwd=root,
-                          capture_output=True, text=True, encoding="utf-8", stdin=subprocess.DEVNULL, timeout=120)
-    return done.returncode, json.loads(done.stdout)
+def test_verification_start_with_the_prototype_answers_true_and_the_path(tmp_path):
+    root = _repo(tmp_path)
+    (root / "docs" / TICKET / "PROTOTYPE.md").write_text(PROTOTYPE, "utf-8")
+    given, answer = _check_start(VERIFICATION_FILES, root, "docs/PROJ-1/PROTOTYPE.md present", True)
+    _expect(given, "PROTOTYPE.md named in missing", "PROTOTYPE.md" in json.dumps(answer.get("missing", [])), False,
+            answer)
 
 
-def test_verification_start_answers_the_prototype_path_with_and_without_the_file(repo):
-    spec = (repo / "docs" / TICKET).resolve()
-    code, without = _verification_start(repo)
-    assert code == 0 and without["ok"] is True, without
-    assert without["prototype_exists"] is False and "PROTOTYPE.md" not in json.dumps(without.get("missing", []))
-    assert Path(repo / without["prototype"]).resolve() == spec / "PROTOTYPE.md"
-    (spec / "PROTOTYPE.md").write_text(PROTOTYPE, "utf-8")
-    code, present = _verification_start(repo)
-    assert code == 0 and present["ok"] is True and present["prototype_exists"] is True
-    assert present["prototype"] == without["prototype"]
+def test_verification_start_without_the_prototype_answers_false_and_no_refusal(tmp_path):
+    root = _repo(tmp_path)
+    given, answer = _check_start(VERIFICATION_FILES, root, "no docs/PROJ-1/PROTOTYPE.md", False)
+    _expect(given, "PROTOTYPE.md named in missing", "PROTOTYPE.md" in json.dumps(answer.get("missing", [])), False,
+            answer)
 
 
 # --- VR-025, VR-026 (PRD AC-027, AC-028): each SKILL.md reads PROTOTYPE.md in its read step and its proposer brief
@@ -61,7 +113,7 @@ def _flat(text):
 
 
 def _guide(skill):
-    return (Path(VERIFICATION_FILES).parents[2] / skill / "SKILL.md").read_text("utf-8")
+    return (SKILLS / skill / "SKILL.md").read_text("utf-8")
 
 
 def _step(text, number):
