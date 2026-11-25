@@ -22,6 +22,8 @@ FORGE_KINDS = ("github", "gitlab")
 LIVE_READY_SECONDS = 120
 LIVE_FIELDS = ("start", "address", "ready_seconds", "stop", "needs", "proven_at", "proven_head")
 VARIABLE_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+FRONTEND_FIELDS = ("name", "source", "catalog")
+FRONTEND_NAME = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
 
 EXIT_OK = 0
 EXIT_REFUSED = 1
@@ -53,6 +55,7 @@ def read_config(start: str | os.PathLike | None = None, *, with_live: bool = Tru
             "ownership": _ownership(raw),
             "forge": _forge(raw),
             "data_folder": str(data_folder()),
+            "frontends": _check_frontends(raw.get("frontends")),
         }
         if with_live and raw.get("live") is not None:
             answer["live"] = live_block(raw["live"])
@@ -135,6 +138,40 @@ def _forge(raw: dict) -> str | None:
     if value not in FORGE_KINDS:
         raise Refusal("bad-value", f"forge: {value!r} is not one of {', '.join(FORGE_KINDS)}")
     return value
+
+
+def _check_frontends(value: object) -> list[dict]:
+    """The `frontends` list as written, `[]` when absent; a bad entry refuses `bad-value` naming its field.
+    Paths stay relative to the repository root."""
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise Refusal("bad-value", "frontends: a list of {name, source, catalog} entries is required")
+    names, catalogs = set(), set()
+    for index, entry in enumerate(value):
+        field = f"frontends[{index}]"
+        if not isinstance(entry, dict):
+            raise Refusal("bad-value", f"{field}: an object with name, source and catalog is required")
+        for name in entry:
+            if name not in FRONTEND_FIELDS:
+                raise Refusal("bad-value", f"{field}.{name}: not one of {', '.join(FRONTEND_FIELDS)}")
+        name = entry.get("name")
+        if not isinstance(name, str) or not FRONTEND_NAME.fullmatch(name):
+            raise Refusal("bad-value", f"{field}.name: {name!r} is not lower case letters, digits and dashes")
+        if name in names:
+            raise Refusal("bad-value", f"{field}.name: {name!r} is already the name of another frontend")
+        names.add(name)
+        for key in ("source", "catalog"):
+            path = entry.get(key)
+            if not isinstance(path, str) or not path.strip():
+                raise Refusal("bad-value", f"{field}.{key}: a non-empty path relative to the repository root is required")
+            if PurePath(path).anchor or ".." in PurePath(path).parts:
+                raise Refusal("bad-value", f"{field}.{key}: {path!r} must stay inside the repository root")
+        catalog = PurePath(entry["catalog"]).as_posix()
+        if catalog in catalogs:
+            raise Refusal("bad-value", f"{field}.catalog: {catalog!r} is already the catalog of another frontend")
+        catalogs.add(catalog)
+    return [{key: entry[key] for key in FRONTEND_FIELDS} for entry in value]
 
 
 def live_block(value: object) -> dict:
