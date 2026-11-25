@@ -1,0 +1,67 @@
+"""A mockup in lavish, through the launcher: a page with no page document (SDD §3; ADR-0003 of ticket 207).
+
+`mockup_show.py wait --mockup FILE --notes-file NOTES`: one host poll; writes each note to NOTES as
+  `{uid, prompt, selector, tag, text}` and answers `count` and `ended`. Refuses `no-session`.
+
+Each answer is one JSON object; exit 0 ok, 1 refused, 2 unreadable input.
+"""
+
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+SKILL = Path(__file__).resolve().parents[1]
+PLUGIN = SKILL.parents[1]
+sys.path.insert(0, str(SKILL.parent / "use-lavish" / "scripts"))
+sys.path.insert(0, str(PLUGIN / "engine"))
+sys.path.insert(0, str(PLUGIN / "scripts"))
+
+import launcher  # noqa: E402
+from grill_common import Parser, Refusal, serve  # noqa: E402
+from shell import inject  # noqa: E402
+
+NOTE_FIELDS = ("uid", "prompt", "selector", "tag", "text")  # lavish poll at 0.1.86 (SDD §9b)
+
+
+def _mockup(path):
+    page = Path(path)
+    if not launcher.HTML.search(page.name) or not page.is_file():
+        raise Refusal("unreadable", f"{path}: no .html mockup there", 2)
+    return page
+
+
+def cmd_wait(argv):
+    """One host poll. The host hands a send over once, so the notes file is written before the answer."""
+    parser = Parser(add_help=False)
+    parser.add_argument("--mockup", required=True)
+    parser.add_argument("--notes-file", required=True)
+    args = parser.parse_args(argv)
+    page = _mockup(args.mockup)
+    status, detail = launcher.poll_status(["poll", str(page)])
+    if status != "feedback":
+        raise Refusal("host-error", f"lavish poll: {status}: {detail.get('reason')}")
+    notes = [{field: prompt.get(field) for field in NOTE_FIELDS} for prompt in detail["prompts"]]
+    notes_file = Path(args.notes_file)
+    notes_file.parent.mkdir(parents=True, exist_ok=True)
+    inject.write_if_changed(notes_file, json.dumps(notes, indent=2, ensure_ascii=False).encode("utf-8"))
+    return {"ok": True, "status": status, "count": len(notes), "ended": detail["session_ended"],
+            "notes_file": str(notes_file)}
+
+
+VERBS = {"wait": cmd_wait}
+
+
+def main(argv):
+    return serve(_dispatch, argv)
+
+
+def _dispatch(argv):
+    if not argv or argv[0] not in VERBS:
+        raise Refusal("usage", f"the verbs are {', '.join(VERBS)}", 2)
+    return VERBS[argv[0]](argv[1:])
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
