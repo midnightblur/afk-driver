@@ -118,7 +118,7 @@ def prototype_files(repo, *args):
 
 @pytest.fixture
 def frontend_repo(tmp_path):
-    """A scratch git repository: 1 frontend in the config, its source folder, and a spec folder with 2 screen stories."""
+    """A scratch git repository: 1 frontend in the config, its source folder, a spec folder with 2 screen stories."""
     def make(**config):
         root = tmp_path / "repo"
         (root / ".afkv2").mkdir(parents=True)
