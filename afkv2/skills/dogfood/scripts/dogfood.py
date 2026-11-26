@@ -37,6 +37,7 @@ COMMAND_S = 120
 ASK_LIMIT = 8000
 NAME_TRIES = 3
 LOOKUP_LIMIT = 10
+INPUT_LINES, PREFIX, ENTER_PAUSE_S = 6, 40, 2
 MANAGED_PREFERENCES, CLAUDE_DOMAIN = "/Library/Managed Preferences", "com.anthropic.claudecode"
 FORWARD_LINE = "A new ask from the main pane:"
 AGENT_FILE = Path("afkv2") / "skills" / "dogfood" / "AGENT.md"
@@ -259,6 +260,32 @@ def _role_prompt(source, ask):
             f"The first ask:\n\n{ask}")
 
 
+def _in_input_line(screen, text):
+    """Whether the start of `text` still sits in the last lines of the screen."""
+    tail = "".join("".join(line.split()) for line in screen.splitlines()[-INPUT_LINES:])
+    return "".join(text.split())[:PREFIX] in tail
+
+
+def _send(env, runner, agent, pane, text):
+    """1 prompt, with herdr playbook H-6 on a stall: 1 Enter only while the text sits in the input line, never a
+    resend. Answers `submitted`, and `prompt_error` when it is false: the session stays open (plan decision D-4)."""
+    code, out, err = _herdr(env, runner, "agent", "prompt", agent, text, "--wait", "--until", "working",
+                            "--timeout", PROMPT_MS)
+    if code == 0:
+        return {"submitted": True}
+    if _herdr_code(out, err) != "agent_prompt_stalled":
+        return {"submitted": False, "prompt_error": f"herdr agent prompt: {_herdr_code(out, err) or (err or out).strip()}"}
+    code, screen, err = _herdr(env, runner, "pane", "read", pane, "--source", "visible", "--lines", "40")
+    if code == 0 and _in_input_line(screen, text):
+        runner.sleep(ENTER_PAUSE_S)
+        _herdr(env, runner, "pane", "send-keys", pane, "enter")
+    code, out, err = _herdr(env, runner, "agent", "wait", agent, "--until", "working", "--timeout", PROMPT_MS)
+    if code == 0:
+        return {"submitted": True}
+    return {"submitted": False, "prompt_error": "the prompt stalled and the agent did not start work; look at the "
+                                                "afkv2 pane"}
+
+
 def _start_agent(env, runner, name, pane):
     """Start the afkv2 agent in its pane: Claude, the model and effort of AC-005, full auto-approval (H-4)."""
     code, out, err = _herdr(env, runner, "agent", "start", name, "--kind", HARNESS, "--pane", pane, "--timeout",
@@ -281,9 +308,9 @@ def verb_start(args, env, runner):
     ask = _read_ask(args.ask_file)
     source = _source(env, runner)
     if state and _live(env, runner, state):
-        _herdr_ok(env, runner, "agent", "prompt", state["agent"], f"{FORWARD_LINE}\n\n{ask}", "--wait", "--until",
-                  "working", "--timeout", PROMPT_MS)
-        return {"ok": True, "status": "existing", "agent": state["agent"], "pane": state["afkv2_pane"], "state": state}
+        sent = _send(env, runner, state["agent"], state["afkv2_pane"], f"{FORWARD_LINE}\n\n{ask}")
+        return {"ok": True, "status": "existing", "agent": state["agent"], "pane": state["afkv2_pane"], "state": state,
+                **sent}
     _check_auto_approval(env, runner)
     name = _agent_name(env, runner, main_pane)
     split = _herdr_ok(env, runner, "pane", "split", "--pane", main_pane, "--direction", "right", "--cwd", source,
@@ -300,9 +327,8 @@ def verb_start(args, env, runner):
     except BaseException:
         _herdr(env, runner, "pane", "close", pane)
         raise
-    _herdr_ok(env, runner, "agent", "prompt", name, _role_prompt(source, ask), "--wait", "--until", "working",
-              "--timeout", PROMPT_MS)
-    return {"ok": True, "status": "opened", "agent": name, "pane": pane, "state": state}
+    sent = _send(env, runner, name, pane, _role_prompt(source, ask))
+    return {"ok": True, "status": "opened", "agent": name, "pane": pane, "state": state, **sent}
 
 
 def verb_status(args, env, runner):

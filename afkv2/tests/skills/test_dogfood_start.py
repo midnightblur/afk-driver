@@ -268,3 +268,26 @@ def test_the_state_file_name_is_sanitised_and_the_lookup_reads_at_most_10_files(
     assert (code, answer) == (0, {"ok": True, "state": None})
     code, answer, runner = run(world, ["status"], env={**world["env"], "HERDR_PANE_ID": "w6:p11"})
     assert code == 0 and answer["state"]["main_pane"] == "w5:p11"
+
+
+def test_a_stalled_first_prompt_gets_1_enter_and_a_refused_one_leaves_the_session_open(world):
+    runner = DogfoodFakeRunner(world["env"])
+    runner.answer(("agent", "prompt"), herdr_error("agent_prompt_stalled"), times=1)
+    runner.on(("pane", "read"), lambda argv: runner.screens.update({argv[3]: "> You are the afkv2 agent of a dogfood session. Read"}))
+    code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])], runner)
+    assert (code, answer["status"], answer["submitted"]) == (0, "opened", True)
+    assert runner.keys == [(answer["pane"], ["enter"])] and len(runner.calls_of("agent", "wait")) == 1
+
+    state_file(world).unlink()
+    runner = DogfoodFakeRunner(world["env"])
+    runner.answer(("agent", "prompt"), herdr_error("agent_prompt_stalled"), times=1)
+    code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])], runner)
+    assert (code, answer["submitted"], runner.keys) == (0, True, [])
+
+    state_file(world).unlink()
+    runner = DogfoodFakeRunner(world["env"])
+    runner.answer(("agent", "prompt"), herdr_error("agent_blocked"))
+    code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])], runner)
+    assert (code, answer["status"], answer["submitted"]) == (0, "opened", False)
+    assert "agent_blocked" in answer["prompt_error"] and state_file(world).is_file()
+    assert answer["pane"] in runner.panes
