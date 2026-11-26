@@ -21,7 +21,7 @@ The title line `# Prototype — <ticket key>`, then 3 lines:
 |------|------|----------|
 | `live-verified` | the fidelity pass compared the mockup with screenshots of the live app | `> Fidelity: live-verified · screenshots: <file>, <file>`, each compared screenshot by its file name |
 | `catalog` | the design catalog was the anchor, no app ran, and every card of the catalog is checked; `settle` refuses it on a catalog with an unchecked card | `> Fidelity: catalog` |
-| `source-only` | no catalog and no running app: the frontend source was the anchor | `> Fidelity: source-only` |
+| `source-only` | no running app, and no catalog or a catalog with an unchecked card: the frontend source, or the catalog as a lead, was the anchor | `> Fidelity: source-only` |
 
 The screenshots stay in the afkv2 data folder and are deleted at the end of the run. The names are the record of the comparison.
 

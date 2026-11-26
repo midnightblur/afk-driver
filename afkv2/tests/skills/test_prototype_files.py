@@ -538,6 +538,14 @@ def test_settle_takes_live_verified_with_named_screenshots_and_refuses_it_withou
     expect_problem("screenshot", ran)
 
 
+def test_settle_takes_live_verified_on_an_app_the_developer_named_with_no_live_block(repo):
+    edit(spec(repo) / "PROTOTYPE.md", "> Fidelity: source-only",
+         "> Fidelity: live-verified · screenshots: shell.png")
+    ran = run(repo, "settle", "--ticket", TICKET, pinned=True)
+    expect_ok(ran)
+    expect(prototype_row(repo), PINNED_ROW, ran.given)
+
+
 def test_settle_takes_source_only_with_no_live_block(repo):
     ran = run(repo, "settle", "--ticket", TICKET, pinned=True)
     expect_ok(ran)
