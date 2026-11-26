@@ -9,8 +9,8 @@ A developer who uses afkv2 for real work in another repository cannot use an afk
 | PRD | PRD.md | published to GitHub 2026-11-25 |
 | Requirement ADRs | adr/requirements/ | 3 records |
 | Prototype | PROTOTYPE.md | — |
-| SDD | SDD.md | — |
-| Design ADRs | adr/design/ | — |
+| SDD | SDD.md | draft |
+| Design ADRs | adr/design/ | 4 records |
 | Design brief | DESIGN-BRIEF.md | — |
 | Verification plan | VERIFICATION.md | — |
 | Plan | plan/PLAN.md | — |

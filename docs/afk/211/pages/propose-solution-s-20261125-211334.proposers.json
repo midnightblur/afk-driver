@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "count": 2,
+  "tools": [
+    "claude",
+    "codex"
+  ],
+  "reason": null,
+  "stage": "failed",
+  "proposers": [
+    {
+      "tool": "claude",
+      "agent": "proposer-cc404301-claude",
+      "pane": null,
+      "worktree": null,
+      "created": true
+    },
+    {
+      "tool": "codex",
+      "agent": "proposer-cc404301-codex",
+      "pane": null,
+      "worktree": null,
+      "created": true
+    }
+  ],
+  "cleaned": true,
+  "brief": "5a23e7129decf3ebedb281fbd113f47c9c08ce0de93b1c99bc0ba32e3dc8782f",
+  "failed": {
+    "stage": "drafting",
+    "code": "no-draft"
+  }
+}

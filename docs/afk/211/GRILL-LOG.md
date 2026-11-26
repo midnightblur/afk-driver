@@ -55,3 +55,20 @@
 - Devil: pass ran; provider codex, model gpt-6-luna. 1 conflict earliest convenience vs finish-step: resolved, note applied on receipt (R3 note, R4 accept). 2 one branch bundles asks: accepted as trade-off, the Draft change gives each ask its own section (R3). 3 no herdr blocks: accepted, refuse with repair path start herdr (R3 option a). 4 work already done on old text: resolved, latest instruction wins, main agent redoes the delta at once (R4 note).
 - Settled: exit gate passed 2026-11-25 · session s-20261125-162229
 - Last pass: R4 · session s-20261125-162229
+
+## Solution design
+
+- Premise: herdr gives each pane HERDR_PANE_ID; pane split --current opens beside it; agent start/prompt/wait/read/close are the pane verbs → verified (afkv2/skills/herdr-playbook/SKILL.md:34,42,65,81,96,111,118,133)
+- Premise: proposer_engine creates worktrees of the repository of its working folder, not of the plugin source → verified (afkv2/skills/use-lavish/scripts/proposer_engine.py:292,425,454)
+- Premise: install record is key-value lines split at the first space; every reader ignores an unknown key and the writer keeps it → verified (afkv2/skills/setup/scripts/setup.py:91-116; afkv2/scripts/other_provider.py:202-210)
+- Premise: a main checkout has git-dir equal to git-common-dir; a linked worktree does not → verified (afkv2/skills/gc/scripts/cleanup.py:134-139)
+- Premise: create-change-request takes the Draft change target from the invocation, else the repository config base branch → verified (afkv2/skills/create-change-request/SKILL.md:14)
+- Premise: skills, hooks and the core behaviors text load from the plugin root the harness installed; scripts find their root from their own path → verified (afkv2/hooks/session-start.cmd:4; afkv2/hooks/hooks.json:11,25; afkv2/skills/small-change/scripts/small_lane.py:22)
+- Premise: check_plan.py is the checker pattern: writes nothing, JSON answer, exit 0/1/2, every failure as code-where-reason → verified (afkv2/skills/to-subtasks/scripts/check_plan.py:1-5,106)
+- Premise: text typed into a working Claude or Codex agent is queued until the turn ends; Ctrl+Enter sends it at once → unverified-external (human acknowledged)
+- Premise: herdr detects an agent in a pane it did not start and answers it by pane id (herdr agent get w2D:p1E answered the agent of this session) → verified (herdr 0.9.5 agent list/get, 2026-11-26)
+- Premise: claude CLI takes --model and --effort at start → verified (claude --help, 2026-11-26)
+- Premise: the plugin source repository holds afkv2/.claude-plugin/plugin.json named afkv2 and a root marketplace entry of source ./afkv2 → verified (afkv2/.claude-plugin/plugin.json:2; .claude-plugin/marketplace.json:9-10)
+- Spinoff: proposer engine reported a Codex proposer submitted while Codex 0.167.2 showed a hooks-review dialog and never read the brief → the Codex draft is lost and the session drafts alone; a startup dialog the engine does not detect is outside this ticket
+- Settled: design gate passed 2026-11-26 · session s-20261125-211334
+- Last pass: R3 · session s-20261125-211334
