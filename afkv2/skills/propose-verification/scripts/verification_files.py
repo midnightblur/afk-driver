@@ -3,6 +3,7 @@
 `verification_files.py start --ticket KEY [--target REF]`: the session paths, and the live state of the repository
   config: {block, proven_here}. Refuses `missing-input` naming the writer of a missing PRD, SDD or grill log.
   `prototype` and `prototype_exists`: PROTOTYPE.md, an optional input kept out of `WRITERS`; a missing one is no refusal.
+  `prototype_exists` is true only when the INDEX.md `Prototype` row says `chosen`; an unsettled file counts as absent.
   The newest session with a page document and no `written` row resumes.
 `verification_files.py sync --doc FILE --log FILE`: copies each new note of the page into this skill's log section.
 `verification_files.py write --spec-dir DIR --plan FILE --doc FILE [--target REF]`: writes VERIFICATION.md.
@@ -111,7 +112,7 @@ def _proven_head_at(repo_root, commit):
 
 
 def _config(repo_root):
-    config = afkv2_config.read_config(repo_root)
+    config = afkv2_config.read_config(repo_root, with_frontends=False)
     if not config["ok"]:
         raise Refusal(config["error"]["code"], config["error"]["reason"])
     return config
@@ -207,7 +208,7 @@ def start(argv):
             "requirement_adrs": (spec_dir / "adr" / "requirements").as_posix(),
             "design_adrs": (spec_dir / "adr" / "design").as_posix(), "verification": verification.as_posix(),
             "verification_exists": verification.is_file(), "prototype": prototype.as_posix(),
-            "prototype_exists": prototype.is_file(), "doc": doc.as_posix(), "session": session,
+            "prototype_exists": prd_files.prototype_chosen(spec_dir, prototype), "doc": doc.as_posix(), "session": session,
             "resume": resumed is not None, "raw_file": raw_file.as_posix(),
             "live": live_state(config["repo_root"], args.target)}
 

@@ -70,15 +70,15 @@ Every surface answers one JSON object: `{"ok": true, ...}` or `{"ok": false, "er
 | `prototype_files.py start` | `--ticket K [--frontend NAME]` | `spec_dir, prd, index, prototype_md, mockup_dir, frontend {name, source, catalog}, catalog_exists, live, resume` | `missing-input` (no PRD; `writer` to-prd), `no-frontend` (reason names `catalog_files.py add-frontend`), `pick-frontend` (lists the names; several entries and no `--frontend`) |
 | `prototype_files.py check` | `--mockup F` | `file` | `network-call` (each line), `afkv2-runtime` (the tooltip block), `unreadable` |
 | `prototype_files.py settle` | `--ticket K` | `scanned` (files), `index_state` (`chosen <date>`) | `bad-prototype` (`problems`, for example a missing coverage row), `network-call`, `afkv2-runtime`, `secrets` (`file, line, shape`) |
-| `mockup_show.py show` | `--mockup F` | `url` | `no-host` (lavish missing, pin mismatch or `LAVISH_AXI_HOST` set; `reason`) |
-| `mockup_show.py wait` | `--mockup F --notes-file N` | `count`, `ended`; N holds `[{uid, prompt, selector, tag, text}]` | `no-session` |
+| `mockup_show.py show` | `--mockup F` | `url`, `tab` (`reused` when a tab record shows the mockup already open, and the show adds `--no-open`; else null) | `no-host` (lavish missing, pin mismatch or `LAVISH_AXI_HOST` set; `reason`), `no-data-folder` (on Codex, `LOCALAPPDATA` not set) |
+| `mockup_show.py wait` | `--mockup F --notes-file N` | `count`, `ended`; N holds `[{uid, prompt, selector, tag, text}]` | `no-session`, `no-host` as show, `notes-unwritten` (N cannot be written after the poll; the notes are in the `notes` field), `no-data-folder` (on Codex, `LOCALAPPDATA` not set) |
 | `mockup_show.py reply` | `--mockup F --reply-file R` | ok | `no-session` |
 | `mockup_show.py end` | `--mockup F` | ok | none |
 | `catalog_files.py start` | `--frontend NAME` | `frontend, catalog_dir, catalog_exists, cards, live` | `no-frontend`, `pick-frontend` |
 | `catalog_files.py add-frontend` | `--name N --source S --catalog C` | the entry written | `bad-value` (duplicate name or catalog, path outside the repository, source folder missing) |
 | `catalog_files.py check` | `--frontend NAME` | `cards, checked, unchecked` | `bad-catalog` (`problems`), `network-call`, `secrets` |
 | launcher `open` | `<page.html> [--no-open\|--reopen] [--plain]` | as today | as today |
-| config read answer | as today | adds `frontends`, `[]` when absent | `bad-value` for a broken `frontends` list |
+| config read answer | as today; `read_config(with_frontends=False)` and `read --no-frontends` skip the list | adds `frontends`, `[]` when absent; no `frontends` key with the opt-out | `bad-value` for a broken `frontends` list by default. Only `prototype_files.py` and `catalog_files.py` read the list; every other reader opts out, so a bad list refuses only those 2 |
 | propose-solution and propose-verification `start` | as today | adds `prototype` (path) and `prototype_exists` | as today; never refuses on a missing PROTOTYPE.md |
 | Codex Stop hook | as today | a page with no page document: 1 line per note with its tag, selector and text | as today |
 
@@ -94,6 +94,7 @@ Existing callers: every change to an existing surface adds a flag or a field; no
 | catalog | the catalog folder of the entry | per frontend | git | forever; a card for a gone shape removed only after the developer's yes | refreshed in place | no | git history |
 | screenshots | `<afkv2 data folder>/shots/<run>/` | per run | none | deleted at the end of the run | none | possibly: live data, never committed | no |
 | notes file | `<afkv2 data folder>/notes/<run>.json` | per run | none | deleted at the end of the run | none | no | no |
+| tab record | `<afkv2 data folder>/mockup-tabs/<12 hex of the SHA-256 of the mockup path>.json`, `{page, url}` | per mockup | none | written by `show` when it opens a tab; deleted by `end`, by `wait` on `ended` or `no-session`, and by a `show` whose session status is not `opened`; best effort, no record without a data folder | none | no | no |
 
 **frontends entry** (writer: `catalog_files.py add-frontend` only, ADR-0002, fork f-writer):
 
@@ -323,7 +324,7 @@ The canvas rules of `MOCKUP.md`: inline CSS and JS; made-up rows in 1 JSON scrip
 |------|-------------------|----------------|----------------|---------------------------|---------|
 | launcher `plan` and `run` (`afkv2/engine/launcher.py:61-107, 296-300`) | `open` always writes the tooltip block into the original file (`engine/shell/inject.py:206-216, 257-267`) | `--plain` on `open` skips `inject_file`; the pin and host checks stay | every lavish page: unchanged without the flag | the flag is afkv2's own: strip it before the lavish command line; `tests/engine/test_page_tip_injection.py` keeps its cases | extends (ADR-0001) |
 | Codex Stop hook `_raw` (`afkv2/hooks/codex_stop.py:39-47, 118-136`) | a page with no document hands back the note words only | 1 line per note with tag, selector and text; the waiting record is written by `mockup_show.py show` (`launcher.write_waiting_record`, `launcher.py:431-445`) when `CODEX_THREAD_ID` is set | no current page has no document | keep the branch for a page document as it is | extends (ADR-0003) |
-| config read (`afkv2/scripts/afkv2_config.py:39-58, 97-137`) | no `frontends`; unknown top-level keys ignored | `frontends` parsed and checked, `[]` when absent | every config reader: an added field | refuse a bad list with `bad-value`, as the `live` block does (:140-170) | extends (ADR-0002) |
+| config read (`afkv2/scripts/afkv2_config.py:39-58, 97-137`) | no `frontends`; unknown top-level keys ignored | `frontends` parsed and checked, `[]` when absent; `with_frontends=False` (command flag `--no-frontends`) skips it | every config reader: an added field; each reader other than `prototype_files.py` and `catalog_files.py` opts out | refuse a bad list with `bad-value` by default, as the `live` block does (:140-170) | extends (ADR-0002) |
 | propose-solution start and SKILL.md (`design_files.py:136-140`; `SKILL.md:10-17, 43, 72`) | no prototype input | `prototype`, `prototype_exists`; optional input row; step 2 and the proposer brief read it; each UI decision that changes the design is cited in its existing section (requirement ADR-0003) | the design session | never refuse a missing PROTOTYPE.md (AC-029) | extends (ADR-0004) |
 | propose-verification start and SKILL.md (`verification_files.py:180-207, 47`; `SKILL.md:12-18, 36, 48`) | no prototype input | optional input, kept out of `WRITERS`; `ui-e2e` and `acceptance` rows from its Coverage rows, traced by the existing `story` and `criteria` columns | the verification session | no new column (`VERIFICATION-FORMAT.md:67`) | extends (ADR-0004) |
 | INDEX-FORMAT.md writer table (`afkv2/skills/to-prd/INDEX-FORMAT.md:7-11, 24`) | Prototype row with no writer | prototype is its writer, through `prd_files.set_row` (`prd_files.py:176-190`) | none | state `chosen <date>` | fits |

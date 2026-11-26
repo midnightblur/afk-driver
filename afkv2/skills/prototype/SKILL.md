@@ -45,7 +45,7 @@ Run each command from the repository root, in the worktree of the branch. `<pyth
 
 ## No screen, no mockup
 
-Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no story adds or changes a screen, stop with `no_ui`: the run writes no file, opens no page, starts no app and leaves the `INDEX.md` Prototype row as it is. Tell the developer that the feature has no screen to draw.
+Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no story adds or changes a screen, stop with `no_ui`: the run writes no file, shows no mockup, starts no app and leaves the `INDEX.md` Prototype row as it is. Tell the developer that the feature has no screen to draw.
 
 ## Steps
 
@@ -67,7 +67,7 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
    | `anchor` | Read |
    |----------|------|
    | `catalog` | the catalog README and its cards in `frontend.catalog`: copy their tokens and card markup as they are |
-   | `live` | screenshots of the live app: its shell and the page type nearest each new screen |
+   | `live` | screenshots of the live app: its shell and the screen type nearest each new screen |
    | `source` | the tokens, the components and the shell in `frontend.source`; delegate the read to a subagent, and take back a digest with a file citation for each item |
 
    With a `live` block in the answer, also on the `catalog` anchor, start the app:
@@ -117,8 +117,8 @@ Each note names its element by the `selector`, the `tag` and the `text` that lav
 
 ### In lavish
 
-1. Run `show`. `no-host`: lavish is missing, at another version or on an unsafe host. Its reason holds the `file://` path: go on by "In chat". `status` `user-ended`: the developer ended this session in the browser, and lavish does not open it again: run `end`, and go on by "In chat".
-2. Wait for the notes. On Claude, run `wait` with `--notes-file "<afkv2 data folder>/notes/<run>.json"` as a background command the harness tracks; its exit tells you the notes are in the notes file. On Codex, run `show` before you end each turn: the Stop hook waits only on the waiting record that `show` writes, and it clears the record after each wait. Then end your turn, and the Stop hook hands back 1 line per note with its tag, selector and text.
+1. Run `show`. `no-host`: lavish is missing, at another version or on an unsafe host. Its reason holds the `file://` path: go on by "In chat". `status` `user-ended`: the developer ended this session in the browser, and lavish does not open it again: run `end`, and go on by "In chat". `tab` `reused`: lavish opened no new tab, because a tab showed the mockup before. When the developer does not see the mockup, run `end`, then `show`.
+2. Wait for the notes. On Claude, run `wait` with `--notes-file "<afkv2 data folder>/notes/<run>.json"` as a background command the harness tracks; its exit tells you the notes are in the notes file. On Codex, run `show` before you end each turn: the Stop hook waits only on the waiting record that `show` writes, and it clears the record after each wait. A later `show` reuses the open tab. Then end your turn, and the Stop hook hands back 1 line per note with its tag, selector and text.
 3. Read each note, and give it an edit of the mockup or a reply.
 4. Show the edited mockup: lavish reloads the saved file in the open session, so run no `show` for it. Write 1 Markdown line per note to a reply file, the edit made or the answer, and run `reply`.
 5. Go to step 2.
@@ -128,9 +128,10 @@ Each note names its element by the `selector`, the `tag` and the `text` that lav
 | `count` 0 and `ended` false | run `wait` again |
 | `ended` true | first give each note of the notes file an edit of the mockup or a reply. `status` `browser_disconnected`: the developer closed the browser; ask in chat whether to run `show` again or to go on by "In chat". Any other `status`: the developer ended the session, and lavish does not open it again; go on by "In chat" |
 | `no-session` | run `show`, then `wait` |
+| `notes-unwritten` | the notes are in the `notes` field of the refusal: give each an edit of the mockup or a reply, and fix the notes file path that the reason names |
 | `no-host` or `host-error` | go on by "In chat", with the `file://` path of the mockup |
 
-On Codex, the Stop hook can end the wait with no note: the wait timed out, the developer closed the mockup, no session shows it, or lavish fell back. Its message goes to the developer, and your turn ends. At the next chat message of the developer, ask whether to run `show` again or to go on by "In chat".
+On Codex, the Stop hook can end the wait with no note: the wait timed out, the developer closed the mockup, no session shows it, or lavish fell back. Its message goes to the developer, and your turn ends. At the next chat message of the developer, ask whether to show the mockup again or to go on by "In chat". To show it again, run `end`, then `show`: lavish then opens a new tab.
 
 ### In chat
 

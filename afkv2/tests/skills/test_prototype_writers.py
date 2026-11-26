@@ -17,9 +17,13 @@ FILE_NAME = "PROTOTYPE.md"
 ROW = "Prototype"
 SKIPPED = {"__pycache__", "tests"}
 WRITE_METHODS = {"write_text", "write_bytes", "unlink", "rename", "replace", "touch"}
-WRITE_FUNCTIONS = {"write_text", "write_bytes", "set_row"}
+WRITE_FUNCTIONS = {"write_text", "write_bytes", "write_atomic", "write_json", "write_if_changed", "set_row"}
 COPY_FUNCTIONS = {"copy", "copy2", "copyfile", "move"}
-PROSE_WRITE = re.compile(r"\b(write|writes|writing|set|sets|update|updates|edit|edits|change|changes)\b", re.IGNORECASE)
+WRITE_MODES = set("wax+")
+PATH_TEXT = re.compile(rf"(^|[/\\]){re.escape(FILE_NAME)}$")
+PROSE_WRITE = re.compile(r"\b(write|writes|writing|set|sets|update|updates|upsert|upserts|edit|edits|change|changes"
+                         r"|fill|fills|record|records|create|creates)\b", re.IGNORECASE)
+PROSE_ROW = re.compile(rf"`?{ROW}`? row")
 CHECKLIST = PLUGIN / "tests" / "live" / "PROTOTYPE-LIVE-CHECKS.md"
 MOVED = ["VR-001", "VR-002", "VR-003", "VR-018", "VR-004", "VR-005", "VR-006", "VR-016", "VR-022", "VR-025", "VR-026"]
 HEADING = "## Owner live checks — the real-session checks the owner runs before Ready"
@@ -33,12 +37,32 @@ def _sources(root, suffix):
 
 
 def _constants(tree):
-    """{name: str value} of each module-level `NAME = "text"`."""
+    """{name: str value} of each module-level `NAME = "text"` or `NAME: str = "text"`."""
     found = {}
     for node in tree.body:
-        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
-            found.update({target.id: node.value.value for target in node.targets if isinstance(target, ast.Name)})
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target] if isinstance(node, ast.AnnAssign) else []
+        if isinstance(getattr(node, "value", None), ast.Constant) and isinstance(node.value.value, str):
+            found.update({target.id: node.value.value for target in targets if isinstance(target, ast.Name)})
     return found
+
+
+def _names_file(value):
+    return isinstance(value, str) and bool(PATH_TEXT.search(value))
+
+
+def _seeds(tree, modules):
+    """The names that hold the PROTOTYPE.md path at the start: module constants, names imported from a module whose
+    constant holds it (`from m import NAME as X` gives `X`), and `m.NAME` for `import m`."""
+    seeds = {key for key, value in _constants(tree).items() if _names_file(value)}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            constants = modules.get(node.module.rsplit(".", 1)[-1], {})
+            seeds.update(alias.asname or alias.name for alias in node.names if _names_file(constants.get(alias.name)))
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                constants = modules.get(alias.name.rsplit(".", 1)[-1], {})
+                seeds.update(f"{alias.asname or alias.name}.{key}" for key, value in constants.items() if _names_file(value))
+    return seeds
 
 
 def _called(call):
@@ -46,21 +70,26 @@ def _called(call):
 
 
 def row_writers(root):
-    """{artifact: [file]} of each `set_row(index, artifact, ...)` call; an artifact that is no string constant is `?`."""
+    """{artifact: [file]} of each `set_row(index, artifact, ...)` call, positional or `artifact=`; an artifact that is
+    no string constant is `?`."""
     writers = {}
     for path, name in _sources(root, ".py"):
         tree = ast.parse(path.read_text("utf-8"))
         constants = _constants(tree)
         for node in ast.walk(tree):
-            if isinstance(node, ast.Call) and _called(node) == "set_row" and len(node.args) > 1:
-                arg = node.args[1]
+            if isinstance(node, ast.Call) and _called(node) == "set_row":
+                keyword = next((kw.value for kw in node.keywords if kw.arg == "artifact"), None)
+                arg = node.args[1] if len(node.args) > 1 else keyword
                 artifact = (arg.value if isinstance(arg, ast.Constant) else constants.get(getattr(arg, "id", None), "?"))
                 writers.setdefault(artifact, []).append(name)
     return writers
 
 
 def _tainted(node, names):
-    return any((isinstance(sub, ast.Name) and sub.id in names) or (isinstance(sub, ast.Constant) and sub.value == FILE_NAME)
+    return any((isinstance(sub, ast.Name) and sub.id in names)
+               or (isinstance(sub, ast.Attribute) and isinstance(sub.value, ast.Name)
+                   and f"{sub.value.id}.{sub.attr}" in names)
+               or (isinstance(sub, ast.Constant) and _names_file(sub.value))
                for sub in ast.walk(node))
 
 
@@ -70,9 +99,13 @@ def _taint(scope, names):
     while True:
         before = len(names)
         for node in ast.walk(scope):
-            if not isinstance(node, ast.Assign):
+            if isinstance(node, ast.AnnAssign) and node.value is not None:
+                targets = [node.target]
+            elif isinstance(node, ast.Assign):
+                targets = node.targets
+            else:
                 continue
-            for target in node.targets:
+            for target in targets:
                 pairs = (zip(target.elts, node.value.elts) if isinstance(target, ast.Tuple) and isinstance(node.value, ast.Tuple)
                          and len(target.elts) == len(node.value.elts) else [(target, node.value)])
                 names.update(t.id for t, v in pairs if isinstance(t, ast.Name) and _tainted(v, names))
@@ -88,21 +121,31 @@ def _writes(call, names):
         return True
     if called in COPY_FUNCTIONS and len(call.args) > 1 and _tainted(call.args[1], names):
         return True
-    if called == "open" and call.args and _tainted(call.args[0], names):
-        modes = [arg for arg in call.args[1:2] if isinstance(arg, ast.Constant)]
-        modes += [kw.value for kw in call.keywords if kw.arg == "mode" and isinstance(kw.value, ast.Constant)]
-        return any(set(str(mode.value)) & set("wax+") for mode in modes)
-    return False
+    if called != "open":
+        return False
+    if isinstance(call.func, ast.Attribute) and _tainted(call.func.value, names):
+        return _write_mode(call, 0)
+    return bool(call.args) and _tainted(call.args[0], names) and _write_mode(call, 1)
+
+
+def _write_mode(call, position):
+    """The mode of an open call, at argument `position` or `mode=`, holds w, a, x or +."""
+    modes = [arg for arg in call.args[position:position + 1] if isinstance(arg, ast.Constant)]
+    modes += [kw.value for kw in call.keywords if kw.arg == "mode" and isinstance(kw.value, ast.Constant)]
+    return any(set(str(mode.value)) & WRITE_MODES for mode in modes)
 
 
 def prototype_md_writes(root):
     """`file:line` of each call outside skills/prototype that writes a path built from `PROTOTYPE.md`."""
     hits = []
-    for path, name in _sources(root, ".py"):
+    trees = {name: (path, ast.parse(path.read_text("utf-8"))) for path, name in _sources(root, ".py")}
+    modules = {}
+    for path, tree in trees.values():
+        modules.setdefault(path.stem, {}).update(_constants(tree))
+    for name, (path, tree) in trees.items():
         if name.startswith(OWNER):
             continue
-        tree = ast.parse(path.read_text("utf-8"))
-        seeds = {key for key, value in _constants(tree).items() if value == FILE_NAME}
+        seeds = _seeds(tree, modules)
         for scope in [tree, *(node for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)))]:
             names = _taint(scope, seeds)
             hits += [f"{name}:{node.lineno}" for node in ast.walk(scope)
@@ -118,7 +161,7 @@ def prose_writers(root):
         if name.startswith(OWNER):
             continue
         for number, line in enumerate(path.read_text("utf-8").splitlines(), start=1):
-            if (FILE_NAME in line or f"{ROW} row" in line) and PROSE_WRITE.search(line):
+            if (FILE_NAME in line or PROSE_ROW.search(line)) and PROSE_WRITE.search(line):
                 hits.append(f"{name}:{number}")
     return hits
 
@@ -132,9 +175,9 @@ def _plant(root, relative, text):
 # --- VR-030 (PRD AC-030): only skills/prototype writes PROTOTYPE.md and the INDEX Prototype row
 
 def test_only_prototype_files_sets_the_index_prototype_row():
-    writers = row_writers(PLUGIN / "skills")
-    assert writers.get(ROW) == ["prototype/scripts/prototype_files.py"]
-    assert "?" not in writers
+    writers = row_writers(PLUGIN)
+    assert writers.get(ROW) == ["skills/prototype/scripts/prototype_files.py"], f"input: {PLUGIN}\nactual: {writers}"
+    assert "?" not in writers, f"input: {PLUGIN}\nexpected: no set_row with an unknown artifact\nactual: {writers}"
 
 
 def test_no_script_outside_the_prototype_skill_writes_prototype_md():
@@ -163,6 +206,37 @@ def test_each_writer_search_finds_a_planted_writer(tmp_path):
     assert prototype_md_writes(tmp_path) == ["skills/other/scripts/files.py:10", "skills/other/scripts/files.py:7",
                                              "skills/other/scripts/files.py:8"]
     assert prose_writers(tmp_path) == ["skills/other/SKILL.md:2", "skills/other/SKILL.md:3"]
+
+
+def test_the_file_search_finds_helpers_open_methods_annotations_f_strings_and_imports(tmp_path):
+    _plant(tmp_path, "skills/prototype/scripts/prototype_files.py", 'FILE_NAME = "PROTOTYPE.md"\n')
+    _plant(tmp_path, "skills/other/scripts/more.py",
+           'from prototype_files import FILE_NAME as PROTO\nimport prototype_files\nNAME = "PROTOTYPE.md"\n\n'
+           'def go(spec):\n    write_atomic(spec / NAME, "x")\n    write_json(spec / NAME, {})\n'
+           '    (spec / NAME).open("w")\n    (spec / NAME).open().read()\n    open(f"{spec}/PROTOTYPE.md", "w")\n'
+           '    target: Path = spec / NAME\n    target.write_text("x")\n    (spec / PROTO).write_text("x")\n'
+           '    (spec / prototype_files.FILE_NAME).write_text("x")\n    "no PROTOTYPE.md".replace("a", "b")\n')
+    expected = sorted(f"skills/other/scripts/more.py:{line}" for line in (6, 7, 8, 10, 12, 13, 14))
+    actual = prototype_md_writes(tmp_path)
+    assert actual == expected, f"input: planted more.py\nexpected: {expected}\nactual: {actual}"
+
+
+def test_the_row_search_reads_the_artifact_keyword_and_scripts_outside_skills(tmp_path):
+    _plant(tmp_path, "skills/other/scripts/rows.py", 'def go(i):\n    set_row(i, artifact="Prototype", where="a", state="b")\n')
+    _plant(tmp_path, "scripts/rows.py", 'def go(i):\n    set_row(i, "Prototype", "a", "b")\n')
+    _plant(tmp_path, "tests/test_rows.py", 'def go(i):\n    set_row(i, "Prototype", "a", "b")\n')
+    actual = row_writers(tmp_path)
+    expected = {"Prototype": ["scripts/rows.py", "skills/other/scripts/rows.py"]}
+    assert actual == expected, f"input: 3 planted set_row calls\nexpected: {expected}\nactual: {actual}"
+
+
+def test_the_prose_search_finds_more_verbs_and_the_quoted_row_name(tmp_path):
+    lines = ["Upsert the `Prototype` row of INDEX.md.", "Fill in PROTOTYPE.md.", "Record the decision in PROTOTYPE.md.",
+             "Create PROTOTYPE.md.", "Read `PROTOTYPE.md`.", "Read the `Prototype` row."]
+    _plant(tmp_path, "skills/other/SKILL.md", "\n".join(lines) + "\n")
+    actual = prose_writers(tmp_path)
+    expected = [f"skills/other/SKILL.md:{n}" for n in (1, 2, 3, 4)]
+    assert actual == expected, f"input: planted lines {lines}\nexpected: {expected}\nactual: {actual}"
 
 
 # --- VR-031: the owner checklist holds 1 real-session check per moved plan row

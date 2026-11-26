@@ -3,6 +3,8 @@ VR-023, VR-024, VR-025, VR-026).
 
 Each start test builds its own scratch git repository with its own spec files, and runs the script by its path with
 `start --ticket PROJ-1`. PROTOTYPE.md is an optional input: a spec folder without it runs as today, with no refusal.
+`prototype_exists` is true only when PROTOTYPE.md exists and the INDEX.md Prototype row, which prototype settle writes,
+says `chosen <date>`; an unsettled file counts as absent.
 Each failure names the input, the expected value and the actual value.
 
 The guide tests are static rows: a static row proves the rule is written in the file that owns it (the plan lowered
@@ -16,12 +18,16 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 PLUGIN = Path(__file__).resolve().parents[2]
 SKILLS = PLUGIN / "skills"
 DESIGN_FILES = SKILLS / "propose-solution" / "scripts" / "design_files.py"
 VERIFICATION_FILES = SKILLS / "propose-verification" / "scripts" / "verification_files.py"
 TICKET = "PROJ-1"
 PROTOTYPE = "# Prototype — sample\n\n> Frontend: web\n> Fidelity: source-only\n> Date: 2026-11-25\n"
+INDEX = ("# PROJ-1 — start here\n\n## Artifacts\n\n| Artifact | Where | State |\n|---|---|---|\n| PRD | PRD.md | draft |\n"
+         "| Prototype | PROTOTYPE.md | {state} |\n")
 
 
 def _git(root, *args):
@@ -80,6 +86,14 @@ def _relative(root, path):
     return resolved.relative_to(base).as_posix() if resolved.is_relative_to(base) else path
 
 
+def _settled(root, state="chosen 2026-11-25", prototype=True):
+    """Write INDEX.md with the Prototype row `state`, and PROTOTYPE.md when `prototype` is true."""
+    spec = root / "docs" / TICKET
+    (spec / "INDEX.md").write_text(INDEX.format(state=state), "utf-8")
+    if prototype:
+        (spec / "PROTOTYPE.md").write_text(PROTOTYPE, "utf-8")
+
+
 def _check_start(script, root, state, exists):
     given, code, answer = _start(script, root, state)
     _expect(given, "exit code", code, 0, answer)
@@ -94,8 +108,8 @@ def _check_start(script, root, state, exists):
 
 def test_design_start_with_the_prototype_answers_true_and_the_path(tmp_path):
     root = _repo(tmp_path)
-    (root / "docs" / TICKET / "PROTOTYPE.md").write_text(PROTOTYPE, "utf-8")
-    _check_start(DESIGN_FILES, root, "docs/PROJ-1/PROTOTYPE.md present", True)
+    _settled(root)
+    _check_start(DESIGN_FILES, root, "docs/PROJ-1/PROTOTYPE.md present, INDEX.md Prototype row chosen", True)
 
 
 def test_design_start_without_the_prototype_answers_false_and_no_refusal(tmp_path):
@@ -107,8 +121,8 @@ def test_design_start_without_the_prototype_answers_false_and_no_refusal(tmp_pat
 
 def test_verification_start_with_the_prototype_answers_true_and_the_path(tmp_path):
     root = _repo(tmp_path)
-    (root / "docs" / TICKET / "PROTOTYPE.md").write_text(PROTOTYPE, "utf-8")
-    _check_start(VERIFICATION_FILES, root, "docs/PROJ-1/PROTOTYPE.md present", True)
+    _settled(root)
+    _check_start(VERIFICATION_FILES, root, "docs/PROJ-1/PROTOTYPE.md present, INDEX.md Prototype row chosen", True)
 
 
 def test_verification_start_without_the_prototype_answers_false_and_no_refusal(tmp_path):
@@ -123,6 +137,27 @@ def test_verification_start_never_names_a_missing_prototype_in_missing(tmp_path)
     _expect(given, "error.code", answer.get("error", {}).get("code"), "missing-input", answer)
     _expect(given, "error.missing", _relative(root, answer.get("error", {}).get("missing", "")), "docs/PROJ-1/SDD.md",
             answer)
+
+
+# --- VR-023, VR-024: an unsettled PROTOTYPE.md counts as absent
+
+UNSETTLED = [
+    ("PROTOTYPE.md present, INDEX.md Prototype row —", {"state": "—"}),
+    ("PROTOTYPE.md present, INDEX.md Prototype row draft", {"state": "draft"}),
+    ("PROTOTYPE.md present, no INDEX.md", None),
+    ("INDEX.md Prototype row chosen, no PROTOTYPE.md", {"prototype": False}),
+]
+
+
+@pytest.mark.parametrize("script", [DESIGN_FILES, VERIFICATION_FILES], ids=["design", "verification"])
+@pytest.mark.parametrize("state, settled", UNSETTLED, ids=["row-dash", "row-draft", "no-index", "no-file"])
+def test_start_with_an_unsettled_prototype_answers_false_and_no_refusal(tmp_path, script, state, settled):
+    root = _repo(tmp_path)
+    if settled is None:
+        (root / "docs" / TICKET / "PROTOTYPE.md").write_text(PROTOTYPE, "utf-8")
+    else:
+        _settled(root, **settled)
+    _check_start(script, root, state, False)
 
 
 # --- VR-025, VR-026 (PRD AC-027, AC-028): each SKILL.md reads PROTOTYPE.md in its read step and its proposer brief
@@ -196,3 +231,15 @@ def test_propose_verification_guide_reads_the_prototype_and_derives_rows_from_it
     _holds(skill, "step 2", read, "`ui-e2e` and `acceptance` rows from each `reachable` row of its Coverage table")
     _holds(skill, "step 2", read, "`story` and `criteria`")
     _holds(skill, "step 2", read, "no new column")
+
+
+# --- a bad `frontends` list in the config: propose-verification never reads it, so it does not refuse
+
+def test_verification_start_with_a_bad_frontends_list_answers_ok(tmp_path):
+    root = _repo(tmp_path)
+    web = {"name": "web", "source": "src", "catalog": "docs/catalog"}
+    config = root / ".afkv2" / "config.json"
+    config.write_text(json.dumps({**json.loads(config.read_text("utf-8")), "frontends": [web, web]}), "utf-8")
+    given, code, answer = _start(VERIFICATION_FILES, root, "frontends [web, web] in the config")
+    _expect(given, "exit code", code, 0, answer)
+    _expect(given, "ok", answer.get("ok"), True, answer)

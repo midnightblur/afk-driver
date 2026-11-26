@@ -427,7 +427,7 @@ def call_tracker(verb, payload):
 
 def _config():
     """The repository config, or None when this repository has none."""
-    answer = afkv2_config.read_config()
+    answer = afkv2_config.read_config(with_frontends=False)
     return answer if answer.get("ok") else None
 
 

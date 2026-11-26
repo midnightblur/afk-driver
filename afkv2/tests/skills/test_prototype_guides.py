@@ -87,6 +87,10 @@ def test_each_note_gets_an_edit_or_a_reply_and_a_new_show():
     _states(SKILL_MD, lavish, 'go on by "In chat"')
     # the Codex Stop hook clears the waiting record after each wait, and only `show` writes it
     _states(SKILL_MD, lavish, "On Codex, run `show` before you end each turn")
+    # `show` reuses the open tab by its tab record; only `end` forgets the record when the Stop hook saw the end
+    _states(SKILL_MD, lavish, "To show it again, run `end`, then `show`: lavish then opens a new tab.")
+    _states(SKILL_MD, lavish, "`notes-unwritten` | the notes are in the `notes` field of the refusal")
+    _states(SKILL_MD, lavish, "When the developer does not see the mockup, run `end`, then `show`.")
 
 
 def test_mockup_is_clickable_from_the_entry_screen_inside_the_shell():
@@ -138,3 +142,10 @@ def test_the_screen_check_comes_before_a_frontend_refusal():
     assert gate in start, message
     assert refusal in start, message
     assert start.index(gate) < start.index(refusal), message
+    cells = [cell.strip() for cell in start.split("|")]
+    check, stop = _norm("first check for a screen"), _norm("Then")
+    for code in ("no-frontend", "pick-frontend"):
+        row = cells[cells.index(code) + 1] if code in cells else ""
+        row_message = (f"file: {SKILL_MD.name}\nsection: ## Steps, step 1 refusal row {code}\n"
+                       f"expected: {check!r} before {stop!r}\nactual: {row!r}")
+        assert check in row and row.index(check) < row.index(stop), row_message
