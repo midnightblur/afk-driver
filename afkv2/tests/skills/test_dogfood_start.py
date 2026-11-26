@@ -151,3 +151,22 @@ def test_an_ask_of_0_or_more_than_8000_characters_or_not_utf8_is_unreadable(worl
         ask.write_text(content, encoding="utf-8")
         code, answer, runner = run(world, ["start", "--ask-file", str(ask)])
         assert (code, answer["status"]) == (0, "opened") and runner.prompts[0]["text"].endswith(content)
+
+
+def test_a_managed_setting_that_bans_bypass_or_cannot_be_parsed_refuses_before_any_split(world):
+    folder = Path(world["env"]["ProgramFiles"]) / "ClaudeCode"
+    (folder / "managed-settings.d").mkdir(parents=True)
+    banned = '{"permissions": {"disableBypassPermissionsMode": "disable"}}'
+    for name, text in (("managed-settings.json", banned), ("managed-settings.json", "{not json"),
+                       ("managed-settings.d/10-team.json", banned)):
+        (folder / name).write_text(text, encoding="utf-8")
+        code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])])
+        assert (code, answer["error"]["code"]) == (1, "auto-approval-banned") and not runner.calls_of("pane", "split")
+        (folder / name).unlink()
+    runner = DogfoodFakeRunner(world["env"])
+    runner.answer(("reg", "query"), (0, f"    Settings    REG_SZ    {banned}\n", ""))
+    code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])], runner)
+    assert (code, answer["error"]["code"]) == (1, "auto-approval-banned") and not runner.calls_of("pane", "split")
+    (folder / "managed-settings.json").write_text('{"permissions": {"defaultMode": "plan"}}', encoding="utf-8")
+    code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])])
+    assert (code, answer["status"]) == (0, "opened")

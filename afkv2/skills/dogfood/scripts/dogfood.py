@@ -26,7 +26,7 @@ sys.path.insert(1, str(PLUGIN / "scripts"))
 
 from grill_common import EXIT_UNREADABLE, Parser, Refusal  # noqa: E402
 from places import Places, write_atomic  # noqa: E402
-from proposer_engine import HerdrRunner  # noqa: E402
+from proposer_engine import UNREADABLE, HerdrRunner  # noqa: E402
 from setup import read_install_record  # noqa: E402
 
 STATE_VERSION = 1
@@ -35,6 +35,7 @@ AGENT_ARGS = ["--model", "opus", "--effort", "max", "--dangerously-skip-permissi
 START_MS, PROMPT_MS = "90000", "30000"
 COMMAND_S = 120
 ASK_LIMIT = 8000
+MANAGED_PREFERENCES, CLAUDE_DOMAIN = "/Library/Managed Preferences", "com.anthropic.claudecode"
 AGENT_FILE = Path("afkv2") / "skills" / "dogfood" / "AGENT.md"
 
 
@@ -126,6 +127,56 @@ def _source_problem(source, runner):
     return None
 
 
+# The auto-approval ban (herdr playbook H-4): any Claude managed source that turns bypass off, or that cannot be
+# read or parsed, bans it.
+
+def _bans_bypass(text):
+    if not isinstance(text, str):
+        return True
+    try:
+        permissions = json.loads(text).get("permissions") or {}
+    except (ValueError, AttributeError):
+        return True
+    return not isinstance(permissions, dict) or permissions.get("disableBypassPermissionsMode") == "disable"
+
+
+def _registry_settings(out):
+    for line in out.splitlines():
+        parts = line.split(None, 2)
+        if len(parts) == 3 and parts[0] == "Settings" and parts[1] in ("REG_SZ", "REG_EXPAND_SZ"):
+            return parts[2]
+    return UNREADABLE
+
+
+def _managed_settings(env, runner):
+    """Each Claude managed settings document of this host: its text, or UNREADABLE."""
+    if runner.platform == "win32":
+        folder = Path(env.get("ProgramFiles") or r"C:\Program Files") / "ClaudeCode"
+    elif runner.platform == "darwin":
+        folder = Path("/Library/Application Support/ClaudeCode")
+    else:
+        folder = Path("/etc/claude-code")
+    for path in [folder / "managed-settings.json", *runner.glob(folder / "managed-settings.d", "*.json")]:
+        text = runner.read_text(path)
+        if text is not None:
+            yield text
+    if runner.platform == "win32":
+        for hive in ("HKLM", "HKCU"):
+            code, out, _ = runner.run(["reg", "query", rf"{hive}\SOFTWARE\Policies\ClaudeCode", "/v", "Settings"])
+            if code == 0:
+                yield _registry_settings(out)
+    elif runner.platform == "darwin" and runner.glob(Path(MANAGED_PREFERENCES), f"{CLAUDE_DOMAIN}.plist"):
+        code, out, _ = runner.run(["plutil", "-convert", "json", "-o", "-",
+                                   f"{MANAGED_PREFERENCES}/{CLAUDE_DOMAIN}.plist"])
+        yield out if code == 0 else UNREADABLE
+
+
+def _check_auto_approval(env, runner):
+    if any(_bans_bypass(text) for text in _managed_settings(env, runner)):
+        raise Refusal("auto-approval-banned", "a Claude managed setting turns off bypass mode, or cannot be read: the "
+                                              "afkv2 agent needs full auto-approval, so no pane opens")
+
+
 # The state file.
 
 def _places(env):
@@ -169,6 +220,7 @@ def verb_start(args, env, runner):
     main_pane = _herdr_pane(env, runner)
     ask = _read_ask(args.ask_file)
     source = _source(env, runner)
+    _check_auto_approval(env, runner)
     name = _agent_name(main_pane)
     split = _herdr_ok(env, runner, "pane", "split", "--pane", main_pane, "--direction", "right", "--cwd", source,
                       "--no-focus")
