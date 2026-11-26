@@ -13,7 +13,7 @@ A developer who uses afkv2 for real work in another repository cannot use an afk
 | Design ADRs | adr/design/ | 4 records |
 | Design brief | DESIGN-BRIEF.md | — |
 | Verification plan | VERIFICATION.md | draft |
-| Plan | plan/PLAN.md | — |
+| Plan | feat/afkv2-dogfood-run:plan/PLAN.md | 9 subtasks; division approved 2026-11-26 |
 | Smoke gate | plan/PLAN.md | — |
 | Understanding | understanding/index.html | — |
 | Design review plan | DESIGN-REVIEW-PLAN.md | — |
