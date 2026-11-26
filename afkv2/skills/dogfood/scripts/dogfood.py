@@ -3,6 +3,9 @@
 Verbs:
   start --ask-file F   main pane: open the afkv2 pane and start its agent with the ask, or send the ask to the live one
   status               either pane: the state of the session, or null
+  worktree --lane small|medium --base B [--branch N]
+                       afkv2 pane: the small-asks worktree, or a medium worktree, from the confirmed base B
+  note --note-file N   afkv2 pane: check the note, store it, send its path to the main pane and record it
 
 Each verb prints 1 JSON object, `{"ok": true, ...}` or `{"ok": false, "error": {"code", "reason"}}`, and exits 0 ok,
 1 refused, 2 unreadable input. The caller is the pane of `HERDR_PANE_ID`, never an argument. dogfood.py is the only
@@ -15,6 +18,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -41,10 +45,17 @@ INPUT_LINES, PREFIX, ENTER_PAUSE_S = 6, 40, 2
 MANAGED_PREFERENCES, CLAUDE_DOMAIN = "/Library/Managed Preferences", "com.anthropic.claudecode"
 FORWARD_LINE = "A new ask from the main pane:"
 AGENT_FILE = Path("afkv2") / "skills" / "dogfood" / "AGENT.md"
+LANES = ("small", "medium")
+SMALL_BRANCH = "feat/afkv2-df-{:%Y%m%d-%H%M}"
+NAME = re.compile(r"[A-Za-z0-9._/-]+")
+
+
+def _clock():
+    return datetime.now(timezone.utc)
 
 
 def _now():
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return _clock().isoformat(timespec="seconds")
 
 
 # herdr, through the runner.
@@ -337,7 +348,75 @@ def verb_status(args, env, runner):
     return {"ok": True, "state": find_state(env, pane)[1] if pane else None}
 
 
-VERBS = {"start": verb_start, "status": verb_status}
+def _afkv2_state(env, runner):
+    """The state whose afkv2 pane is the caller; refuses any other pane (SDD §5)."""
+    pane = _herdr_pane(env, runner)
+    role, state = find_state(env, pane)
+    if role != "afkv2":
+        raise Refusal("not-afkv2-pane", f"the pane {pane} is not the afkv2 pane of a dogfood session: only the afkv2 "
+                                        f"agent runs this verb")
+    return state
+
+
+def _name_problem(name):
+    if not NAME.fullmatch(name) or name.startswith("-") or ".." in name:
+        return f"{name!r} is not a branch name of the form [A-Za-z0-9._/-]+ that starts with no - and holds no .."
+    return None
+
+
+def _has_branch(runner, source, branch):
+    code, _, _ = runner.run(["git", "-C", source, "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"])
+    return code == 0
+
+
+def _answer(worktree):
+    return {"ok": True, "path": worktree["path"], "branch": worktree["branch"], "lane": worktree["lane"]}
+
+
+def verb_worktree(args, env, runner):
+    """The small-asks worktree or a medium worktree of the session, from the confirmed base (ADR-0003 design). The
+    folder is `<source>-worktrees/<branch>`; the state records it only after git made it (plan decision D-7)."""
+    state = _afkv2_state(env, runner)
+    for name in (args.base, args.branch):
+        problem = name is not None and _name_problem(name)
+        if problem:
+            raise Refusal("bad-branch", problem)
+    if args.lane == "small" and args.branch is not None:
+        raise Refusal("bad-branch", "the small lane names its own branch: run worktree --lane small with no --branch")
+    if args.lane == "medium" and args.branch is None:
+        raise Refusal("bad-branch", "the medium lane needs --branch, the branch name of the lane")
+    branch = SMALL_BRANCH.format(_clock()) if args.lane == "small" else args.branch
+    for worktree in state["worktrees"]:
+        if (worktree["lane"], worktree["branch"]) == (args.lane, branch):
+            return _answer(worktree)
+        if args.lane == "small" and worktree["lane"] == "small":
+            raise Refusal("small-exists", f"this session already has the small-asks worktree {worktree['path']} on "
+                                          f"{worktree['branch']}: put each small ask there")
+        if worktree["branch"] == branch:
+            raise Refusal("bad-branch", f"the branch {branch} already belongs to the {worktree['lane']} worktree "
+                                        f"{worktree['path']}")
+    source = state["source"]
+    if state["base"] not in (None, args.base):
+        raise Refusal("base-missing", f"the base of this session is {state['base']}: every worktree of the session "
+                                      f"starts from it")
+    if not _has_branch(runner, source, args.base):
+        raise Refusal("base-missing", f"the plugin source {source} has no branch {args.base}: confirm the integration "
+                                      f"branch with the developer again")
+    if _has_branch(runner, source, branch):
+        raise Refusal("bad-branch", f"the branch {branch} already exists in the plugin source: name another branch")
+    path = Path(source).parent / f"{Path(source).name}-worktrees" / branch.replace("/", "-")
+    code, out, err = runner.run(["git", "-C", source, "worktree", "add", "-b", branch, str(path), args.base])
+    if code != 0:
+        raise Refusal("worktree-failed", f"git worktree add {path}: {(err or out).strip()}")
+    worktree = {"path": str(path), "branch": branch, "lane": args.lane, "created": _now()}
+    state = _read_state(state_path(env, state["main_pane"])) or state
+    state["base"] = state["base"] or args.base
+    state["worktrees"] = [*state["worktrees"], worktree]
+    _write_state(env, state)
+    return _answer(worktree)
+
+
+VERBS = {"start": verb_start, "status": verb_status, "worktree": verb_worktree}
 
 
 def _parser():
@@ -345,6 +424,10 @@ def _parser():
     verbs = parser.add_subparsers(dest="verb", required=True)
     verbs.add_parser("start").add_argument("--ask-file", required=True)
     verbs.add_parser("status")
+    worktree = verbs.add_parser("worktree")
+    worktree.add_argument("--lane", required=True, choices=LANES)
+    worktree.add_argument("--base", required=True)
+    worktree.add_argument("--branch")
     return parser
 
 
