@@ -142,3 +142,10 @@ def test_the_screen_check_comes_before_a_frontend_refusal():
     assert gate in start, message
     assert refusal in start, message
     assert start.index(gate) < start.index(refusal), message
+    cells = [cell.strip() for cell in start.split("|")]
+    check, stop = _norm("first check for a screen"), _norm("Then")
+    for code in ("no-frontend", "pick-frontend"):
+        row = cells[cells.index(code) + 1] if code in cells else ""
+        row_message = (f"file: {SKILL_MD.name}\nsection: ## Steps, step 1 refusal row {code}\n"
+                       f"expected: {check!r} before {stop!r}\nactual: {row!r}")
+        assert check in row and row.index(check) < row.index(stop), row_message
