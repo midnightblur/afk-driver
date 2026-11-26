@@ -13,6 +13,7 @@ Usage: setup.py <verb> [options]   (each verb answers one JSON object)
   judge --provider claude|codex [--model M]
                                            1 proving call, then the judge model line of the install record
   secrets                                  the developer's own terminal only: Jira values
+  source [--path P]                        no P: suggest a main checkout of the plugin source; P: check it, write its line
   copy-config [--spec-folder PATH] [--no-v1-values]
                                            write .afkv2/config.json once, with its spec_folder
   ownership (--own GLOB... --shared GLOB... | --skip)
@@ -114,6 +115,104 @@ def _write_record(places: Places, record: dict[str, str]) -> None:
     first = [k for k in ("installed", "python", "python_version", "rg") if k in record]
     keys = first + sorted(k for k in record if k not in first)
     write_atomic(places.install_record, "".join(f"{k} {record[k]}\n" for k in keys).encode("utf-8"))
+
+
+# ============================================================ plugin source
+
+PLUGIN_MANIFEST = Path("afkv2") / ".claude-plugin" / "plugin.json"
+MARKETPLACE = Path(".claude-plugin") / "marketplace.json"
+
+
+def _json_file(path: Path):
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def _has_plugin_markers(folder: Path) -> bool:
+    """The plugin manifest names afkv2, and the root marketplace has the afkv2 entry with source `./afkv2`."""
+    manifest, market = _json_file(folder / PLUGIN_MANIFEST), _json_file(folder / MARKETPLACE)
+    entries = market.get("plugins") if isinstance(market, dict) else None
+    return (isinstance(manifest, dict) and manifest.get("name") == "afkv2" and isinstance(entries, list)
+            and any(isinstance(e, dict) and e.get("name") == "afkv2" and e.get("source") == "./afkv2" for e in entries))
+
+
+def _same_path(a: str | Path, b: str | Path) -> bool:
+    return os.path.normcase(str(Path(a).resolve())) == os.path.normcase(str(Path(b).resolve()))
+
+
+def source_problem(run: tools.Runner, folder: Path) -> tuple[str, str] | None:
+    """(code, reason) when `folder` is not a main checkout of the plugin source; None when it is.
+    Main checkout: git-dir equals git-common-dir, as the main-checkout test of gc."""
+    got = (_git(run, folder, "rev-parse", "--path-format=absolute", "--show-toplevel", "--git-dir", "--git-common-dir")
+           if folder.is_absolute() and folder.is_dir() else None)
+    lines = got.out.splitlines() if got is not None and got.code == 0 else []
+    if len(lines) != 3 or not _same_path(lines[0], folder):
+        return "not-a-repo", f"{folder} is not the top folder of a git repository"
+    if not _same_path(lines[1], lines[2]):
+        return "not-main-checkout", f"{folder} is a linked worktree: give the main checkout of the plugin source"
+    if not _has_plugin_markers(folder):
+        return "not-plugin-source", (f"{folder} is not the plugin source: it needs {PLUGIN_MANIFEST.as_posix()} named "
+                                     f"afkv2 and the afkv2 entry of {MARKETPLACE.as_posix()}")
+    return None
+
+
+def _child_folders(folder: Path) -> list[Path]:
+    """The folders directly in `folder`; [] when it cannot be read. The search lists folders only through this."""
+    try:
+        return sorted(child for child in folder.iterdir() if child.is_dir())
+    except OSError:
+        return []
+
+
+def suggest_source(run: tools.Runner, cwd: Path, home: Path) -> Path | None:
+    """The first main checkout of the plugin source among the current repository, its main checkout, and the
+    folders 1 and 2 levels under the parent folder of the current repository (or of `cwd`) and under `home`.
+    Never a recursive scan: only the 2 roots and their children are listed."""
+    top = repo_top(run, cwd) if cwd.is_dir() else None
+    candidates = []
+    if top:
+        common = _common_dir(run, top)
+        candidates += [top] + ([common.parent] if common and common.name == ".git" else [])
+    for root in dict.fromkeys(((top or cwd).parent, home)):
+        for child in _child_folders(root):
+            candidates += [child, *_child_folders(child)]
+    seen = set()
+    for folder in candidates:
+        key = os.path.normcase(str(folder))
+        if key in seen:
+            continue
+        seen.add(key)
+        if (folder / ".git").is_dir() and _has_plugin_markers(folder) and source_problem(run, folder) is None:
+            return folder
+    return None
+
+
+def source(places: Places, run: tools.Runner, cwd: Path, path: str | None) -> dict:
+    """No `path`: suggest a checkout. A `path`: write the line `source <path>` after its checks; the same path
+    again changes nothing."""
+    if path is None:
+        found = suggest_source(run, cwd, places.home)
+        return {"ok": True, "status": "suggested" if found else "none", "path": str(found) if found else None}
+    folder = Path(path)
+    problem = source_problem(run, folder)
+    if problem:
+        return _error(*problem, path=path)
+    record = read_install_record(places)
+    if record.get("source") == str(folder):
+        return {"ok": True, "status": "written", "path": str(folder), "changed": False}
+    record["source"] = str(folder)
+    _write_record(places, record)
+    return {"ok": True, "status": "written", "path": str(folder), "changed": True}
+
+
+def source_state(places: Places, run: tools.Runner) -> str:
+    """`ok`, `missing` or `broken`: the source line against the checks of `source --path`."""
+    value = read_install_record(places).get("source", "").strip()
+    if not value:
+        return "missing"
+    return "broken" if source_problem(run, Path(value)) else "ok"
 
 
 def herdr_answer_file(places: Places) -> Path:
@@ -703,6 +802,7 @@ def status(places: Places, repo: Path, system: System, env: Mapping[str, str]) -
         "ok": True,
         "repo": str(repo),
         "install_record": read_install_record(places),
+        "source": source_state(places, system.run),
         "advisor": claude_cli.status(places, repo, system.run, env),
         "herdr": tools.herdr_status(system.run, {"herdr": read_herdr_answer(places)},
                                     system.fresh_env() if system.fresh_env else env),
@@ -882,7 +982,8 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
     system = system or default_system()
     parser = argparse.ArgumentParser(prog="setup.py", description=__doc__.splitlines()[0])
     parser.add_argument("verb", choices=("status", "prepare", "herdr", "diagram-renderer", "browser-driver", "judge",
-                                         "claude-cli", "advisor", "secrets", "copy-config", "ownership", "takeover", "switch-back"))
+                                         "claude-cli", "advisor", "secrets", "copy-config", "ownership", "takeover", "switch-back",
+                                         "source"))
     parser.add_argument("--repo")
     parser.add_argument("--provider", choices=PROVIDERS)
     parser.add_argument("--end-marker", default="")
@@ -895,6 +996,7 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
     parser.add_argument("--attach", choices=tuple(tools.BROWSERS))
     parser.add_argument("--model")
     parser.add_argument("--consent-done", action="store_true")
+    parser.add_argument("--path")
     try:
         args = parser.parse_args(argv)
     except SystemExit:
@@ -903,7 +1005,7 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
     places = Places.from_env(env)
     repo = None
     if args.verb not in ("prepare", "herdr", "diagram-renderer", "browser-driver", "judge", "claude-cli", "secrets",
-                         "switch-back"):
+                         "switch-back", "source"):
         repo = repo_top(system.run, Path(args.repo) if args.repo else (cwd or Path.cwd()))
         if repo is None:
             print(json.dumps(_error("not-a-repo", "run setup inside a git repository")))
@@ -913,6 +1015,10 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
         return 2
     if args.verb == "advisor" and not (args.answer or args.consent_done):
         print(json.dumps(_error("bad-arguments", "advisor needs --answer yes|no from the developer, or --consent-done")))
+        return 2
+    if args.verb == "source" and args.path is not None and (not Path(args.path).is_absolute()
+                                                             or "\n" in args.path or "\r" in args.path):
+        print(json.dumps(_error("bad-arguments", "source --path needs an absolute path on 1 line")))
         return 2
     if args.verb == "herdr" and not args.answer:
         print(json.dumps(_error("bad-arguments", "herdr needs --answer yes or --answer no from the developer")))
@@ -942,6 +1048,8 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None,
         elif args.verb == "ownership":
             answer = (repo_config.record_ownership_skip(repo, places) if args.skip
                       else repo_config.write_ownership(repo, places, args.own, args.shared))
+        elif args.verb == "source":
+            answer = source(places, system.run, cwd or Path.cwd(), args.path)
         elif args.verb == "takeover":
             answer = takeover(places, repo, system, env, args.provider, args.end_marker, plugin_root)
         else:
