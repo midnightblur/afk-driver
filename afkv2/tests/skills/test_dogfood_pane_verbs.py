@@ -263,3 +263,24 @@ def test_a_failing_note_writes_nothing_and_a_wrap_note_sets_wrap_reported(noted)
 
 def test_note_runs_only_from_the_afkv2_pane(noted):
     guarded(noted, ["note", "--note-file", str(noted["note"])])
+
+
+def test_a_note_of_16_kib_is_sent_and_16_kib_plus_1_byte_refuses_before_any_herdr_call(noted):
+    size = len(milestone(noted["worktree"]).encode("utf-8"))
+    for extra, expected in ((1, (2, "note-unreadable")), (0, (0, None))):
+        body = milestone(noted["worktree"], " " + "x" * (16 * 1024 - size - 1 + extra)).encode("utf-8")
+        assert len(body) == 16 * 1024 + extra
+        noted["note"].write_bytes(body)
+        before = noted["state_file"].read_bytes()
+        code, answer, runner = run(noted, ["note", "--note-file", str(noted["note"])])
+        if extra:
+            assert (code, answer["error"]["code"]) == expected and not runner.calls
+            assert noted["state_file"].read_bytes() == before and not notes_folder(noted).exists()
+        else:
+            assert code == 0 and answer["sent"] is True and len(runner.prompts) == 1
+    for content in (b"\xff\xfe bad", None):
+        path = noted["tmp"] / "other.md"
+        if content is not None:
+            path.write_bytes(content)
+        code, answer, runner = run(noted, ["note", "--note-file", str(path)])
+        assert (code, answer["error"]["code"]) == (2, "note-unreadable") and not runner.calls

@@ -433,6 +433,9 @@ def read_note(path):
     """The bytes and the text of 1 note file: UTF-8, at most NOTE_LIMIT bytes; else `note-unreadable`, exit 2."""
     try:
         body = Path(path).read_bytes()
+        if len(body) > NOTE_LIMIT:
+            raise Refusal("note-unreadable", f"the note file {path} holds {len(body)} bytes; a note holds at most "
+                                             f"{NOTE_LIMIT}", EXIT_UNREADABLE)
         return body, body.decode("utf-8")
     except (OSError, UnicodeDecodeError) as problem:
         raise Refusal("note-unreadable", f"the note file {path}: {problem}", EXIT_UNREADABLE) from None
