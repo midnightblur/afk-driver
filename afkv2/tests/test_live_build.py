@@ -491,9 +491,15 @@ Active Connections
 """
 
 
-def test_netstat_listeners_reads_listening_lines_of_the_port_in_any_language():
+def test_netstat_listeners_reads_listening_lines_of_the_port_in_any_language(monkeypatch):
+    monkeypatch.setattr(live_build.os, "getpid", lambda: 1)
     assert live_build.netstat_listeners(NETSTAT, 8080) == [4100, 4200]
     assert live_build.netstat_listeners(NETSTAT, 445) == []
+
+
+def test_netstat_listeners_never_names_its_own_process(monkeypatch):
+    monkeypatch.setattr(live_build.os, "getpid", lambda: 4200)
+    assert live_build.netstat_listeners(NETSTAT, 8080) == [4100]
 
 
 # --- the named shell (D-43): no suspended start, no hidden cmd.exe ---------------------------------------------------
