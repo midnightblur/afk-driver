@@ -67,7 +67,7 @@ def refusal_rows(path):
 
 def test_agent_asks_the_integration_branch_at_each_pane_session_start_before_any_worktree():
     question = section(AGENT_MD, "## The branch question")
-    assert "each pane session" in question and "`feat/afkv2`" in question
+    assert "each pane session" in question and "before any other step" in question and "`feat/afkv2`" in question
     assert question.index("feat/afkv2") < question.index("worktree --lane small")
     body = flat(AGENT_MD)
     assert body.index("## The branch question") < body.index("/afkv2:small-change")
@@ -77,19 +77,21 @@ def test_agent_runs_a_small_ask_by_small_change_and_a_feature_ask_by_grill_requi
     small = paragraph(AGENT_MD, "A small ask")
     assert "`/afkv2:small-change`" in small and "small-asks worktree" in small
     assert "grill-requirements" not in small
-    assert "step 9" in small and "before the next small ask" in small
+    assert "through its step 8" in small and "Open or update the change" in small and "its own section" in small
+    assert "before the next small ask starts" in small
     feature = paragraph(AGENT_MD, "A feature ask")
     assert "ticket key" in feature and "medium worktree" in feature and "feat/afkv2-<ticket key>" in feature
-    assert "`/afkv2:grill-requirements`" in paragraph(AGENT_MD, "Run `/afkv2:grill-requirements`")
+    medium = paragraph(AGENT_MD, "Run `/afkv2:grill-requirements`")
+    assert "before `/afkv2:autopilot`" in medium and "`set-change`" in medium and "confirmed base" in medium
     grow = paragraph(AGENT_MD, "A grow")
     assert "medium lane" in grow and "cherry-pick" in grow and "revert" in grow
+    assert grow.index("medium worktree") < grow.index("cherry-pick") < grow.index("/afkv2:grill-requirements")
 
 
 def test_agent_passes_the_confirmed_base_as_the_target_of_create_change_request():
-    body = flat(AGENT_MD)
-    assert "/afkv2:create-change-request" in body
-    assert "target branch" in body and "confirmed base" in body
-    assert "its own section" in body
+    target = paragraph(AGENT_MD, "Each run of `/afkv2:create-change-request`")
+    assert "every lane" in target and "confirmed base" in target and "target branch" in target
+    assert "Run no Ship section" in target and "stays Draft" in target
 
 
 # AGENT.md: the queue, the note and the redo delta (AC-012, AC-014, AC-016).
@@ -101,9 +103,9 @@ def test_agent_names_the_3_lead_lines_of_dogfood_py_verbatim():
 
 
 def test_agent_queues_a_new_ask_and_says_so_in_its_pane():
-    body = flat(AGENT_MD)
     queue = step(AGENT_MD, "**A new ask")
     assert "say in this pane that it is queued" in queue and "milestone" in queue
+    assert "1 ask at a time" in queue and "in the order they came" in queue
 
 
 def test_agent_sends_a_note_at_each_milestone_by_note_format_with_no_question_and_names_the_redo():
@@ -113,17 +115,18 @@ def test_agent_sends_a_note_at_each_milestone_by_note_format_with_no_question_an
     milestone = step(AGENT_MD, "**A milestone")
     assert "no question" in milestone and "`redo`" in milestone
     assert "in scratch, outside every repository" in milestone
+    assert "For a small ask, the milestone comes when the ask is finished by step 1" in milestone
 
 
 def test_agent_wraps_up_with_a_push_each_draft_change_and_a_wrap_note():
     wrap = step(AGENT_MD, "**The wrap-up")
     assert "push" in wrap and "Draft change" in wrap and "kind: wrap" in wrap and "open-asks" in wrap
-    assert "commits ahead of the base" in wrap and "`none` as its url" in wrap and "`none | none |" in wrap
+    assert "worktree in `status`" in wrap and "commits ahead of the base" in wrap and "`none` as its url" in wrap and "`none | none |" in wrap
 
 
 def test_agent_refusal_rows_keep_the_ticket_and_the_session_base():
     rows = refusal_rows(AGENT_MD)
-    assert "same ticket" in rows["bad-branch"]
+    assert "same ticket" in rows["bad-branch"] and "go on in" not in rows["bad-branch"]
     assert "`base` of `status`" in rows["base-missing"]
     assert "herdr" in rows["outside-herdr"]
 
@@ -132,9 +135,9 @@ def test_agent_refusal_rows_keep_the_ticket_and_the_session_base():
 
 def test_agent_bans_work_repository_writes_merges_and_prompts_to_other_panes():
     bans = section(AGENT_MD, "## Bans")
-    assert "work repository" in bans and "Write nothing" in bans
-    assert "Never merge" in bans
-    assert "main pane" in bans and "no prompt" in bans and "note" in bans
+    assert "Write nothing in the work repository." in bans
+    assert "Never merge a change." in bans
+    assert "Send no prompt and no keys to any pane yourself. Reach the main pane only by `note`" in bans
 
 
 # AGENT.md: the refusals and the command blocks.
@@ -188,7 +191,13 @@ def test_each_agent_command_block_runs_against_main_with_the_fake_runner(world):
         code = dogfood.main(argv_of(command, world), world["env"], world["runner"], out=out.append)
         answers[step] = json.loads(out[0])
         assert code == 0, (step, answers[step])
+    assert answers["worktree-small"]["lane"] == "small"
     assert answers["worktree-medium"]["branch"] == "feat/afkv2-211"
+    assert answers["note"]["sent"] is True
+    assert [prompt["target"] for prompt in world["runner"].prompts] == [MAIN]
+    out = []
+    dogfood.main(argv_of(steps["status"], world), world["env"], world["runner"], out=out.append)
+    assert json.loads(out[0])["state"]["base"] == "feat/afkv2"
 
 
 # APPLY.md: the change kinds, the redo, the bans and the tell (AC-018 to AC-022, AC-024).
@@ -198,8 +207,10 @@ APPLY_MD = SKILL_DIR / "APPLY.md"
 
 def kind_steps():
     """{change kind: step text} of the numbered steps under `## The change kinds`."""
-    kinds = section(APPLY_MD, "## The change kinds")
-    found = re.findall(r"\d+\. \*\*(CK-\d)[^*]*\*\*(.*?)(?= \d+\. \*\*CK-|$)", kinds)
+    body = APPLY_MD.read_text("utf-8")
+    kinds = body[body.index("## The change kinds"):]
+    kinds = kinds[:kinds.index("\n\n", kinds.index("1. **CK-"))]
+    found = re.findall(r"^\d+\. \*\*(CK-\d)[^*]*\*\*(.*)$", kinds, re.M)
     return dict(found)
 
 
