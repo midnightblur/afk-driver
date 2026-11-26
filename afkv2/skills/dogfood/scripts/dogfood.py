@@ -139,6 +139,18 @@ def _role_prompt(source, ask):
             f"The first ask:\n\n{ask}")
 
 
+def _start_agent(env, runner, name, pane):
+    """Start the afkv2 agent in its pane: Claude, the model and effort of AC-005, full auto-approval (H-4)."""
+    code, out, err = _herdr(env, runner, "agent", "start", name, "--kind", HARNESS, "--pane", pane, "--timeout",
+                            START_MS, "--", *AGENT_ARGS, timeout=COMMAND_S)
+    if code != 0:
+        problem = _herdr_code(out, err) or (err or out).strip()
+        if problem == "agent_not_ready":
+            raise Refusal("agent-not-ready", f"the agent {name} shows a dialog at startup, or did not get ready in "
+                                             f"{int(START_MS) // 1000} s; its pane is closed")
+        raise Refusal("herdr-failed", f"herdr agent start: {problem}; the pane is closed")
+
+
 def verb_start(args, env, runner):
     """Open the afkv2 pane beside the main pane, start its agent, write the state, then send the role and the ask."""
     main_pane = _herdr_pane(env, runner)
@@ -148,11 +160,17 @@ def verb_start(args, env, runner):
     split = _herdr_ok(env, runner, "pane", "split", "--pane", main_pane, "--direction", "right", "--cwd", source,
                       "--no-focus")
     pane = ((split.get("result") or {}).get("pane") or {}).get("pane_id")
-    _herdr_ok(env, runner, "agent", "start", name, "--kind", HARNESS, "--pane", pane, "--timeout", START_MS,
-              "--", *AGENT_ARGS)
-    state = {"version": STATE_VERSION, "main_pane": main_pane, "agent": name, "afkv2_pane": pane, "harness": HARNESS,
-             "source": source, "base": None, "worktrees": [], "notes": [], "wrap_reported": False, "started": _now()}
-    _write_state(env, state)
+    if not pane:
+        raise Refusal("herdr-failed", "herdr pane split answered no pane id")
+    try:
+        _start_agent(env, runner, name, pane)
+        state = {"version": STATE_VERSION, "main_pane": main_pane, "agent": name, "afkv2_pane": pane,
+                 "harness": HARNESS, "source": source, "base": None, "worktrees": [], "notes": [],
+                 "wrap_reported": False, "started": _now()}
+        _write_state(env, state)
+    except BaseException:
+        _herdr(env, runner, "pane", "close", pane)
+        raise
     _herdr_ok(env, runner, "agent", "prompt", name, _role_prompt(source, ask), "--wait", "--until", "working",
               "--timeout", PROMPT_MS)
     return {"ok": True, "status": "opened", "agent": name, "pane": pane, "state": state}

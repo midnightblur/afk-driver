@@ -118,3 +118,21 @@ def test_start_refuses_outside_herdr_and_without_a_working_source_line(world):
     runner.linked.add(str(world["source"]))
     code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])], runner)
     assert (code, answer["error"]["code"]) == (1, "source-broken") and not _herdr_calls(runner)
+
+
+def test_a_failed_split_or_agent_start_writes_no_state_and_closes_the_pane_it_opened(world):
+    runner = DogfoodFakeRunner(world["env"])
+    runner.answer(("pane", "split"), herdr_error("pane_not_found"))
+    code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])], runner)
+    assert (code, answer["error"]["code"]) == (1, "herdr-failed") and not state_file(world).exists()
+    assert not runner.calls_of("agent", "start") and not runner.calls_of("pane", "close")
+
+    for herdr_code, expected in (("agent_not_ready", "agent-not-ready"), ("timeout", "herdr-failed")):
+        runner = DogfoodFakeRunner(world["env"])
+        runner.answer(("agent", "start"), herdr_error(herdr_code))
+        code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])], runner)
+        assert (code, answer["error"]["code"]) == (1, expected) and not state_file(world).exists()
+        [split] = runner.calls_of("pane", "split")
+        [close] = runner.calls_of("pane", "close")
+        assert close[3] == runner.calls_of("agent", "start")[0][runner.calls_of("agent", "start")[0].index("--pane") + 1]
+        assert set(runner.panes) == {MAIN} and not runner.prompts
