@@ -182,4 +182,4 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" end --doc "<doc>"
    ```
 
-   Run the check in the guide's "Freestyle is the marked escape" section and report candidate components. Commit the spec folder on the feature branch. Tell the human the next skill is `/afkv2:to-subtasks`. Done when the gate answered ok and the commit exists.
+   Run the check in the guide's "Freestyle is the marked escape" section and report candidate components. Commit the spec folder on the feature branch. Tell the human the next skill is `/afkv2:propose-verification`. Done when the gate answered ok and the commit exists.
