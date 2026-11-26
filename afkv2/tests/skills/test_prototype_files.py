@@ -117,6 +117,22 @@ FLAGGED = [
     ('<video poster="https://cdn.example/p.png"></video>', "scheme URL in poster"),
     ('<object data="https://cdn.example/o.svg"></object>', "scheme URL in object data"),
     ("<img srcset=https://cdn.example/a.png>", "scheme URL in an unquoted srcset"),
+    # A scheme URL counts in any place (the general address rule), so each form below is flagged.
+    ('<a href="#x" ping="https://track.example/p">x</a>', "scheme URL in ping"),
+    ('<meta http-equiv="refresh" content="0; url=https://example.test/">', "scheme URL in a meta refresh"),
+    ("const worker = new Worker('https://cdn.example/w.js');", "scheme URL in new Worker"),
+    ("importScripts('https://cdn.example/w.js');", "scheme URL in importScripts"),
+    ("location.assign('https://example.test/');", "scheme URL in location.assign"),
+    ("location.replace('https://example.test/');", "scheme URL in location.replace"),
+    ("window.open('https://example.test/');", "scheme URL in window.open"),
+    ('.hero { background-image: image-set("https://cdn.example/a.png" 1x); }', "scheme URL in a CSS image-set()"),
+    ('<img src="&#104;ttps://cdn.example/a.png">', "scheme URL with an entity-encoded letter"),
+    ('<img src="https&#58;//cdn.example/a.png">', "scheme URL with an entity-encoded colon"),
+    ('<img src="https&colon;&sol;&sol;cdn.example/a.png">', "scheme URL with named entities"),
+    (r'<img src="\\host\share\a.png">', "UNC path with backslashes in src"),
+    (r'<img src="https:\\cdn.example\a.png">', "scheme URL with backslashes"),
+    (r"<div style='background: url(\\host\share\a.png)'></div>", "UNC path in a CSS url()"),
+    ("<p>see https://example.test/help</p>", "scheme URL in the text"),
 ]
 PASSED = [
     '<a href="#orders">Orders</a>',
@@ -130,6 +146,16 @@ PASSED = [
     '<img src="blob:abc">',
     '<a href="tel:123">call</a>',
     '<iframe src="about:blank"></iframe>',
+    '<img src="data:image/png;base64,iVBO//w0KGgo+/A=" alt="">',
+    '<svg xmlns:xlink="http://www.w3.org/1999/xlink"><use xlink:href="#dot"/></svg>',
+    ".dot { background: url(\"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'></svg>\"); }",
+    'const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");',
+    '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" '
+    '"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">',
+    "// a comment line in a script",
+    r"const pattern = /\d+/;",
+    "const worker = new Worker('worker.js');",
+    "window.open('#orders');",
 ]
 
 
@@ -150,7 +176,7 @@ def test_the_network_check_gives_one_finding_per_line():
     text = "fetch('/a'); fetch('/b'); new WebSocket('wss://x.test');\n<a href=\"#x\">x</a>\n"
     found = prototype_files.find_network_calls(text)
     expect([finding["line"] for finding in found], [1], repr(text))
-    expect(found[0]["found"], ["fetch", "WebSocket"], repr(text))
+    expect(found[0]["found"], ["fetch", "WebSocket", "address"], repr(text))
 
 
 def test_the_network_check_flags_a_protocol_relative_address():

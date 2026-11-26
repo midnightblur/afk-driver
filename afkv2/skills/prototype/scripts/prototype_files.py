@@ -2,7 +2,7 @@
 
 `prototype_files.py start --ticket KEY [--frontend NAME]`: the paths of the spec folder, the frontend of the config,
   its catalog, the live block and the anchor (decision D-2). Refuses `missing-input`, `no-frontend`, `pick-frontend`.
-`prototype_files.py check --mockup FILE`: refuses `network-call` with each line of a call or a scheme URL, and
+`prototype_files.py check --mockup FILE`: refuses `network-call` with each line of a call or a scheme URL in any place, and
   `afkv2-runtime` on the tooltip block; `unreadable` for a file it cannot read.
 `prototype_files.py settle --ticket KEY`: checks PROTOTYPE.md against PROTOTYPE-FORMAT.md, checks and scans every
   file of the prototype, then sets the INDEX.md Prototype row. Refuses `bad-prototype`, `network-call`,
@@ -14,6 +14,7 @@ Each answer is one JSON object; exit 0 ok, 1 refused, 2 unreadable input.
 from __future__ import annotations
 
 import bisect
+import html
 import re
 import sys
 from datetime import date
@@ -45,11 +46,15 @@ STATES = ("reachable", "gap", "retired")
 MARKS = ("live-verified", "catalog", "source-only")
 FIDELITY = re.compile(rf"^> Fidelity: *({'|'.join(MARKS)})(?: · screenshots: *(.*?))?\s*$", re.M)
 
-# A scheme URL counts only where a browser loads it (decision D-3): an attribute that fetches or navigates, a CSS
-# url() or @import, and an ES import from an address. A scheme here is any `<letters>:` or `//`, except the inline
-# and local ones below.
+# A call counts by its name. A scheme URL counts in any place of the text (decision D-3, widened after review): in a
+# place that loads, any `<letters>:` or `//`; elsewhere, any `<letters>://`, and a `//host` that starts a quoted value,
+# an `=` value or a `(` argument. The inline and local schemes below pass. `\` counts as `/`, and each line is read
+# with its HTML entities decoded. A W3C namespace name and a doctype id are names, never loaded, so they pass. A
+# relative path, such as `new Worker('w.js')`, stays local.
 LOCAL_SCHEMES = ("data", "blob", "javascript", "mailto", "tel", "about")
-_ADDRESS = rf"(?:(?!(?:{'|'.join(LOCAL_SCHEMES)}):)[A-Za-z][A-Za-z0-9+.-]*:|//)"
+_LOCAL = rf"(?!(?:{'|'.join(LOCAL_SCHEMES)}):)"
+_SLASHES = r"[/\\]{2}"
+_ADDRESS = rf"(?:{_LOCAL}[A-Za-z][A-Za-z0-9+.-]*:|{_SLASHES})"
 NETWORK = {
     "attribute": re.compile(rf"\b(?:src|href|action|formaction|poster|background)\s*=\s*[\"']?\s*{_ADDRESS}", re.I),
     "srcset": re.compile(rf"\bsrcset\s*=\s*(?:[\"'][^\"']*?(?<=[\"'\s,])\s*)?{_ADDRESS}", re.I),
@@ -64,7 +69,10 @@ NETWORK = {
     "EventSource": re.compile(r"\bEventSource\s*\("),
     "import()": re.compile(r"(?<![@\w.])import\s*\("),
     "sendBeacon": re.compile(r"\bsendBeacon\s*\("),
+    "address": re.compile(rf"(?<![\w+.:-]){_LOCAL}[A-Za-z][A-Za-z0-9+.-]*:{_SLASHES}|(?:[\"'(]\s*|=){_SLASHES}(?=[\w\[])"),
 }
+_NAMES = re.compile(r"<!DOCTYPE[^>]*>|https?://www\.w3\.org/(?:2000/svg|1999/xhtml|1999/xlink|1998/Math/MathML"
+                    r"|XML/1998/namespace|2000/xmlns/?)(?![\w/.-])", re.I)
 
 
 def _line_of(breaks, offset):
@@ -74,11 +82,15 @@ def _line_of(breaks, offset):
 def find_network_calls(text):
     """1 finding `{line, found, text}` per line with a call or a scheme URL, in line order. `found` names each kind
     on that line; `text` is the stripped line. Works on any text: a mockup, a catalog card or a style sheet."""
-    breaks = [match.start() for match in re.finditer("\n", text)]
     lines = text.split("\n")
+    decoded = "\n".join(html.unescape(line).replace("\n", " ") for line in lines)
+    breaks = [match.start() for match in re.finditer("\n", decoded)]
+    names = [match.span() for match in _NAMES.finditer(decoded)]
     kinds = {}
     for kind, pattern in NETWORK.items():
-        for match in pattern.finditer(text):
+        for match in pattern.finditer(decoded):
+            if kind == "address" and any(start <= match.start() < end for start, end in names):
+                continue
             found = kinds.setdefault(_line_of(breaks, match.start()), [])
             if kind not in found:
                 found.append(kind)
