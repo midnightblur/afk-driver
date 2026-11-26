@@ -295,6 +295,7 @@ def test_frontends_answer_each_entry_as_written(tmp_path):
         ([WEB, {**ADMIN, "name": "web"}], "frontends[1].name"),
         ([WEB, {**ADMIN, "catalog": "docs/catalog/web"}], "frontends[1].catalog"),
         ([WEB, {**ADMIN, "catalog": "docs/catalog/web/"}], "frontends[1].catalog"),
+        ([WEB, {**ADMIN, "catalog": "Docs/Catalog/WEB"}], "frontends[1].catalog"),
         ([{**WEB, "source": "/abs/src"}], "frontends[0].source"),
         ([{**WEB, "catalog": "/abs/catalog"}], "frontends[0].catalog"),
         ([{**WEB, "source": "../outside"}], "frontends[0].source"),
