@@ -201,3 +201,211 @@ def test_check_note_refuses_an_unreadable_note_and_a_pane_with_no_session(world)
     code, answer, runner = run(world, ["check-note", "--note-file", str(note)])
     assert (code, answer["error"]["code"]) == (1, "no-pane") and not runner.calls
     assert snapshot(world["data"]) == before
+
+
+# close (VR-054, VR-053).
+
+def session_folder(world):
+    return world["data"] / f"dogfood-{MAIN.replace(':', '_')}"
+
+
+def wrapped(world, **extra):
+    recorded = {**state(world), "wrap_reported": True, **extra}
+    world["state_file"].write_text(json.dumps(recorded, indent=2) + "\n", encoding="utf-8")
+    notes = session_folder(world) / "notes"
+    notes.mkdir(parents=True, exist_ok=True)
+    (notes / "0001.md").write_text("afkv2-note v1\nkind: wrap\n", encoding="utf-8")
+    return recorded
+
+
+def pane_closes(runner):
+    return runner.calls_of("pane", "close")
+
+
+def test_close_refuses_before_the_wrap_note_and_force_on_a_live_pane(world):
+    before = world["state_file"].read_bytes()
+    for argv in (["close"], ["close", "--force"]):
+        code, answer, runner = run(world, argv)
+        assert (code, answer["error"]["code"]) == (1, "no-wrap-report") and not pane_closes(runner)
+        assert world["state_file"].read_bytes() == before and SIDE in runner.panes
+    dead = DogfoodFakeRunner(world["env"], main_pane=MAIN)
+    code, answer, runner = run(world, ["close"], dead)
+    assert (code, answer["error"]["code"]) == (1, "no-wrap-report") and world["state_file"].read_bytes() == before
+
+
+def test_close_after_the_wrap_note_closes_the_afkv2_pane_once_and_deletes_the_state_and_the_notes(world):
+    recorded = wrapped(world)
+    code, answer, runner = run(world, ["close"])
+    assert code == 0 and answer == {"ok": True, "pane_closed": True,
+                                    "worktrees": [worktree["path"] for worktree in recorded["worktrees"]],
+                                    "branches": [worktree["branch"] for worktree in recorded["worktrees"]]}
+    assert pane_closes(runner) == [[runner.herdr, "pane", "close", SIDE]] and SIDE not in runner.panes
+    assert MAIN in runner.panes
+    assert not world["state_file"].exists() and not session_folder(world).exists()
+    assert (world["worktree"] / "skills" / "SKILL.md").is_file()
+
+    code, answer, runner = run(world, ["close"])
+    assert (code, answer) == (0, {"ok": True, "pane_closed": False, "worktrees": [], "branches": []})
+    assert not herdr_calls(runner)
+
+
+def test_close_with_a_gone_pane_after_the_wrap_and_close_force_on_a_dead_pane_answer_ok(world):
+    first = world["state_file"].read_bytes()
+    wrapped(world)
+    code, answer, runner = run(world, ["close"], DogfoodFakeRunner(world["env"], main_pane=MAIN))
+    assert (code, answer["ok"], answer["pane_closed"]) == (0, True, False)
+    assert not world["state_file"].exists() and not session_folder(world).exists()
+
+    world["state_file"].write_bytes(first)
+    wrapped(world, wrap_reported=False)
+    code, answer, runner = run(world, ["close", "--force"], DogfoodFakeRunner(world["env"], main_pane=MAIN))
+    assert (code, answer["ok"], answer["pane_closed"]) == (0, True, False) and not pane_closes(runner)
+    assert answer["worktrees"] == [str(world["worktree"])]
+    assert not world["state_file"].exists() and not session_folder(world).exists()
+
+
+def _git(cwd, *args):
+    done = subprocess.run(["git", "-c", "user.name=afkv2 test", "-c", "user.email=afkv2@example.invalid", "-C",
+                           str(cwd), *args], capture_output=True, text=True, check=True, stdin=subprocess.DEVNULL)
+    return done.stdout.strip()
+
+
+def _same(left, right):
+    return os.path.normcase(os.path.realpath(left)) == os.path.normcase(os.path.realpath(right))
+
+
+def test_close_keeps_both_real_git_worktrees_and_their_branches(world):
+    source = world["source"]
+    _git(source, "-c", "init.defaultBranch=trunk", "init", "-q")
+    (source / "README.md").write_text("plugin\n", encoding="utf-8")
+    _git(source, "add", "README.md")
+    _git(source, "commit", "-q", "-m", "first")
+    _git(source, "branch", "feat/base")
+    folder = source.parent / f"{source.name}-worktrees"
+    worktrees = []
+    for lane, branch in (("small", "feat/afkv2-df-20261126-1730"), ("medium", "feat/afkv2-x")):
+        path = folder / branch.replace("/", "-")
+        _git(source, "worktree", "add", "-q", "-b", branch, str(path), "feat/base")
+        worktrees.append({"path": str(path), "branch": branch, "lane": lane, "created": "2026-11-26T17:30:00+00:00"})
+    wrapped(world, worktrees=worktrees)
+
+    code, answer, runner = run(world, ["close"])
+
+    assert code == 0 and answer["pane_closed"] and answer["branches"] == [item["branch"] for item in worktrees]
+    assert not world["state_file"].exists() and not session_folder(world).exists()
+    listed = [line.removeprefix("worktree ") for line in _git(source, "worktree", "list", "--porcelain").splitlines()
+              if line.startswith("worktree ")]
+    for item in worktrees:
+        assert any(_same(path, item["path"]) for path in listed) and (Path(item["path"]) / "README.md").is_file()
+        assert _git(source, "rev-parse", "--verify", f"refs/heads/{item['branch']}") == _git(source, "rev-parse",
+                                                                                              "feat/base")
+        assert _git(item["path"], "branch", "--show-current") == item["branch"]
+    assert not [argv for argv in runner.calls if argv[0] == "git"]
+
+
+# The pane guard on all 7 verbs (VR-016) and the answer contract (VR-019).
+
+def with_source(world):
+    """The install record and the plugin manifest that start needs."""
+    (world["source"] / "afkv2" / ".claude-plugin").mkdir(parents=True, exist_ok=True)
+    (world["source"] / "afkv2" / ".claude-plugin" / "plugin.json").write_text('{"name": "afkv2"}', encoding="utf-8")
+    (world["data"] / "install.txt").write_text(f"installed 2026-11-26T00:00:00+00:00\nsource {world['source']}\n",
+                                               encoding="utf-8")
+    world["env"]["ProgramFiles"] = str(world["tmp"] / "program files")
+
+
+def all_verbs(world):
+    note = world["tmp"] / "note.md"
+    note.write_text(milestone(world["worktree"]), encoding="utf-8")
+    return {
+        "start": ["start", "--ask-file", str(world["text"])],
+        "status": ["status"],
+        "worktree": ["worktree", "--lane", "small", "--base", "feat/base"],
+        "note": ["note", "--note-file", str(note)],
+        "tell": ["tell", "--kind", "feedback", "--text-file", str(world["text"])],
+        "check-note": ["check-note", "--note-file", str(note)],
+        "close": ["close"],
+    }
+
+
+def test_each_of_the_7_verbs_runs_only_from_its_permitted_pane_and_takes_no_target_pane(world):
+    with_source(world)
+    verbs = all_verbs(world)
+    assert set(verbs) == set(dogfood.VERBS)
+    before = world["state_file"].read_bytes()
+    denied = {SIDE: ("start", "tell", "check-note", "close"), MAIN: ("worktree", "note"),
+              THIRD: ("worktree", "note")}
+    for pane in (MAIN, SIDE, THIRD):
+        env = {**world["env"], "HERDR_PANE_ID": pane}
+        for verb in denied[pane]:
+            code, answer, runner = run(world, verbs[verb], env=env)
+            expected = "in-afkv2-pane" if pane == SIDE else "not-afkv2-pane"
+            assert (code, answer["error"]["code"]) == (1, expected), (pane, verb)
+            assert not runner.calls, (pane, verb)
+        code, answer, runner = run(world, verbs["status"], env=env)
+        assert code == 0 and answer["state"] == (None if pane == THIRD else state(world)) and not runner.calls
+    assert world["state_file"].read_bytes() == before
+
+    third = {**world["env"], "HERDR_PANE_ID": THIRD}
+    for verb in ("tell", "check-note"):
+        code, answer, runner = run(world, verbs[verb], env=third)
+        assert (code, answer["error"]["code"]) == (1, "no-pane") and not runner.calls
+    code, answer, runner = run(world, verbs["close"], env=third)
+    assert (code, answer["pane_closed"]) == (0, False) and not runner.calls
+
+    for verb, argv in verbs.items():
+        for extra in (["--pane", SIDE], ["--target", SIDE], [f"--pane={SIDE}"]):
+            code, answer, runner = run(world, [*argv, *extra])
+            assert (code, answer["error"]["code"]) == (2, "usage") and not runner.calls, (verb, extra)
+    subparsers = next(action for action in dogfood._parser()._actions if action.dest == "verb")
+    for verb, parser in subparsers.choices.items():
+        options = [option for action in parser._actions for option in action.option_strings]
+        assert not [option for option in options if "pane" in option or "target" in option], verb
+    assert world["state_file"].read_bytes() == before
+
+
+def check_contract(code, answer):
+    assert isinstance(answer, dict) and isinstance(answer.get("ok"), bool)
+    if answer["ok"]:
+        assert code == 0 and "error" not in answer
+    else:
+        assert code in (1, 2) and isinstance(answer["error"]["code"], str) and answer["error"]["code"]
+        assert isinstance(answer["error"]["reason"], str) and answer["error"]["reason"]
+
+
+def test_every_verb_prints_1_json_object_with_ok_and_exits_0_1_or_2(world):
+    with_source(world)
+    verbs = all_verbs(world)
+    side = {**world["env"], "HERDR_PANE_ID": SIDE}
+    third = {**world["env"], "HERDR_PANE_ID": THIRD}
+
+    def side_runner():
+        runner = DogfoodFakeRunner(side, main_pane=MAIN, branches=("feat/base",))
+        runner.add_pane(SIDE, kind="claude", name=AGENT)
+        return runner
+    cases = [
+        (verbs["start"], third, DogfoodFakeRunner(third), 0), (verbs["start"], side, None, 1),
+        (verbs["status"], world["env"], None, 0),
+        (["worktree", "--lane", "medium", "--base", "feat/base", "--branch", "feat/afkv2-y"], side, side_runner(), 0),
+        (["worktree", "--lane", "medium", "--base", "feat/base"], side, None, 1),
+        (verbs["note"], side, side_runner(), 0), (verbs["note"], world["env"], None, 1),
+        (verbs["tell"], world["env"], None, 0),
+        (["tell", "--kind", "wrap", "--text-file", str(world["tmp"] / "absent.md")], world["env"], None, 2),
+        (verbs["check-note"], world["env"], None, 0),
+        (["check-note", "--note-file", str(world["tmp"] / "absent.md")], world["env"], None, 2),
+        (verbs["close"], world["env"], None, 1),
+        (["close"], {**world["env"], "HERDR_PANE_ID": "w1:p9"}, None, 0),
+        (["close", "--bad"], world["env"], None, 2),
+    ]
+    for argv, env, given, expected in cases:
+        code, answer, used = run(world, argv, given, env)
+        check_contract(code, answer)
+        assert code == expected, (argv, answer)
+        if argv[0] != "close":
+            assert not [call for call in pane_closes(used) if call[-1] == SIDE], argv
+
+    world["state_file"].write_text("{broken", encoding="utf-8")
+    for verb, argv in verbs.items():
+        code, answer, _ = run(world, argv)
+        check_contract(code, answer)
+        assert (code, answer["error"]["code"]) == (2, "state-unreadable"), verb

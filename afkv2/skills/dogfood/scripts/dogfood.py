@@ -10,6 +10,8 @@ Verbs:
                        main pane: send feedback or the wrap-up request to the afkv2 agent
   check-note --note-file N
                        main pane: the parsed note, or its failures; writes nothing
+  close [--force]      main pane: after the wrap note, or forced on a dead afkv2 pane: close that pane, delete the
+                       state and the notes; every worktree and branch stays
 
 Each verb prints 1 JSON object, `{"ok": true, ...}` or `{"ok": false, "error": {"code", "reason"}}`, and exits 0 ok,
 1 refused, 2 unreadable input. The caller is the pane of `HERDR_PANE_ID`, never an argument. dogfood.py is the only
@@ -23,6 +25,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -557,8 +560,34 @@ def verb_check_note(args, env, runner):
     return {"ok": True, "note": note}
 
 
+def verb_close(args, env, runner):
+    """End the session after the wrap note, or with --force on a dead afkv2 pane: close the afkv2 pane once, delete
+    the notes folder, then the state. Every worktree and branch stays; close runs no git (plan decision D-12)."""
+    pane, state = _main_state(env, runner, "close")
+    if not state:
+        return {"ok": True, "pane_closed": False, "worktrees": [], "branches": []}
+    if not state["wrap_reported"]:
+        if not args.force:
+            raise Refusal("no-wrap-report", "the afkv2 agent has sent no wrap note: run tell --kind wrap and wait for "
+                                            "the note, or close --force when the afkv2 pane is dead")
+        if _live(env, runner, state):
+            raise Refusal("no-wrap-report", f"the afkv2 agent {state['agent']} is live: --force is only for a dead "
+                                            f"afkv2 pane; run tell --kind wrap and wait for the wrap note")
+        closed = False
+    else:
+        code, out, err = _herdr(env, runner, "pane", "close", state["afkv2_pane"])
+        problem = _herdr_code(out, err)
+        if code != 0 and problem not in GONE:
+            raise Refusal("herdr-failed", f"herdr pane close {state['afkv2_pane']}: {problem or (err or out).strip()}")
+        closed = code == 0
+    shutil.rmtree(notes_folder(env, pane).parent, ignore_errors=True)
+    state_path(env, pane).unlink(missing_ok=True)
+    return {"ok": True, "pane_closed": closed, "worktrees": [worktree["path"] for worktree in state["worktrees"]],
+            "branches": [worktree["branch"] for worktree in state["worktrees"]]}
+
+
 VERBS = {"start": verb_start, "status": verb_status, "worktree": verb_worktree, "note": verb_note, "tell": verb_tell,
-         "check-note": verb_check_note}
+         "check-note": verb_check_note, "close": verb_close}
 
 
 def _parser():
@@ -575,6 +604,7 @@ def _parser():
     tell.add_argument("--kind", required=True, choices=tuple(TELL_LINES))
     tell.add_argument("--text-file", required=True)
     verbs.add_parser("check-note").add_argument("--note-file", required=True)
+    verbs.add_parser("close").add_argument("--force", action="store_true")
     return parser
 
 
