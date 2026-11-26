@@ -433,9 +433,6 @@ def read_note(path):
     """The bytes and the text of 1 note file: UTF-8, at most NOTE_LIMIT bytes; else `note-unreadable`, exit 2."""
     try:
         body = Path(path).read_bytes()
-        if len(body) > NOTE_LIMIT:
-            raise Refusal("note-unreadable", f"the note file {path} holds {len(body)} bytes; a note holds at most "
-                                             f"{NOTE_LIMIT}", EXIT_UNREADABLE)
         return body, body.decode("utf-8")
     except (OSError, UnicodeDecodeError) as problem:
         raise Refusal("note-unreadable", f"the note file {path}: {problem}", EXIT_UNREADABLE) from None
@@ -455,11 +452,6 @@ def _prompt_main(env, runner, main_pane, text):
     if code == 0:
         return True
     problem = _herdr_code(out, err)
-    if problem == "agent_prompt_stalled":
-        return True if _after_stall(env, runner, main_pane, main_pane, text)["submitted"] else "unconfirmed"
-    if problem in GONE:
-        raise Refusal("main-pane-gone", f"the main pane {main_pane} is gone: the work stays committed; tell the "
-                                        f"developer in this pane")
     raise Refusal("herdr-failed", f"herdr agent prompt {main_pane}: {problem or (err or out).strip()}")
 
 
