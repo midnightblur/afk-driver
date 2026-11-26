@@ -6,6 +6,8 @@ Verbs:
   worktree --lane small|medium --base B [--branch N]
                        afkv2 pane: the small-asks worktree, or a medium worktree, from the confirmed base B
   note --note-file N   afkv2 pane: check the note, store it, send its path to the main pane and record it
+  tell --kind feedback|wrap --text-file F
+                       main pane: send feedback or the wrap-up request to the afkv2 agent
 
 Each verb prints 1 JSON object, `{"ok": true, ...}` or `{"ok": false, "error": {"code", "reason"}}`, and exits 0 ok,
 1 refused, 2 unreadable input. The caller is the pane of `HERDR_PANE_ID`, never an argument. dogfood.py is the only
@@ -52,6 +54,7 @@ NAME = re.compile(r"[A-Za-z0-9._/-]+")
 NOTE_LIMIT = 16 * 1024
 NOTE_LINE = "A note from the afkv2 pane: {}"
 GONE = ("agent_not_found", "pane_not_found")
+TELL_LINES = {"feedback": "Feedback from the main pane:", "wrap": "The wrap-up request from the main pane:"}
 
 
 def _clock():
@@ -102,16 +105,20 @@ def _herdr_pane(env, runner):
     return env["HERDR_PANE_ID"]
 
 
-def _read_ask(path):
-    """The ask text: UTF-8, 1 to ASK_LIMIT characters."""
+def _read_text(path, code, what):
+    """The text of an ask or tell file: UTF-8, 1 to ASK_LIMIT characters; else `code`, exit 2."""
     try:
         text = Path(path).read_bytes().decode("utf-8")
     except (OSError, UnicodeDecodeError) as problem:
-        raise Refusal("ask-unreadable", f"the ask file {path}: {problem}", EXIT_UNREADABLE) from None
+        raise Refusal(code, f"the {what} file {path}: {problem}", EXIT_UNREADABLE) from None
     if not 1 <= len(text) <= ASK_LIMIT:
-        raise Refusal("ask-unreadable", f"the ask file {path} holds {len(text)} characters; an ask holds 1 to "
-                                        f"{ASK_LIMIT}", EXIT_UNREADABLE)
+        raise Refusal(code, f"the {what} file {path} holds {len(text)} characters; it holds 1 to {ASK_LIMIT}",
+                      EXIT_UNREADABLE)
     return text
+
+
+def _read_ask(path):
+    return _read_text(path, "ask-unreadable", "ask")
 
 
 # The plugin source.
@@ -447,20 +454,28 @@ def _next_id(state, folder):
     return max(ids, default=0) + 1
 
 
-def _prompt_main(env, runner, main_pane, text):
-    """1 prompt to the main pane by its pane id: True, `unconfirmed` after a stall that H-6 does not confirm, or a
-    refusal when herdr typed nothing (plan decision D-8)."""
-    code, out, err = _herdr(env, runner, "agent", "prompt", main_pane, text, "--wait", "--until", "working",
+def _prompt(env, runner, target, pane, text, refusals):
+    """1 prompt to `target`, whose pane is `pane`: True, `unconfirmed` after a stall that H-6 does not confirm, or a
+    refusal when herdr typed nothing: the refusal of `refusals` ((herdr codes, Refusal), ...) that names the herdr
+    code, else `herdr-failed` (plan decisions D-8, D-10)."""
+    code, out, err = _herdr(env, runner, "agent", "prompt", target, text, "--wait", "--until", "working",
                             "--timeout", PROMPT_MS)
     if code == 0:
         return True
     problem = _herdr_code(out, err)
     if problem == "agent_prompt_stalled":
-        return True if _after_stall(env, runner, main_pane, main_pane, text)["submitted"] else "unconfirmed"
-    if problem in GONE:
-        raise Refusal("main-pane-gone", f"the main pane {main_pane} is gone: the work stays committed; tell the "
-                                        f"developer in this pane")
-    raise Refusal("herdr-failed", f"herdr agent prompt {main_pane}: {problem or (err or out).strip()}")
+        return True if _after_stall(env, runner, target, pane, text)["submitted"] else "unconfirmed"
+    for codes, refusal in refusals:
+        if problem in codes:
+            raise refusal
+    raise Refusal("herdr-failed", f"herdr agent prompt {target}: {problem or (err or out).strip()}")
+
+
+def _prompt_main(env, runner, main_pane, text):
+    """1 prompt to the main pane by its pane id (plan decision D-8)."""
+    gone = Refusal("main-pane-gone", f"the main pane {main_pane} is gone: the work stays committed; tell the "
+                                     f"developer in this pane")
+    return _prompt(env, runner, main_pane, main_pane, text, [(GONE, gone)])
 
 
 def verb_note(args, env, runner):
@@ -495,7 +510,36 @@ def verb_note(args, env, runner):
     return {"ok": True, "sent": sent, "id": record["id"], "path": record["path"]}
 
 
-VERBS = {"start": verb_start, "status": verb_status, "worktree": verb_worktree, "note": verb_note}
+def _main_state(env, runner, verb):
+    """`(pane, state)` of the caller as a main pane, state None when it has no session; refuses the afkv2 pane of a
+    state (SDD §5)."""
+    pane = _herdr_pane(env, runner)
+    role, state = find_state(env, pane)
+    if role == "afkv2":
+        raise Refusal("in-afkv2-pane", f"this pane is the afkv2 pane of the main pane {state['main_pane']}: run {verb} "
+                                       f"from the main pane")
+    return pane, state
+
+
+def _no_pane(pane):
+    return Refusal("no-pane", f"the main pane {pane} has no live afkv2 pane: run start to open one")
+
+
+def verb_tell(args, env, runner):
+    """Send feedback or the wrap-up request to the afkv2 agent of the session: 1 prompt, its lead line by kind, then
+    the text (plan decision D-10). The state names the target; no argument does. Writes nothing."""
+    pane, state = _main_state(env, runner, "tell")
+    text = _read_text(args.text_file, "text-unreadable", "text")
+    if not state or not _live(env, runner, state):
+        raise _no_pane(pane)
+    blocked = Refusal("prompt-blocked", f"the afkv2 agent {state['agent']} shows a dialog, so nothing was typed: "
+                                        f"tell the developer to look at the afkv2 pane")
+    sent = _prompt(env, runner, state["agent"], state["afkv2_pane"], f"{TELL_LINES[args.kind]}\n\n{text}",
+                   [(("agent_blocked",), blocked), (GONE, _no_pane(pane))])
+    return {"ok": True, "sent": sent, "kind": args.kind}
+
+
+VERBS = {"start": verb_start, "status": verb_status, "worktree": verb_worktree, "note": verb_note, "tell": verb_tell}
 
 
 def _parser():
@@ -508,6 +552,9 @@ def _parser():
     worktree.add_argument("--base", required=True)
     worktree.add_argument("--branch")
     verbs.add_parser("note").add_argument("--note-file", required=True)
+    tell = verbs.add_parser("tell")
+    tell.add_argument("--kind", required=True, choices=tuple(TELL_LINES))
+    tell.add_argument("--text-file", required=True)
     return parser
 
 
