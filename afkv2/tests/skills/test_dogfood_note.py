@@ -131,3 +131,41 @@ def test_redo_none_passes(note_module, worktree):
     note = note_module.parse(milestone(worktree, [CK1], redo="none"))
     assert note["redo"] == "none"
     assert note_module.check(note, [str(worktree)]) == []
+
+
+FORMAT = SKILL / "NOTE-FORMAT.md"
+EXAMPLE = "```note"
+
+
+def format_examples():
+    """Each fenced `note` block of NOTE-FORMAT.md, as text."""
+    blocks, current = [], None
+    for line in FORMAT.read_text(encoding="utf-8").splitlines():
+        if current is None and line.strip() == EXAMPLE:
+            current = []
+        elif current is not None and line.strip() == "```":
+            blocks.append("\n".join(current) + "\n")
+            current = None
+        elif current is not None:
+            current.append(line)
+    return blocks
+
+
+def test_format_examples_parse_clean(note_module, tmp_path):
+    examples = format_examples()
+    assert {note_module.parse(text)["kind"] for text in examples} == {"milestone", "wrap"}
+    root = tmp_path / "wt"
+    for text in examples:
+        text = text.replace("<worktree>", root.as_posix())
+        note = note_module.parse(text)
+        for row in note["changed"]:
+            Path(row["path"]).parent.mkdir(parents=True, exist_ok=True)
+            Path(row["path"]).write_text("x\n", encoding="utf-8")
+        assert note_module.check(note, [str(root)]) == []
+
+
+def test_format_codes_equal_module_codes(note_module):
+    text = FORMAT.read_text(encoding="utf-8")
+    section = text.partition("## The rule codes")[2].partition("\n## ")[0]
+    table = {line.split("|")[1].strip() for line in section.splitlines() if line.startswith("| N-")}
+    assert table == set(note_module.CODES)
