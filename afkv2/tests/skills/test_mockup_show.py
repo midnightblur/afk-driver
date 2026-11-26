@@ -493,10 +493,12 @@ def test_show_after_the_session_or_the_tab_is_gone_opens_a_new_tab(lavish, mocku
 
 
 def test_show_on_a_user_ended_session_keeps_no_tab(lavish, mockup, capsys):
+    expect_ok(show_cli(capsys, "show", "--mockup", mockup))
     host_output(lavish, "open", FIXTURES / "host-open-user-ended.txt")
     ran = show_cli(capsys, "show", "--mockup", mockup)
     expect_ok(ran)
     expect_field(ran, "status", "user-ended")
+    expect_field(ran, "tab", None)
     host_output(lavish, "open", HOST_FIXTURES / "host-open.txt")
     again = show_cli(capsys, "show", "--mockup", mockup)
     expect(calls(lavish)[-1], [str(mockup)], f"{again.given} (the last lavish call)")
@@ -573,3 +575,39 @@ def test_wait_status_waiting_answers_no_note_and_not_ended_and_keeps_the_waiting
     expect_field(ran, "ended", False)
     record = launcher.read_waiting_record(data_home / "afkv2", "thread-1")
     expect(record is not None, True, f"{ran.given} (the waiting record is kept: {record!r})")
+
+
+def test_a_tab_record_that_cannot_be_removed_loses_no_notes_and_end_still_answers(lavish, mockup, tmp_path, capsys,
+                                                                                  monkeypatch):
+    expect_ok(show_cli(capsys, "show", "--mockup", mockup))
+    real_unlink = Path.unlink
+
+    def locked(path, missing_ok=False):
+        if "mockup-tabs" in str(path):
+            raise PermissionError(13, "The file is in use", str(path))
+        return real_unlink(path, missing_ok=missing_ok)
+    monkeypatch.setattr(Path, "unlink", locked)
+    note("each unlink of a tab record raises PermissionError")
+    host_output(lavish, "poll", HOST_FIXTURES / "host-poll-two-prompts.txt")
+    notes = tmp_path / "notes.json"
+    waited = show_cli(capsys, "wait", "--mockup", mockup, "--notes-file", notes)
+    expect_ok(waited)
+    expect(len(read_notes(notes, waited)), 2, f"{waited.given} (the notes in the notes file)")
+    expect_ok(show_cli(capsys, "end", "--mockup", mockup))
+
+
+def test_show_with_a_tab_record_that_cannot_be_written_still_answers_and_writes_the_waiting_record(
+        lavish, mockup, data_home, capsys, monkeypatch):
+    codex(monkeypatch)
+    real_write = mockup_show.inject.write_if_changed
+
+    def locked(path, data):
+        if "mockup-tabs" in str(path):
+            raise PermissionError(13, "The file is in use", str(path))
+        return real_write(path, data)
+    monkeypatch.setattr(mockup_show.inject, "write_if_changed", locked)
+    note("each write of a tab record raises PermissionError")
+    ran = show_cli(capsys, "show", "--mockup", mockup)
+    expect_ok(ran)
+    record = launcher.read_waiting_record(data_home / "afkv2", "thread-1")
+    expect(record is not None, True, f"{ran.given} (the waiting record: {record!r})")

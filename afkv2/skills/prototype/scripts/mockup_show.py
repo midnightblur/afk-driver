@@ -37,7 +37,6 @@ from shell import inject  # noqa: E402
 
 THREAD_VARIABLE = "CODEX_THREAD_ID"
 ENDED = ("ended", "browser_disconnected")  # the developer closed the page or the browser
-TAB_GONE = (*ENDED, "no-session")  # no browser tab shows the mockup any more
 NOTE_FIELDS = ("uid", "prompt", "selector", "tag", "text")  # lavish poll at 0.1.86 (SDD §9b)
 TABS_FOLDER = "mockup-tabs"
 
@@ -74,9 +73,20 @@ def _tab_record(page):
 
 
 def _forget_tab(page):
+    """Best effort: a tab record that cannot be removed costs 1 reused tab, never an answer."""
     record = _tab_record(page)
     if record is not None:
-        record.unlink(missing_ok=True)
+        try:
+            record.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def _keep_tab(record, page, url):
+    try:
+        inject.write_if_changed(record, json.dumps({"page": str(page), "url": url}).encode("utf-8"))
+    except OSError:  # best effort: the next show opens another tab
+        pass
 
 
 def _no_host(page, cause):
@@ -104,7 +114,7 @@ def cmd_show(argv):
         reused = False
         _forget_tab(page)
     elif tab is not None and not reused:
-        inject.write_if_changed(tab, json.dumps({"page": str(page), "url": session.get("url")}).encode("utf-8"))
+        _keep_tab(tab, page, session.get("url"))
     record = None
     if folder is not None:  # Codex: the Stop hook waits on this record; a mockup has no page document
         record = str(launcher.write_waiting_record(folder, os.environ[THREAD_VARIABLE], None, str(page)))
@@ -124,9 +134,8 @@ def cmd_wait(argv):
     if status == "fallback":
         raise _no_host(page, detail["reason"])
     ended = status in ENDED or (status == "feedback" and detail["session_ended"])
-    if status in TAB_GONE or ended:
-        _forget_tab(page)
     if status == "no-session":
+        _forget_tab(page)
         raise Refusal("no-session", f"no lavish session shows {page}; run show first")
     if status not in ("feedback", "waiting", *ENDED):
         raise Refusal("host-error", f"lavish poll: {status}: {detail.get('reason')}")
@@ -137,6 +146,9 @@ def cmd_wait(argv):
     except OSError as problem:  # the host hands a send over once: the notes go back in the refusal
         raise Refusal("notes-unwritten", f"cannot write the notes file {notes_file}: {problem}; the notes are in "
                                          "the field notes", notes=notes) from None
+    finally:
+        if ended:
+            _forget_tab(page)
     if folder is not None and status != "waiting":
         launcher.clear_waiting_record(folder, os.environ[THREAD_VARIABLE])
     return {"ok": True, "status": status, "count": len(notes), "ended": ended, "notes_file": str(notes_file)}
