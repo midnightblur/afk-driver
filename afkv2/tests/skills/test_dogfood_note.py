@@ -169,3 +169,12 @@ def test_format_codes_equal_module_codes(note_module):
     section = text.partition("## The rule codes")[2].partition("\n## ")[0]
     table = {line.split("|")[1].strip() for line in section.splitlines() if line.startswith("| N-")}
     assert table == set(note_module.CODES)
+
+
+def test_module_imports_only_the_standard_library():
+    import ast
+
+    tree = ast.parse((SKILL / "scripts" / "dogfood_note.py").read_text(encoding="utf-8"))
+    names = {alias.name.partition(".")[0] for node in ast.walk(tree) if isinstance(node, ast.Import) for alias in node.names}
+    names |= {node.module.partition(".")[0] for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) and node.module}
+    assert names <= set(sys.stdlib_module_names) | {"__future__"}
