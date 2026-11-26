@@ -295,6 +295,7 @@ def test_frontends_answer_each_entry_as_written(tmp_path):
         ([WEB, {**ADMIN, "name": "web"}], "frontends[1].name"),
         ([WEB, {**ADMIN, "catalog": "docs/catalog/web"}], "frontends[1].catalog"),
         ([WEB, {**ADMIN, "catalog": "docs/catalog/web/"}], "frontends[1].catalog"),
+        ([WEB, {**ADMIN, "catalog": "Docs/Catalog/WEB"}], "frontends[1].catalog"),
         ([{**WEB, "source": "/abs/src"}], "frontends[0].source"),
         ([{**WEB, "catalog": "/abs/catalog"}], "frontends[0].catalog"),
         ([{**WEB, "source": "../outside"}], "frontends[0].source"),
@@ -320,6 +321,12 @@ def test_bad_frontends_are_refused_and_named(tmp_path, frontends, field):
     assert answer["ok"] is False
     assert answer["error"]["code"] == "bad-value"
     assert field in answer["error"]["reason"]
+
+
+def test_without_frontends_a_bad_list_is_no_refusal_and_no_key(tmp_path):
+    answer = afkv2_config.read_config(make_repo(tmp_path, {**FULL, "frontends": [WEB, WEB]}), with_frontends=False)
+    assert answer["ok"] is True, f"input: frontends [WEB, WEB], with_frontends=False\nexpected: ok\nactual: {answer}"
+    assert "frontends" not in answer, f"input: with_frontends=False\nexpected: no frontends key\nactual: {answer}"
 
 
 def test_check_frontends_answers_an_empty_list_for_none():
