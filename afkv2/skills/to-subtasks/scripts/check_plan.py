@@ -14,6 +14,7 @@ Rule codes:
   live-not-applicable                                         on a `> Rules: 2` plan, `not applicable:` on a live tier
   check-path-unowned                                          a check path with no owner in the chain
   bad-rules                                                   a `> Rules:` line that reads neither 1 nor 2
+  app-none-unmarked                                           a `> App: none · <card>` line that VERIFICATION.md does not hold
 
 On a `> Rules: 2` plan (design ADR-0003; `rules_of` of `plan_contract.py` is the one switch) the plan rows of
 VERIFICATION.md, beside the `## Parent PRD` of the contracts on the base, and the `Plan row` column of each contract:
@@ -88,6 +89,7 @@ SKIP_WORDS = {"", "-", "—", "n/a", "na", "none", "skip", "skipped"}
 APP_MARK = "> App:"
 NO_APP = {"", "none"}
 APP_CONFIG = "config"
+NO_APP_MARK = "·"
 CONFIG_FILE = ".afkv2/config.json"
 QUOTED = re.compile(r"\"[^\"]*\"|'[^']*'")
 FILE_NAME = re.compile(r"[A-Za-z_][\w-]*\.[a-z][a-z0-9]{0,4}")
@@ -524,13 +526,26 @@ def _means_not_applicable(cell):
     return re.sub(r"[^a-z]", "", cell.lower()).startswith("notapplicable") or cell.strip().lower() in SKIP_WORDS
 
 
-def _app_of(plan_text):
-    """The value of the `> App:` header line; None when the repository has no app."""
+def _app_line(plan_text):
+    """The text after `> App:` in the header, or None."""
     for line in _header_lines(plan_text):
         if line.startswith(APP_MARK):
-            value = line[len(APP_MARK):].strip()
-            return None if value.lower() in NO_APP else value
+            return line[len(APP_MARK):].strip()
     return None
+
+
+def _app_of(plan_text):
+    """The value of the `> App:` header line; None when the repository has no app."""
+    value = _app_line(plan_text)
+    if value is None or value.partition(NO_APP_MARK)[0].strip().lower() in NO_APP:
+        return None
+    return value
+
+
+def no_app_card(plan_text):
+    """The card of a `> App: none · <card>` line: the developer accepted a build with no live app. Else None."""
+    head, mark, card = (_app_line(plan_text) or "").partition(NO_APP_MARK)
+    return (card.strip() or None) if mark and head.strip().lower() == "none" else None
 
 
 def _unproven_live(app, base):
@@ -563,14 +578,14 @@ def live_not_applicable(where):
     return failure("live-not-applicable", where, f"a `> Rules: 2` plan never skips a live level with `{NOT_APPLICABLE}`; only the developer accepts a lower level, as a `lower:` row of VERIFICATION.md")
 
 
-def _row_failures(where, tier, cell, app, owners, base, rules=1):
+def _row_failures(where, tier, cell, app, owners, base, rules=1, no_app=None):
     if is_not_applicable(cell):
         return [live_not_applicable(where)] if rules == 2 and tier in LIVE_TIERS else []
     if _means_not_applicable(cell):
         return [failure("bad-not-applicable", where, f"write the cell as `{NOT_APPLICABLE} <reason>`, with these exact words and a reason")]
     fix = f"mark the row `{NOT_APPLICABLE} <reason>`, or slice again"
     failures = []
-    if tier in LIVE_TIERS and not app:
+    if tier in LIVE_TIERS and not app and not (rules == 2 and no_app):
         failures.append(failure("gate-cannot-run", where, f"this tier needs a running app, and the `{APP_MARK}` line of PLAN.md names none",
                                 next=f"{fix}, or name the app in the `{APP_MARK}` line"))
     unproven = _unproven_live(app, base) if tier in LIVE_TIERS else None
@@ -587,6 +602,7 @@ def _row_failures(where, tier, cell, app, owners, base, rules=1):
 
 def _gate_failures(subtasks, plan_text, base):
     app, by_id, rules = _app_of(plan_text), {subtask.id: subtask for subtask in subtasks}, rules_of(plan_text)
+    no_app = no_app_card(plan_text)
     finished = {subtask for subtask, status in read_rows(plan_text) or [] if status == "done"}
     failures = []
     for subtask in subtasks:
@@ -595,7 +611,7 @@ def _gate_failures(subtasks, plan_text, base):
         owners = [glob for item in _chain_of(subtask, by_id) for glob in item.scope]
         for row in verification_rows(subtask) or []:
             tier = row["tier"].strip("` ").lower()
-            failures += _row_failures(f"{subtask.id} tier {tier}", tier, row["check"], app, owners, base, rules)
+            failures += _row_failures(f"{subtask.id} tier {tier}", tier, row["check"], app, owners, base, rules, no_app)
     return failures
 
 
@@ -689,23 +705,35 @@ def _criteria_failures(spec, live, vf):
                        and not any(criterion in row["criteria"] and vf._covers_high(row) for row in live.values())]
 
 
-def _plan_row_failures(subtasks, base):
+def _app_none_failures(plan_text, spec):
+    """A `> App: none · <card>` line stands only when VERIFICATION.md holds the same card (spec 185, SDD §6 I-13)."""
+    card = no_app_card(plan_text)
+    head, _, held = (spec.get("app") or "").partition(NO_APP_MARK)
+    if card is None or (head.strip().lower() == "none" and held.strip() == card):
+        return []
+    return [failure("app-none-unmarked", "PLAN.md", f"the `{APP_MARK} none {NO_APP_MARK} {card}` line needs the same line in "
+                    f"{VERIFICATION}; only the developer's accept mark writes it there",
+                    next=f"copy the `{APP_MARK}` line of {VERIFICATION}, or settle the card with {VERIFY}")]
+
+
+def _plan_row_failures(subtasks, base, plan_text=""):
     """The plan row rules of a `> Rules: 2` plan (SDD §3 row "S-2", §6 I-2 and I-3; design ADR-0002)."""
     spec, failures = _spec_inputs(subtasks, base)
     if spec is None:
         return failures
+    app_failures = _app_none_failures(plan_text, spec)
     vf = _verification_files()
     rows = {row["id"]: row for row in spec["rows"]}
     live = {rid: row for rid, row in rows.items() if row["status"] == "active" or vf.LOWER.fullmatch(row["status"] or "")}
     owners, low, failures = _claims(subtasks, rows, vf)
-    return failures + _owner_failures(live, owners, low, vf) + _criteria_failures(spec, live, vf)
+    return app_failures + failures + _owner_failures(live, owners, low, vf) + _criteria_failures(spec, live, vf)
 
 
 def _rules_failures(plan_text, subtasks, base):
     rules = rules_of(plan_text)
     if rules is None:
         return [failure("bad-rules", "PLAN.md", "the header needs at most one `> Rules:` line, and it reads 1 or 2")]
-    return _plan_row_failures(subtasks, base) if rules == 2 else []
+    return _plan_row_failures(subtasks, base, plan_text) if rules == 2 else []
 
 
 def check_plan(plan):
