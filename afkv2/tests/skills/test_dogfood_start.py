@@ -170,3 +170,21 @@ def test_a_managed_setting_that_bans_bypass_or_cannot_be_parsed_refuses_before_a
     (folder / "managed-settings.json").write_text('{"permissions": {"defaultMode": "plan"}}', encoding="utf-8")
     code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])])
     assert (code, answer["status"]) == (0, "opened")
+
+
+def test_an_agent_name_that_clashes_takes_the_next_4_hex_digits_at_most_3_tries(world):
+    for clashes in (1, 2):
+        state_file(world).unlink(missing_ok=True)
+        runner = DogfoodFakeRunner(world["env"])
+        for n in range(clashes):
+            runner.add_agent(name_of(MAIN, n))
+        code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])], runner)
+        assert (code, answer["agent"]) == (0, name_of(MAIN, clashes))
+        assert runner.started[0]["name"] == name_of(MAIN, clashes)
+    state_file(world).unlink()
+    runner = DogfoodFakeRunner(world["env"])
+    for n in range(3):
+        runner.add_agent(name_of(MAIN, n))
+    code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])], runner)
+    assert (code, answer["error"]["code"]) == (1, "herdr-failed") and not runner.calls_of("pane", "split")
+    assert all(name_of(MAIN, n) in answer["error"]["reason"] for n in range(3))

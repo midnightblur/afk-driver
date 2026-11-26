@@ -35,6 +35,7 @@ AGENT_ARGS = ["--model", "opus", "--effort", "max", "--dangerously-skip-permissi
 START_MS, PROMPT_MS = "90000", "30000"
 COMMAND_S = 120
 ASK_LIMIT = 8000
+NAME_TRIES = 3
 MANAGED_PREFERENCES, CLAUDE_DOMAIN = "/Library/Managed Preferences", "com.anthropic.claudecode"
 AGENT_FILE = Path("afkv2") / "skills" / "dogfood" / "AGENT.md"
 
@@ -194,8 +195,19 @@ def _write_state(env, state):
 
 # The verbs.
 
-def _agent_name(main_pane):
-    return f"dogfood-{hashlib.sha256(main_pane.encode('utf-8')).hexdigest()[:4]}"
+def _agent_name(env, runner, main_pane):
+    """`dogfood-<4 hex>` from the SHA-256 of the main pane id; on a clash with a live agent the next 4 hex digits,
+    at most NAME_TRIES tries."""
+    digest = hashlib.sha256(main_pane.encode("utf-8")).hexdigest()
+    names = [f"dogfood-{digest[4 * n:4 * n + 4]}" for n in range(NAME_TRIES)]
+    for name in names:
+        code, out, err = _herdr(env, runner, "agent", "get", name)
+        if code != 0 and _herdr_code(out, err) == "agent_not_found":
+            return name
+        if code != 0:
+            raise Refusal("herdr-failed", f"herdr agent get {name}: {_herdr_code(out, err) or (err or out).strip()}")
+    raise Refusal("herdr-failed", f"live agents already hold the names {', '.join(names)}: close one of them, then "
+                                  f"run the skill again")
 
 
 def _role_prompt(source, ask):
@@ -221,7 +233,7 @@ def verb_start(args, env, runner):
     ask = _read_ask(args.ask_file)
     source = _source(env, runner)
     _check_auto_approval(env, runner)
-    name = _agent_name(main_pane)
+    name = _agent_name(env, runner, main_pane)
     split = _herdr_ok(env, runner, "pane", "split", "--pane", main_pane, "--direction", "right", "--cwd", source,
                       "--no-focus")
     pane = ((split.get("result") or {}).get("pane") or {}).get("pane_id")
