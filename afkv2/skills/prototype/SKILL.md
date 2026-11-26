@@ -111,7 +111,7 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
 
 ## Notes loop
 
-Show the mockup in lavish only when the developer did not ask for chat only. Else, or when `show` refuses, take the notes in chat. With several screens, show the entry screen; the developer clicks through to the others.
+Show the mockup in lavish only when the developer did not ask for chat only. Else, or when `show` refuses, take the notes in chat. Lavish annotates only the file that `show` opened. A click that loads another file, also a link back to the same screen, shows that file with no annotation, until the developer reloads the lavish tab. With several screens, show 1 screen at a time, starting at the entry screen, and tell the developer this rule once. To take notes on another screen, answer the notes of the shown screen, run `end`, then run `show` with the other screen.
 
 Each note names its element by the `selector`, the `tag` and the `text` that lavish pins on it; a note in chat names it in words. Give each note an edit of the mockup or a reply, never neither. Run `check` after each edit. Repeat the loop until the developer settles a direction or stops.
 
@@ -126,7 +126,7 @@ Each note names its element by the `selector`, the `tag` and the `text` that lav
 | Answer of `wait` | Next action |
 |------------------|-------------|
 | `count` 0 and `ended` false | run `wait` again |
-| `ended` true | first give each note of the notes file an edit of the mockup or a reply. `status` `browser_disconnected`: the developer closed the browser; ask in chat whether to run `show` again or to go on by "In chat". Any other `status`: the developer ended the session, and lavish does not open it again; go on by "In chat" |
+| `ended` true | first give each note of the notes file an edit of the mockup or a reply. An `end` that you ran to show another screen: run `wait` for that screen. `status` `browser_disconnected`: the developer closed the browser; ask in chat whether to run `show` again or to go on by "In chat". Any other `status`: the developer ended the session, and lavish does not open it again; go on by "In chat" |
 | `no-session` | run `show`, then `wait` |
 | `notes-unwritten` | the notes are in the `notes` field of the refusal: give each an edit of the mockup or a reply, and fix the notes file path that the reason names |
 | `no-host` or `host-error` | go on by "In chat", with the `file://` path of the mockup |

@@ -93,6 +93,19 @@ def test_each_note_gets_an_edit_or_a_reply_and_a_new_show():
     _states(SKILL_MD, lavish, "When the developer does not see the mockup, run `end`, then `show`.")
 
 
+# lavish 0.1.86 injects its annotation script only into the file that `show` opened; a link to any file (also back
+# to the same screen by its file name) loads it raw, so the developer cannot annotate until the tab reloads
+
+def test_lavish_annotates_only_the_shown_file():
+    loop = "## Notes loop"
+    _states(SKILL_MD, loop, "the developer clicks through to the others", present=False)
+    _states(SKILL_MD, loop, "Lavish annotates only the file that `show` opened.")
+    _states(SKILL_MD, loop, "also a link back to the same screen")
+    _states(SKILL_MD, loop, "until the developer reloads the lavish tab")
+    _states(SKILL_MD, loop, "show 1 screen at a time")
+    _states(SKILL_MD, "### In lavish", "An `end` that you ran to show another screen: run `wait` for that screen.")
+
+
 def test_mockup_is_clickable_from_the_entry_screen_inside_the_shell():
     shell = "## App shell and neighbours"
     _states(MOCKUP_MD, shell, "clickable from the entry screen")
