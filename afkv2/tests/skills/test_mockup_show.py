@@ -404,3 +404,172 @@ def test_reply_end_end_never_refuses_on_the_host(lavish, mockup, capsys, monkeyp
     ran = show_cli(capsys, "end", "--mockup", mockup)
     expect_ok(ran)
     expect_in("not on PATH", ran.answer.get("host", ""), f"{ran.given} (field 'host' of answer {ran.answer!r})")
+
+
+# --- review follow-ups: data folder, paths, the tab, the notes file, host errors and the waiting status ------------
+
+def codex(monkeypatch):
+    monkeypatch.setenv("CODEX_THREAD_ID", "thread-1")
+    note("CODEX_THREAD_ID=thread-1")
+
+
+def no_data_folder(monkeypatch):
+    monkeypatch.delenv("LOCALAPPDATA", raising=False)
+    note("LOCALAPPDATA unset")
+
+
+@pytest.mark.parametrize("verb", ["show", "wait"])
+def test_codex_with_no_data_folder_refuses_no_data_folder_before_the_host_runs(lavish, mockup, tmp_path, capsys,
+                                                                               monkeypatch, verb):
+    codex(monkeypatch)
+    no_data_folder(monkeypatch)
+    extra = ["--notes-file", tmp_path / "notes.json"] if verb == "wait" else []
+    ran = show_cli(capsys, verb, "--mockup", mockup, *extra)
+    expect(ran.code, 2, f"{ran.given} (answer {ran.answer!r})")
+    expect(ran.answer.get("error", {}).get("code"), "no-data-folder", f"{ran.given} (answer {ran.answer!r})")
+    expect(calls(lavish), [], f"{ran.given} (the lavish calls)")
+
+
+def test_end_on_codex_with_no_data_folder_still_ends_the_session(lavish, mockup, capsys, monkeypatch):
+    codex(monkeypatch)
+    no_data_folder(monkeypatch)
+    ran = show_cli(capsys, "end", "--mockup", mockup)
+    expect_ok(ran)
+    expect(calls(lavish), [["end", str(mockup)]], f"{ran.given} (the lavish calls)")
+
+
+def test_end_with_the_mockup_file_gone_ends_the_session_and_clears_the_waiting_record(lavish, mockup, data_home,
+                                                                                       capsys, monkeypatch):
+    codex(monkeypatch)
+    expect_ok(show_cli(capsys, "show", "--mockup", mockup))
+    mockup.unlink()
+    note(f"mockup {mockup} deleted after show")
+    ran = show_cli(capsys, "end", "--mockup", mockup)
+    expect_ok(ran)
+    expect(calls(lavish)[-1], ["end", str(mockup)], f"{ran.given} (the last lavish call)")
+    expect(launcher.read_waiting_record(data_home / "afkv2", "thread-1"), None, f"{ran.given} (the waiting record)")
+
+
+def test_show_with_a_relative_mockup_path_gives_the_absolute_path_to_the_record_and_the_host(lavish, mockup,
+                                                                                            data_home, tmp_path,
+                                                                                            capsys, monkeypatch):
+    codex(monkeypatch)
+    monkeypatch.chdir(tmp_path)
+    note(f"working folder {tmp_path}")
+    relative = Path("spec") / "prototype" / "orders.html"
+    ran = show_cli(capsys, "show", "--mockup", relative)
+    expect_ok(ran)
+    absolute = str(mockup.resolve())
+    expect_field(ran, "page", absolute)
+    record = launcher.read_waiting_record(data_home / "afkv2", "thread-1") or {}
+    expect(record.get("page"), absolute, f"{ran.given} (field 'page' of waiting record {record!r})")
+    expect(calls(lavish), [[absolute]], f"{ran.given} (the lavish calls)")
+
+
+def test_show_again_reuses_the_open_tab_with_no_open(lavish, mockup, capsys):
+    first = show_cli(capsys, "show", "--mockup", mockup)
+    expect_ok(first)
+    expect_field(first, "tab", None)
+    again = show_cli(capsys, "show", "--mockup", mockup)
+    expect_ok(again)
+    expect_field(again, "tab", "reused")
+    expect(calls(lavish), [[str(mockup)], [str(mockup), "--no-open"]], f"{again.given} (the lavish calls)")
+
+
+@pytest.mark.parametrize("gone", ["end", "host-poll-ended.txt", "host-poll-disconnected.txt", "no-session"])
+def test_show_after_the_session_or_the_tab_is_gone_opens_a_new_tab(lavish, mockup, tmp_path, capsys, gone):
+    expect_ok(show_cli(capsys, "show", "--mockup", mockup))
+    if gone == "end":
+        expect_ok(show_cli(capsys, "end", "--mockup", mockup))
+    elif gone == "no-session":
+        host_output(lavish, "poll", HOST_FIXTURES / "host-error-missing.txt", code=1)
+        show_cli(capsys, "wait", "--mockup", mockup, "--notes-file", tmp_path / "notes.json")
+    else:
+        host_output(lavish, "poll", HOST_FIXTURES / gone)
+        expect_ok(show_cli(capsys, "wait", "--mockup", mockup, "--notes-file", tmp_path / "notes.json"))
+    again = show_cli(capsys, "show", "--mockup", mockup)
+    expect_ok(again)
+    expect(calls(lavish)[-1], [str(mockup)], f"{again.given} (the last lavish call)")
+
+
+def test_show_on_a_user_ended_session_keeps_no_tab(lavish, mockup, capsys):
+    host_output(lavish, "open", FIXTURES / "host-open-user-ended.txt")
+    ran = show_cli(capsys, "show", "--mockup", mockup)
+    expect_ok(ran)
+    expect_field(ran, "status", "user-ended")
+    host_output(lavish, "open", HOST_FIXTURES / "host-open.txt")
+    again = show_cli(capsys, "show", "--mockup", mockup)
+    expect(calls(lavish)[-1], [str(mockup)], f"{again.given} (the last lavish call)")
+
+
+def test_show_on_claude_with_no_data_folder_opens_with_no_tab_record(lavish, mockup, capsys, monkeypatch):
+    no_data_folder(monkeypatch)
+    expect_ok(show_cli(capsys, "show", "--mockup", mockup))
+    again = show_cli(capsys, "show", "--mockup", mockup)
+    expect_ok(again)
+    expect(calls(lavish), [[str(mockup)], [str(mockup)]], f"{again.given} (the lavish calls)")
+
+
+def test_wait_with_a_notes_file_that_cannot_be_written_refuses_before_the_poll(lavish, mockup, tmp_path, capsys):
+    folder = tmp_path / "notes-folder"
+    folder.mkdir()
+    note(f"--notes-file {folder} is a folder")
+    host_output(lavish, "poll", FIXTURES / "poll-one-note.txt")
+    ran = show_cli(capsys, "wait", "--mockup", mockup, "--notes-file", folder)
+    expect(ran.code, 2, f"{ran.given} (answer {ran.answer!r})")
+    expect(ran.answer.get("error", {}).get("code"), "unreadable", f"{ran.given} (answer {ran.answer!r})")
+    expect(calls(lavish), [], f"{ran.given} (the lavish calls)")
+
+
+def test_wait_that_cannot_write_the_notes_after_the_poll_refuses_with_the_notes_inline(lavish, mockup, tmp_path,
+                                                                                         capsys, monkeypatch):
+    host_output(lavish, "poll", FIXTURES / "poll-one-note.txt")
+
+    def refuse(path, data):
+        raise PermissionError(13, "Access is denied", str(path))
+    monkeypatch.setattr(mockup_show.inject, "write_if_changed", refuse)
+    note("each atomic write raises PermissionError")
+    ran = show_cli(capsys, "wait", "--mockup", mockup, "--notes-file", tmp_path / "notes.json")
+    expect_refusal(ran, "notes-unwritten")
+    notes = ran.answer["error"].get("notes")
+    expect(notes, [{"uid": "1", "prompt": "Put Open first in the filter bar",
+                    "selector": "#filters > button:nth-of-type(2)", "tag": "button", "text": "Open"}],
+           f"{ran.given} (field 'notes' of the refusal {ran.answer!r})")
+
+
+def test_show_with_a_host_error_refuses_host_error_and_writes_no_waiting_record(lavish, mockup, data_home, capsys,
+                                                                               monkeypatch):
+    codex(monkeypatch)
+    host_output(lavish, "open", FIXTURES / "host-error-internal.txt", code=1)
+    ran = show_cli(capsys, "show", "--mockup", mockup)
+    expect_refusal(ran, "host-error")
+    expect(launcher.read_waiting_record(data_home / "afkv2", "thread-1"), None, f"{ran.given} (the waiting record)")
+
+
+def test_wait_with_a_host_error_refuses_host_error(lavish, mockup, tmp_path, capsys):
+    host_output(lavish, "poll", FIXTURES / "host-error-internal.txt", code=1)
+    ran = show_cli(capsys, "wait", "--mockup", mockup, "--notes-file", tmp_path / "notes.json")
+    expect_refusal(ran, "host-error")
+    expect((tmp_path / "notes.json").exists(), False, f"{ran.given} (the notes file exists)")
+
+
+def test_reply_with_a_host_error_refuses_host_error(lavish, mockup, tmp_path, capsys):
+    reply = tmp_path / "reply.md"
+    reply.write_text("Moved Open first.\n", "utf-8")
+    note("reply.md holds 'Moved Open first.'")
+    host_output(lavish, "reply", FIXTURES / "host-error-internal.txt", code=1)
+    ran = show_cli(capsys, "reply", "--mockup", mockup, "--reply-file", reply)
+    expect_refusal(ran, "host-error")
+
+
+def test_wait_status_waiting_answers_no_note_and_not_ended_and_keeps_the_waiting_record(lavish, mockup, data_home,
+                                                                                        tmp_path, capsys, monkeypatch):
+    codex(monkeypatch)
+    expect_ok(show_cli(capsys, "show", "--mockup", mockup))
+    host_output(lavish, "poll", HOST_FIXTURES / "host-poll-waiting.txt")
+    ran = show_cli(capsys, "wait", "--mockup", mockup, "--notes-file", tmp_path / "notes.json")
+    expect_ok(ran)
+    expect_field(ran, "count", 0)
+    expect_field(ran, "ended", False)
+    record = launcher.read_waiting_record(data_home / "afkv2", "thread-1")
+    expect(record is not None, True, f"{ran.given} (the waiting record is kept: {record!r})")
