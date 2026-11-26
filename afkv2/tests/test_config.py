@@ -50,6 +50,7 @@ def test_resolves_spec_folder_tracker_ownership_and_data_folder(tmp_path, local_
         "ownership": {"own": ["src/**"], "shared": ["lib/**"]},
         "forge": "github",
         "data_folder": str(local_app_data / "afkv2"),
+        "frontends": [],
     }
 
 
@@ -269,3 +270,67 @@ def test_bad_live_values_are_refused_and_named(tmp_path, block, field):
     assert answer["ok"] is False
     assert answer["error"]["code"] == "bad-value"
     assert field in answer["error"]["reason"]
+
+
+WEB = {"name": "web", "source": "frontend/src", "catalog": "docs/catalog/web"}
+ADMIN = {"name": "admin-2", "source": "admin", "catalog": "docs/catalog/admin"}
+
+
+@pytest.mark.parametrize("config", [FULL, {**FULL, "frontends": None}])
+def test_frontends_answer_an_empty_list_when_absent(tmp_path, config):
+    answer = afkv2_config.read_config(make_repo(tmp_path, config))
+    assert answer["ok"] is True
+    assert answer["frontends"] == []
+
+
+def test_frontends_answer_each_entry_as_written(tmp_path):
+    answer = afkv2_config.read_config(make_repo(tmp_path, {**FULL, "frontends": [WEB, ADMIN]}))
+    assert answer["ok"] is True
+    assert answer["frontends"] == [WEB, ADMIN]
+
+
+@pytest.mark.parametrize(
+    "frontends, field",
+    [
+        ([WEB, {**ADMIN, "name": "web"}], "frontends[1].name"),
+        ([WEB, {**ADMIN, "catalog": "docs/catalog/web"}], "frontends[1].catalog"),
+        ([WEB, {**ADMIN, "catalog": "docs/catalog/web/"}], "frontends[1].catalog"),
+        ([{**WEB, "source": "/abs/src"}], "frontends[0].source"),
+        ([{**WEB, "catalog": "/abs/catalog"}], "frontends[0].catalog"),
+        ([{**WEB, "source": "../outside"}], "frontends[0].source"),
+        ([{**WEB, "catalog": "docs/../../x"}], "frontends[0].catalog"),
+        ([{**WEB, "name": "Web"}], "frontends[0].name"),
+        ([{**WEB, "name": "web_app"}], "frontends[0].name"),
+        ([{**WEB, "name": ""}], "frontends[0].name"),
+        ([{**WEB, "name": 3}], "frontends[0].name"),
+        ([{**WEB, "source": ""}], "frontends[0].source"),
+        ([{k: v for k, v in WEB.items() if k != "catalog"}], "frontends[0].catalog"),
+        ([{**WEB, "extra": 1}], "frontends[0].extra"),
+        (["web"], "frontends[0]"),
+        ({"web": WEB}, "frontends"),
+        pytest.param(
+            [{**WEB, "source": "C:/abs"}],
+            "frontends[0].source",
+            marks=pytest.mark.skipif(sys.platform != "win32", reason="a drive letter is absolute only on Windows"),
+        ),
+    ],
+)
+def test_bad_frontends_are_refused_and_named(tmp_path, frontends, field):
+    answer = afkv2_config.read_config(make_repo(tmp_path, {**FULL, "frontends": frontends}))
+    assert answer["ok"] is False
+    assert answer["error"]["code"] == "bad-value"
+    assert field in answer["error"]["reason"]
+
+
+def test_check_frontends_answers_an_empty_list_for_none():
+    assert afkv2_config._check_frontends(None) == []
+
+
+def test_read_command_answers_frontends_and_exits_1_on_a_bad_list(tmp_path):
+    code, answer = run_reader("read", cwd=make_repo(tmp_path, {**FULL, "frontends": [WEB]}))
+    assert code == 0
+    assert answer["frontends"] == [WEB]
+    bad = make_repo(tmp_path / "bad", {**FULL, "frontends": [WEB, WEB]})
+    code, answer = run_reader("read", cwd=bad)
+    assert code == 1
+    assert answer["error"]["code"] == "bad-value"

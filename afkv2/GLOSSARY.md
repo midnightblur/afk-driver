@@ -157,3 +157,15 @@ An agent session, of Claude or Codex, that drafts a whole design on its own from
 
 **Agent run time**:
 The days the agents would need to build a design, from the plan to a change ready for review, with no human work counted. Shown as a low, likely and high range.
+
+**Mockup**:
+A self-contained HTML file that simulates a feature's screens and behaviour with fixture data; no backend
+
+**Design catalog**:
+Per-service record of the real app's look: tokens, component cards, shell and page shapes, each checked against the live app
+
+**Anchor**:
+The evidence a mockup copies its look from: catalog, live screenshots or frontend source
+
+**Capability walk**:
+Clicking every story and acceptance criterion through the mockup from its entry screen

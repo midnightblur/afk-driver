@@ -1,0 +1,1836 @@
+{
+  "schema": "afkv2.page/2",
+  "session": {
+    "step": "Requirements grill",
+    "private": false,
+    "takeovers": [],
+    "id": "s-20261120-211919",
+    "skill": "grill",
+    "feature": "207",
+    "ticket": "207",
+    "started": "2026-11-20T21:34:36Z",
+    "links": {
+      "issue": "https://github.com/midnightblur/afk-driver/issues/{id}",
+      "change": "https://github.com/midnightblur/afk-driver/pull/{id}",
+      "commit": "https://github.com/midnightblur/afk-driver/commit/{id}",
+      "titles": {
+        "#207": "afkv2: port /afk:prototype skill, with optional lavish commenting"
+      }
+    },
+    "short_title": "Prototype + design-system port"
+  },
+  "maps": [
+    {
+      "type": "map",
+      "id": "m-scope",
+      "props": {
+        "title": "Scope of the port",
+        "groups": [
+          {
+            "id": "g-new",
+            "label": "New skills"
+          },
+          {
+            "id": "g-host",
+            "label": "Showing the mockup"
+          },
+          {
+            "id": "g-read",
+            "label": "Readers of PROTOTYPE.md"
+          },
+          {
+            "id": "g-maybe",
+            "label": "In or out"
+          }
+        ],
+        "nodes": [
+          {
+            "id": "n-proto",
+            "label": "prototype skill",
+            "state": "settled",
+            "round": 3,
+            "group": "g-new"
+          },
+          {
+            "id": "n-ds",
+            "label": "design-system skill",
+            "state": "settled",
+            "round": 3,
+            "group": "g-new",
+            "tip": "Builds a per-service catalog of the real app's look: tokens, components, page shapes"
+          },
+          {
+            "id": "n-lavish",
+            "label": "Lavish, native",
+            "state": "settled",
+            "round": 2,
+            "group": "g-host",
+            "you": true,
+            "tip": "You pin notes on the mockup itself"
+          },
+          {
+            "id": "n-chat",
+            "label": "Chat fallback",
+            "state": "settled",
+            "round": 2,
+            "group": "g-host"
+          },
+          {
+            "id": "n-sol",
+            "label": "propose-solution",
+            "state": "settled",
+            "round": 2,
+            "group": "g-read"
+          },
+          {
+            "id": "n-ver",
+            "label": "propose-verification",
+            "state": "settled",
+            "round": 2,
+            "group": "g-read"
+          },
+          {
+            "id": "n-index",
+            "label": "INDEX.md row",
+            "state": "settled",
+            "round": 2,
+            "group": "g-read"
+          },
+          {
+            "id": "n-logic",
+            "label": "Logic / state-model branch: out",
+            "state": "settled",
+            "round": 3,
+            "group": "g-maybe"
+          },
+          {
+            "id": "n-share",
+            "label": "Stakeholder sharing",
+            "state": "focus",
+            "round": 3,
+            "group": "g-maybe"
+          }
+        ]
+      }
+    }
+  ],
+  "notes": [
+    {
+      "id": "N-1-i-logic-1",
+      "round": 1,
+      "target": "i-logic",
+      "item": "i-logic",
+      "text": "skip",
+      "deleted": false
+    }
+  ],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "settled",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "the scope of the port",
+          "how lavish hosts the mockup",
+          "where the design catalog lives"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-ticket",
+          "kind": "info",
+          "title": "What the ticket says",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "id": "i-ticket-title",
+            "props": {
+              "text": "#207: afkv2: port /afk:prototype skill, with optional lavish commenting"
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-ticket-description",
+                "props": {
+                  "text": "## Goal\nPort the v1 `/afk:prototype` skill (`skills/afk/prototype/`) to afkv2 as `/afkv2:prototype`.\n\n## What v1 does\n- Optional design-layer stage: after the PRD, before the SDD; only for features with net-new or changed UI (self-gates `no_ui`).\n- Anchors to the real frontend (design-system catalog → running app screenshots → frontend source).\n- Writes one self-contained, drivable HTML mockup (inline JS, fixtures, app shell + neighbor stubs); 2-3 divergent variants when direction is unclear.\n- Iterates on human feedback, then gates on a capability walk (every user story / AC clickable or logged as a gap) and a fidelity pass vs the live app.\n- Writes `prototype/<screen>.html` + `PROTOTYPE.md`; optional `claude.ai/design` share push.\n\n## New requirement\n- Lavish is **optional**: the developer can comment directly on the mockup UI (element annotations) instead of only via chat. Chat-only must still work.\n\n## Open points (for the grill)\n- afkv2 has no `design-system` skill: what replaces the catalog anchor?\n- Map v1 lavish render point to afkv2 `use-lavish` / `visualize`.\n- Downstream consumers in afkv2: `propose-solution`, `propose-verification`.\n- Earlier decision (2026-10-09) to add a logic/state-model branch from mattpocock/skills `LOGIC.md`: in or out of this port?\n- Keep the `claude.ai/design` share push?\n",
+                  "markdown": true
+                },
+                "fold": "The ticket text"
+              }
+            ]
+          }
+        },
+        {
+          "id": "i-pain",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "markdown": true,
+              "text": "**Verdict:** two pains. (1) afkv2 cannot settle new UI before the design, so screen choices are redone late. (2) Notes in chat lose which element you meant; a note pinned on the mockup keeps it.\n\nIs this the pain, or is there more (for example, sharing with stakeholders)?"
+            }
+          },
+          "title": "The pain this ticket removes",
+          "node": "n-proto",
+          "section": "s-pain",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-actors",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "i-actors-t",
+            "props": {
+              "columns": [
+                "Actor",
+                "Role"
+              ],
+              "rows": [
+                [
+                  "Developer",
+                  "Runs the skills, drives the mockup, pins notes, picks the winning direction"
+                ],
+                [
+                  "Agent",
+                  "Anchors to the real app, writes and edits the HTML, runs the settle checks"
+                ],
+                [
+                  "propose-solution, propose-verification",
+                  "Read PROTOTYPE.md later"
+                ],
+                [
+                  "Stakeholders",
+                  "Only through an optional share link, if the share stays in scope"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-actors-q",
+                "props": {
+                  "text": "Is anyone missing, such as a designer who drives the mockup?"
+                }
+              }
+            ]
+          },
+          "title": "Who takes part",
+          "node": "n-proto",
+          "section": "s-prototype",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-native",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "markdown": true,
+              "text": "**My reading:** lavish shows the **mockup HTML file itself**, with no page document, no cards, no rounds. Your notes come back pinned to elements. The lavish **pin and host-safety checks still apply**, through the existing launcher or a thin command beside it.\n\nIs that what you meant?"
+            }
+          },
+          "title": "What 'lavish natively' means",
+          "node": "n-lavish",
+          "section": "s-lavish",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-optional",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "markdown": true,
+              "text": "**My reading:** lavish is the **default** when its host runs. You can say \"chat only\" at any time. When the host is not available, the skill gives you the file path to open in a browser and takes your notes in chat. The file always opens as a plain `file://` page.\n\nOr do you want lavish **off by default**, turned on per run?"
+            }
+          },
+          "title": "What 'optional lavish' means",
+          "node": "n-chat",
+          "section": "s-lavish",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-ds-home",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Where does the design-system catalog live, which the prototype reads first?"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-ds-home-options",
+                "props": {
+                  "columns": [
+                    "A — claude.ai/design only (as v1)",
+                    "B — in the repo, share optional",
+                    "C — both kept in sync"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-ds-home-opt-a",
+                        "props": {
+                          "text": "Team link for free. Needs claude.ai/design tools, which afkv2 does not set up; on Codex they are likely absent (inferred, not verified)."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-ds-home-opt-b",
+                        "props": {
+                          "text": "Catalog files committed in the consuming repo, per service. Works on both harnesses. A push to claude.ai/design is an extra, opt-in."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-ds-home-opt-c",
+                        "props": {
+                          "text": "Both are records; they drift, and the skill must reconcile them every run."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-ds-home-recommend",
+                "props": {
+                  "text": "A record in the repo works on Claude and Codex and is versioned; the hosted copy stays a mirror, the same rule v1 already used for prototypes (judgment).",
+                  "label": "Recommended: B"
+                }
+              }
+            ]
+          },
+          "title": "Where the design catalog lives",
+          "node": "n-ds",
+          "section": "s-ds",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "b"
+          }
+        },
+        {
+          "id": "i-share",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "v1 let you push the chosen mockup to claude.ai/design for a shareable link. Holds if the catalog card picks B."
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-share-options",
+                "props": {
+                  "columns": [
+                    "A — keep, opt-in",
+                    "B — drop for now"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-share-opt-a",
+                        "props": {
+                          "text": "Stakeholders get a link. Works only where claude.ai/design tools exist."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-share-opt-b",
+                        "props": {
+                          "text": "Smaller port. Sharing becomes a later ticket."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-share-recommend",
+                "props": {
+                  "text": "It costs one short step file, and stays off unless you ask (judgment).",
+                  "label": "Recommended: A"
+                }
+              }
+            ]
+          },
+          "title": "Keep the claude.ai/design share push?",
+          "node": "n-share",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "b"
+          }
+        },
+        {
+          "id": "i-logic",
+          "kind": "debate",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "You decided earlier to add a logic and state-model branch from LOGIC.md to the prototype. Does it ship with this port?"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-logic-options",
+                "props": {
+                  "columns": [
+                    "A — in this ticket",
+                    "B — spinoff ticket"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-logic-opt-a",
+                        "props": {
+                          "text": "One grill and one design for the whole skill. Bigger ticket; I have not read LOGIC.md yet."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-logic-opt-b",
+                        "props": {
+                          "text": "The port ships first; the branch gets its own grill against the ported skill."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-logic-recommend",
+                "props": {
+                  "text": "The port already carries two skills and two reader changes; a third axis widens the review with no shared pain (judgment).",
+                  "label": "Recommended: B"
+                }
+              }
+            ]
+          },
+          "title": "Logic and state-model branch: in this ticket?",
+          "node": "n-logic",
+          "section": "s-logic"
+        },
+        {
+          "id": "i-uat",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "markdown": true,
+              "text": "**Verdict:** afkv2 has no term **UAT**. Its verification levels already hold `ui-e2e` (a user journey through the real screen and backend) and `acceptance` (does what was meant, in business words). I read your \"e2e, uat\" as these two levels, and add no new term."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-uat-src",
+                "props": {
+                  "label": "Source",
+                  "text": "afkv2/skills/propose-verification/VERIFICATION-FORMAT.md:30; LEVELS.md:11-13"
+                }
+              }
+            ]
+          },
+          "title": "'UAT' means the existing acceptance level",
+          "node": "n-ver",
+          "section": "s-readers",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-readers",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Both readers take PROTOTYPE.md when it exists and run as today when it does not."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-readers-decision",
+                "props": {
+                  "text": "PROTOTYPE.md is an optional input of propose-solution and propose-verification, and the prototype skill is the writer of the INDEX.md Prototype row.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "i-readers-why",
+                "props": {
+                  "text": "A required input would block every feature with no UI; the INDEX row already exists and only lacks a writer.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-readers-alternatives",
+                "props": {
+                  "text": "- required input: blocks backend-only features\n- no INDEX row: leaves the template row orphaned",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-readers-evidence",
+                "props": {
+                  "text": "afkv2/skills/to-prd/INDEX-FORMAT.md:24 holds the Prototype row with no writer; v1 prototype self-gates no_ui (skills/afk/prototype/SKILL.md:14).",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-readers-reverse",
+                "props": {
+                  "text": "Make the input required in both start scripts and their tests.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-readers-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "PROTOTYPE.md is an optional input; prototype writes its INDEX row",
+          "node": "n-index",
+          "section": "s-readers",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-sdd",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "The afkv2 SDD has fixed headings and no UI section. How do the screen decisions of PROTOTYPE.md reach the design?"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-sdd-options",
+                "props": {
+                  "columns": [
+                    "A — cite in existing sections",
+                    "B — new UI section",
+                    "C — PROTOTYPE.md stays the UI record"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-sdd-opt-a",
+                        "props": {
+                          "text": "propose-solution reads it and cites the decisions where they change the design. No template change."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-sdd-opt-b",
+                        "props": {
+                          "text": "A UI heading in the SDD; changes the template and its gate."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-sdd-opt-c",
+                        "props": {
+                          "text": "The SDD only links to it; UI choices are never re-decided in the design."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-sdd-recommend",
+                "props": {
+                  "text": "The design cites the screen choices where they matter, with no gate change; the mockup stays the UI record (judgment).",
+                  "label": "Recommended: A"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-sdd-src",
+                "props": {
+                  "label": "Source",
+                  "text": "afkv2/skills/propose-solution/SDD-FORMAT.md:4 (headings fixed and gated)"
+                }
+              }
+            ]
+          },
+          "title": "Where UI decisions land in the SDD",
+          "node": "n-sol",
+          "section": "s-readers",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "i-terms",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "i-terms-t",
+            "props": {
+              "columns": [
+                "Term",
+                "My definition"
+              ],
+              "rows": [
+                [
+                  "Mockup",
+                  "A self-contained HTML file that simulates a feature's screens and behaviour with fixture data; no backend"
+                ],
+                [
+                  "Design catalog",
+                  "Per-service record of the real app's look: tokens, component cards, shell and page shapes, each checked against the live app"
+                ],
+                [
+                  "Anchor",
+                  "The evidence a mockup copies its look from: catalog, live screenshots or frontend source"
+                ],
+                [
+                  "Capability walk",
+                  "Clicking every story and acceptance criterion through the mockup from its entry screen"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-terms-q",
+                "props": {
+                  "text": "Correct any definition with a note on its row."
+                }
+              }
+            ]
+          },
+          "title": "Terms for the glossary",
+          "node": "n-proto",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-20T21:59:34Z",
+          "raw": "[round R-1]\ni-ds-home b\ni-share b\ni-logic write-in\ni-logic note 1\n  skip\ni-sdd a\ni-pain accept\ni-actors accept\ni-native accept\ni-optional accept\ni-uat accept\ni-terms accept\ni-readers accept",
+          "signals": [
+            {
+              "target": "i-ds-home",
+              "item": "i-ds-home",
+              "mark": "b",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "268c741fa374ea45"
+            },
+            {
+              "target": "i-share",
+              "item": "i-share",
+              "mark": "b",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "6ee5a6163055167a"
+            },
+            {
+              "target": "i-logic",
+              "item": "i-logic",
+              "mark": "write-in",
+              "note": "N-1-i-logic-1",
+              "text": "skip",
+              "conflict": false,
+              "state": "needs_reading",
+              "reopened": false,
+              "stamp": "82ab86ce38ecf925"
+            },
+            {
+              "target": "i-sdd",
+              "item": "i-sdd",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "53f5ef550fc261bd"
+            },
+            {
+              "target": "i-pain",
+              "item": "i-pain",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "1eab1e374490714a"
+            },
+            {
+              "target": "i-actors",
+              "item": "i-actors",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "5e61f49a9a383168"
+            },
+            {
+              "target": "i-native",
+              "item": "i-native",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "16040409c8ef7181"
+            },
+            {
+              "target": "i-optional",
+              "item": "i-optional",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "50cdac0bee7f71e7"
+            },
+            {
+              "target": "i-uat",
+              "item": "i-uat",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "f7b45887f340dd1d"
+            },
+            {
+              "target": "i-terms",
+              "item": "i-terms",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "eae1d7d18e512ea7"
+            },
+            {
+              "target": "i-readers",
+              "item": "i-readers",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "289d7ec206734fa9"
+            }
+          ]
+        }
+      ],
+      "replies": [
+        {
+          "id": "A-1-1",
+          "text": "Recorded. I read \"skip\" as: the logic and state-model branch is out of this ticket, and no spinoff ticket is filed now. Round 2 asks you to confirm that reading."
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "state": "settled",
+      "banner": {
+        "settled": [
+          "the pain",
+          "the actors",
+          "lavish shows the mockup file itself",
+          "lavish is the default, chat is the fallback",
+          "the design catalog lives in the repo",
+          "no claude.ai/design share push",
+          "UI decisions are cited in the existing SDD sections",
+          "UAT means the acceptance level",
+          "4 glossary terms"
+        ],
+        "unlocks": [
+          "stories",
+          "access and data policy",
+          "worked examples"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-logic-2",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "markdown": true,
+              "text": "**My reading of your note \"skip\":** the branch is **out of this ticket**, and I file **no spinoff** now."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-logic-2-why",
+                "props": {
+                  "label": "Why it returns",
+                  "text": "Your write-in needs my reading confirmed."
+                }
+              }
+            ]
+          },
+          "title": "The logic and state-model branch is out, with no spinoff",
+          "node": "n-logic",
+          "carries": [
+            "i-logic"
+          ],
+          "section": "s-logic",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-claude-design",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "markdown": true,
+              "text": "The catalog option you picked said a push to claude.ai/design stays an **opt-in extra**. The share card you picked **drops** the push. Which holds?"
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-claude-design-why",
+                "props": {
+                  "label": "Why it returns",
+                  "text": "My check of your settled answers found the conflict."
+                }
+              },
+              {
+                "type": "table",
+                "id": "i-claude-design-options",
+                "props": {
+                  "columns": [
+                    "A — no claude.ai/design in this ticket",
+                    "B — design-system keeps an opt-in push, prototype has none"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-claude-design-opt-a",
+                        "props": {
+                          "text": "Both skills write only to the repo. Sharing is a later ticket."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-claude-design-opt-b",
+                        "props": {
+                          "text": "The team catalog link survives; one skill needs tools afkv2 does not set up."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-claude-design-recommend",
+                "props": {
+                  "text": "It matches your share pick and keeps both skills on tools afkv2 sets up (judgment).",
+                  "label": "Recommended: A"
+                }
+              }
+            ]
+          },
+          "title": "Two answers on claude.ai/design disagree",
+          "node": "n-share",
+          "carries": [
+            "i-ds-home",
+            "i-share"
+          ],
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "i-live",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "text": "Both skills reuse what afkv2 already has to start the app."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-live-decision",
+                "props": {
+                  "text": "When the config has a `live` block, both skills start the app with `live_build.py` for screenshots; with none, they anchor to the source and flag the fidelity as `source-only`.",
+                  "label": "Decision"
+                },
+                "style": "font-weight: 600"
+              },
+              {
+                "type": "text",
+                "id": "i-live-why",
+                "props": {
+                  "text": "A second start mechanism would duplicate the proven one; asking for a URL each run loses the proof.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-live-alternatives",
+                "props": {
+                  "text": "- ask for a URL each run: unproven, repeated\n- a new config key for the app: duplicates `live`",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-live-evidence",
+                "props": {
+                  "text": "`afkv2/scripts/afkv2_config.py:140-170` reads the `live` block; `afkv2/scripts/live_build.py:83` starts it.",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-live-reverse",
+                "props": {
+                  "text": "Add a separate app-address input to both skills.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-live-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "The real app starts through the existing live block",
+          "node": "n-proto",
+          "section": "s-live",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-catalog-find",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "markdown": true,
+              "text": "**My reading:** one catalog **per frontend**. The repo config names each frontend's **source path** and its **catalog folder**, so neither skill asks each run. The exact keys are a design choice.\n\nToday no config key names a frontend path."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-catalog-find-src",
+                "props": {
+                  "markdown": true,
+                  "label": "Source",
+                  "text": "`afkv2/scripts/afkv2_config.py:39-56` reads spec folder, tracker, ownership, forge, live only."
+                }
+              }
+            ]
+          },
+          "title": "How a skill finds a service's frontend and catalog",
+          "node": "n-ds",
+          "section": "s-ds",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-stories",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "markdown": true,
+              "text": "**Verdict:** the 8 stories in the stories block cover prototype, chat fallback, settle, design-system, both readers and the no-UI stop. Note a story to change it; name a missing one."
+            }
+          },
+          "title": "8 stories cover the port",
+          "node": "n-proto",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-policy",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "i-policy-t",
+            "props": {
+              "columns": [
+                "Rule",
+                "Why",
+                "How you recover"
+              ],
+              "rows": [
+                [
+                  "Interactive only: a hands-off subagent opens no page and parks",
+                  "No human at the page",
+                  "Run it yourself"
+                ],
+                [
+                  "Synthetic fixtures only, never copied records",
+                  "The mockup and catalog are committed",
+                  "Ask for more rows; the agent generates them"
+                ],
+                [
+                  "The repo file stays clean of the lavish runtime",
+                  "The afkv2 launcher injects its page runtime into a page it opens",
+                  "The skill shows a copy, or strips it on save"
+                ],
+                [
+                  "No network call from the mockup",
+                  "It must open as `file://`",
+                  "Inline the data"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-policy-src",
+                "props": {
+                  "markdown": true,
+                  "label": "Source",
+                  "text": "`afkv2/skills/use-lavish/SKILL.md:14`; `afkv2/engine/launcher.py:283-287`"
+                }
+              }
+            ]
+          },
+          "title": "Who may run it, and what data a mockup may hold",
+          "node": "n-proto",
+          "section": "s-policy",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-examples",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "markdown": true,
+              "text": "**Verdict:** the examples block holds a new list screen (frequent), no app and no catalog (edge), and real records on the live page (risky). Note an example to change it."
+            }
+          },
+          "title": "3 worked examples: frequent, edge, risky",
+          "node": "n-proto",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-checks",
+          "kind": "info",
+          "state": "open",
+          "body": {
+            "type": "table",
+            "id": "i-checks-t",
+            "props": {
+              "columns": [
+                "Answer",
+                "Check",
+                "Evidence"
+              ],
+              "rows": [
+                [
+                  "Native lavish",
+                  "Holds",
+                  "`afkv2/engine/launcher.py:61-99` opens any `.html`"
+                ],
+                [
+                  "Lavish optional, chat fallback",
+                  "Holds on Codex too: its Stop hook waits on a page with no page document",
+                  "`afkv2/hooks/codex_stop.py:136-141`"
+                ],
+                [
+                  "Catalog in the repo",
+                  "Holds; needs a frontend path (card above)",
+                  "`afkv2/scripts/afkv2_config.py:39-56`"
+                ],
+                [
+                  "No share push",
+                  "Conflicts with the catalog option text (card above)",
+                  "round 1 option B text"
+                ],
+                [
+                  "Cite in existing SDD sections",
+                  "Holds; no template change",
+                  "`afkv2/skills/propose-solution/SDD-FORMAT.md:4`"
+                ],
+                [
+                  "UAT = acceptance",
+                  "Holds",
+                  "`afkv2/skills/propose-verification/VERIFICATION-FORMAT.md:30`"
+                ]
+              ]
+            }
+          },
+          "title": "I checked your settled answers",
+          "node": "n-proto"
+        }
+      ],
+      "replies": [
+        {
+          "id": "A-2-1",
+          "text": "Recorded. I read \"skip\" as: the logic and state-model branch is out of this ticket, with no spinoff now. The new logic card asks you to confirm.",
+          "notes": [
+            "N-1-i-logic-1"
+          ]
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-20T22:03:57Z",
+          "raw": "[round R-2]\ni-claude-design a\ni-logic-2 accept\ni-catalog-find accept\ni-stories accept\ni-policy accept\ni-examples accept\ni-live accept",
+          "signals": [
+            {
+              "target": "i-claude-design",
+              "item": "i-claude-design",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "dd5baf6c28a51f27"
+            },
+            {
+              "target": "i-logic-2",
+              "item": "i-logic-2",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "bfbaf58bfecc7158"
+            },
+            {
+              "target": "i-catalog-find",
+              "item": "i-catalog-find",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "5b08729e63fe2b3a"
+            },
+            {
+              "target": "i-stories",
+              "item": "i-stories",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "c0a01f6b6e26817e"
+            },
+            {
+              "target": "i-policy",
+              "item": "i-policy",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "5b078c526c91c9f7"
+            },
+            {
+              "target": "i-examples",
+              "item": "i-examples",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "9df14bd650331a8f"
+            },
+            {
+              "target": "i-live",
+              "item": "i-live",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "944d2625fc878648"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "n": 3,
+      "state": "settled",
+      "banner": {
+        "settled": [
+          "no claude.ai/design in this ticket",
+          "logic branch out, no spinoff",
+          "frontend and catalog named in repo config",
+          "8 stories",
+          "access and data rules",
+          "3 worked examples",
+          "the app starts through the live block"
+        ],
+        "unlocks": [
+          "the exit gate"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-devil-share",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "markdown": true,
+              "text": "**Finding from the second-opinion check (Codex):** the pain leaves open whether stakeholders must review a chosen mockup.\n\n**My reading:** sharing is **not a pain of this ticket**. The chosen mockup is one self-contained HTML file committed on the branch; anyone opens it in a browser from the change, with no tool. A hosted share link is a later ticket, if a real need shows up.\n\nOverride if stakeholders must review in this ticket."
+            }
+          },
+          "title": "A stakeholder sees the mockup through the committed file",
+          "node": "n-share",
+          "section": "s-pain",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-20T22:05:19Z",
+          "raw": "[round R-3]\ni-devil-share accept",
+          "signals": [
+            {
+              "target": "i-devil-share",
+              "item": "i-devil-share",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "dd6143ccad247628"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "n": 4,
+      "state": "current",
+      "banner": {
+        "settled": [
+          "stakeholder sharing is out; the committed file is the share"
+        ],
+        "unlocks": [
+          "the exit gate"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-ex-noui",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "markdown": true,
+              "text": "**Verdict:** the new edge example (a backend-only feature) covers the last story without one: the prototype stops with `no_ui`, writes nothing and leaves the INDEX row untouched."
+            }
+          },
+          "title": "A worked example for the no-UI stop",
+          "node": "n-proto",
+          "settled": {
+            "by": "mark",
+            "round": 4,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-24T15:48:04Z",
+          "raw": "[round R-4]\ni-ex-noui accept",
+          "signals": [
+            {
+              "target": "i-ex-noui",
+              "item": "i-ex-noui",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "e55e816e6bb22c73"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "id": "s-pain",
+      "title": "The pain",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "props": {
+          "markdown": true,
+          "text": "- afkv2 has **no way to settle new UI** before the design: screen choices get made in heads, or late in the SDD, and are redone.\n- In v1 you reacted to the mockup **in chat**; with three tables on a screen, prose notes miss which element you meant."
+        }
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Drafted from the ticket and round 0."
+        }
+      ]
+    },
+    {
+      "id": "s-prototype",
+      "title": "The prototype skill",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "s-prototype-t",
+        "props": {
+          "columns": [
+            "Step (v1)",
+            "What it does"
+          ],
+          "rows": [
+            [
+              "Self-gate",
+              "Stops with no_ui when no story adds or changes a screen"
+            ],
+            [
+              "Anchor",
+              "Matches the real app: design catalog, then live screenshots, then frontend source"
+            ],
+            [
+              "Canvas",
+              "One self-contained HTML file, clickable, inside the app shell with stub neighbour pages"
+            ],
+            [
+              "Loop",
+              "You react, the agent edits the HTML and shows it again"
+            ],
+            [
+              "Settle",
+              "Capability walk (every story clickable or logged as a gap) and fidelity pass vs the live app"
+            ],
+            [
+              "Output",
+              "prototype/<screen>.html and PROTOTYPE.md"
+            ]
+          ]
+        }
+      },
+      "links": [
+        "s-lavish",
+        "s-ds",
+        "s-readers"
+      ],
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Read from the v1 skill."
+        }
+      ]
+    },
+    {
+      "id": "s-lavish",
+      "title": "Showing the mockup with lavish",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "props": {
+          "markdown": true,
+          "text": "- Lavish shows the **mockup HTML file itself**: no page document, no cards, no rounds.\n- Notes come back pinned to elements: a CSS selector (at most 5 levels, cut at the nearest id), the tag and up to 240 characters of text.\n- The lavish pin and host-safety checks still apply.\n- Lavish is the **default** when its host runs; you can say \"chat only\" at any time; with no host, you open the `file://` path and note in chat."
+        }
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "You asked for lavish natively, apart from the grilling engine; the code reading confirmed it works."
+        },
+        {
+          "round": 2,
+          "cause": "answer",
+          "card": "i-optional",
+          "text": "You accepted both readings: native lavish, default on, chat fallback."
+        }
+      ]
+    },
+    {
+      "id": "s-ds",
+      "title": "The design-system skill",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "props": {
+          "markdown": true,
+          "text": "- Builds a **per-frontend design catalog**: `tokens.css`, one card per repeating shape (shell, components, page types), each checked side by side against live screenshots.\n- The catalog is **committed in the consuming repo**; the repo config names each frontend's source path and catalog folder.\n- **No claude.ai/design** push in this ticket.\n- Screenshots come from the browser driver afkv2 already installs (chrome-devtools)."
+        }
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "You asked to bring design-system in; read from the v1 skill."
+        },
+        {
+          "round": 2,
+          "cause": "answer",
+          "card": "i-ds-home",
+          "text": "You picked the catalog in the repo."
+        },
+        {
+          "round": 3,
+          "cause": "answer",
+          "card": "i-claude-design",
+          "text": "You picked no claude.ai/design; the config names frontend and catalog."
+        }
+      ]
+    },
+    {
+      "id": "s-readers",
+      "title": "Who reads PROTOTYPE.md",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "s-readers-t",
+        "props": {
+          "columns": [
+            "Reader",
+            "What it takes"
+          ],
+          "rows": [
+            [
+              "propose-solution",
+              "Screen and interaction decisions as design input"
+            ],
+            [
+              "propose-verification",
+              "Screens and story paths for ui-e2e and acceptance rows"
+            ],
+            [
+              "INDEX.md",
+              "The Prototype row, already in the template with no writer"
+            ]
+          ]
+        }
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "You named both readers, for end-to-end and acceptance tests; the code reading found where each plugs in."
+        }
+      ]
+    },
+    {
+      "id": "s-logic",
+      "title": "Logic and state-model branch",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "props": {
+          "text": "Out of this ticket, with no spinoff."
+        }
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Carried from an earlier decision."
+        },
+        {
+          "round": 2,
+          "cause": "note",
+          "notes": [
+            "N-1-i-logic-1"
+          ],
+          "text": "Your note on the logic card."
+        },
+        {
+          "round": 3,
+          "cause": "answer",
+          "card": "i-logic-2",
+          "text": "You confirmed it is out."
+        }
+      ]
+    },
+    {
+      "id": "s-policy",
+      "title": "Access and data policy",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "s-policy-t",
+        "props": {
+          "columns": [
+            "Rule",
+            "Proposed"
+          ],
+          "rows": [
+            [
+              "Who runs it",
+              "A developer at the keyboard; a hands-off subagent opens no page and parks"
+            ],
+            [
+              "Data in a mockup",
+              "Synthetic fixtures only; never records copied from the live app"
+            ],
+            [
+              "The mockup file",
+              "Opens as `file://`, makes no network call, stays clean of the lavish runtime in the repo"
+            ]
+          ]
+        }
+      },
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted from the settled points and the v1 rules."
+        }
+      ]
+    },
+    {
+      "id": "s-live",
+      "title": "Starting the real app",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "props": {
+          "markdown": true,
+          "text": "- afkv2 config already holds an optional `live` block (start command, address) and `live_build.py` starts and stops the app.\n- No config key names a **frontend source path** today."
+        }
+      },
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Found in the afkv2 config reader."
+        }
+      ]
+    }
+  ],
+  "stories": [
+    {
+      "id": "us-1",
+      "text": "As a developer, I run the prototype on a ticket with a settled PRD that adds a screen, and get a clickable mockup that looks like my app.",
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted from the v1 skill."
+        }
+      ]
+    },
+    {
+      "id": "us-2",
+      "text": "As a developer, I pin notes on mockup elements in lavish, and the agent edits and shows the mockup again.",
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "From your round 0 input."
+        }
+      ]
+    },
+    {
+      "id": "us-3",
+      "text": "As a developer with no lavish host, or who asks for chat only, I open the mockup file in a browser and give notes in chat.",
+      "changes": [
+        {
+          "round": 2,
+          "cause": "answer",
+          "card": "i-optional",
+          "text": "From the optional-lavish card."
+        }
+      ]
+    },
+    {
+      "id": "us-4",
+      "text": "As a developer, I settle one direction: every story is clickable or logged as a gap, and PROTOTYPE.md is written.",
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted from the v1 settle step."
+        }
+      ]
+    },
+    {
+      "id": "us-5",
+      "text": "As a developer, I run the design-system skill for a service to create or refresh its catalog in the repo.",
+      "changes": [
+        {
+          "round": 2,
+          "cause": "answer",
+          "card": "i-ds-home",
+          "text": "From the catalog card."
+        }
+      ]
+    },
+    {
+      "id": "us-6",
+      "text": "As propose-solution, I read PROTOTYPE.md when it exists and cite its UI decisions where they change the design.",
+      "changes": [
+        {
+          "round": 2,
+          "cause": "answer",
+          "card": "i-sdd",
+          "text": "From the SDD card."
+        }
+      ]
+    },
+    {
+      "id": "us-7",
+      "text": "As propose-verification, I read PROTOTYPE.md when it exists and derive ui-e2e and acceptance rows from its screens and story paths.",
+      "changes": [
+        {
+          "round": 2,
+          "cause": "answer",
+          "card": "i-uat",
+          "text": "From the UAT card."
+        }
+      ]
+    },
+    {
+      "id": "us-8",
+      "text": "As a developer on a feature with no new screen, the prototype stops and says there is nothing to draw.",
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "From the v1 self-gate."
+        }
+      ]
+    }
+  ],
+  "examples": [
+    {
+      "id": "ex-1",
+      "title": "A new list screen in an app with a catalog",
+      "kind": "frequent",
+      "stories": [
+        "us-1",
+        "us-2",
+        "us-4",
+        "us-6",
+        "us-7"
+      ],
+      "body": {
+        "type": "text",
+        "props": {
+          "markdown": true,
+          "text": "- **Start:** PRD with 2 stories (see orders, filter by status); the service has a catalog; `live` block present.\n- **Run:** the agent starts the app, screenshots the shell and the nearest page type, writes `prototype/orders.html` with 12 synthetic orders; you pin \"filter too far right\" on the filter bar; the agent moves it.\n- **Result:** both stories clickable from the nav entry; `PROTOTYPE.md` with a 2-row coverage table, fidelity `live-verified`; later 2 ui-e2e rows trace to it."
+        }
+      },
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted."
+        }
+      ]
+    },
+    {
+      "id": "ex-2",
+      "title": "No running app and no catalog",
+      "kind": "edge",
+      "stories": [
+        "us-1",
+        "us-3",
+        "us-4"
+      ],
+      "body": {
+        "type": "text",
+        "props": {
+          "markdown": true,
+          "text": "- **Start:** no `live` block, no catalog, lavish host not running.\n- **Run:** the agent reads the frontend source for tokens and components, gives you the `file://` path; you note in chat.\n- **Result:** mockup settles with fidelity `source-only`, flagged in `PROTOTYPE.md`."
+        }
+      },
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted."
+        }
+      ]
+    },
+    {
+      "id": "ex-3",
+      "title": "Live screenshots hold real customer records",
+      "kind": "risky",
+      "stories": [
+        "us-1",
+        "us-5"
+      ],
+      "body": {
+        "type": "text",
+        "props": {
+          "markdown": true,
+          "text": "- **Start:** the live app runs against a shared database with real names.\n- **Risk:** the agent lifts markup from the live page, and real names land in the committed mockup or catalog card.\n- **Result wanted:** fixtures are synthetic; the secret scan runs on every written file before you commit."
+        }
+      },
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted."
+        }
+      ]
+    },
+    {
+      "id": "ex-4",
+      "title": "A backend-only feature",
+      "kind": "edge",
+      "stories": [
+        "us-8"
+      ],
+      "body": {
+        "type": "text",
+        "props": {
+          "markdown": true,
+          "text": "- **Start:** PRD with 2 stories, both about an API export job; no story names or changes a screen.\n- **Run:** the prototype reads the stories and finds no new or changed screen.\n- **Result:** it stops with `no_ui`, writes no file, and leaves the `INDEX.md` Prototype row as it is."
+        }
+      },
+      "changes": [
+        {
+          "round": 4,
+          "cause": "finding",
+          "text": "The exit gate found the no-UI story without an example."
+        }
+      ]
+    }
+  ]
+}

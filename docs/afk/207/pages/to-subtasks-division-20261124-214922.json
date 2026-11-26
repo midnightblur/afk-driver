@@ -1,0 +1,184 @@
+{
+  "schema": "afkv2.page/2",
+  "session": {
+    "step": "Plan approval",
+    "private": false,
+    "takeovers": [],
+    "id": "division-20261124-214922",
+    "skill": "to-subtasks",
+    "feature": "207",
+    "ticket": "207",
+    "started": "2026-11-24T22:08:53Z"
+  },
+  "maps": [],
+  "notes": [],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "current",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "/afkv2:autopilot can start on this plan"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "division-c9b06dd3-1",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "division-c9b06dd3-1-subtasks",
+            "props": {
+              "columns": [
+                "Subtask",
+                "Goal",
+                "Why the cut is here",
+                "Waits on",
+                "Gates",
+                "Low days",
+                "Likely days",
+                "High days"
+              ],
+              "rows": [
+                [
+                  "0001-config-frontends",
+                  "`afkv2_config.py` reads and checks the `frontends` list of `.afkv2/config.json` (name, source, catalog) and answers it, `[]` when absent.",
+                  "The config reader is its own module in SDD §8, and both new skills read its frontends list, so it comes first.",
+                  "—",
+                  "static, unit",
+                  "0.01",
+                  "0.02",
+                  "0.03"
+                ],
+                [
+                  "0002-launcher-plain",
+                  "`launcher.py open --plain` opens a file in lavish without writing the afkv2 tooltip block into it; the pin and host checks stay.",
+                  "One flag on the launcher, its own public interface, with no dependency on the new skills.",
+                  "—",
+                  "static, integration",
+                  "0.01",
+                  "0.02",
+                  "0.03"
+                ],
+                [
+                  "0003-prototype-files",
+                  "`prototype_files.py` answers `start` (frontend, live block, anchor, paths), `check` (network calls, afkv2 runtime) and `settle` (PROTOTYPE.md shape, secret scan, INDEX Prototype row); `PROTOTYPE-FORMAT.md` holds the file format, and `INDEX-FORMAT.md` names prototype as the Prototype row writer.",
+                  "The start, check and settle verbs of skills/prototype; the network check is reused by design-system.",
+                  "0001-config-frontends",
+                  "static, integration, unit",
+                  "0.02",
+                  "0.04",
+                  "0.06"
+                ],
+                [
+                  "0004-mockup-show",
+                  "`mockup_show.py` shows a mockup through the launcher with `--plain`, writes the Codex waiting record, and `wait` writes each note with uid, prompt, selector, tag and text to the notes file.",
+                  "The lavish wrapper needs the plain open and the settle verb, and owns the lavish poll seam.",
+                  "0002-launcher-plain, 0003-prototype-files",
+                  "static, contract, integration",
+                  "0.02",
+                  "0.04",
+                  "0.06"
+                ],
+                [
+                  "0005-codex-stop-notes",
+                  "The no-document branch of `codex_stop.py` prints 1 line per note with its tag, selector and text; a page with a page document gives the same output as today.",
+                  "The Codex hook is its own module and depends only on the launcher's existing waiting record.",
+                  "—",
+                  "static, contract",
+                  "0.01",
+                  "0.02",
+                  "0.03"
+                ],
+                [
+                  "0006-prototype-skill",
+                  "The prototype skill text and its canvas rules: anchors, the notes loop over lavish or chat, chat only, `no_ui`, made-up data, the settle, and the hands-off park.",
+                  "The skill text cites the commands of 0003 and 0004, so it follows them.",
+                  "0003-prototype-files, 0004-mockup-show",
+                  "static, static",
+                  "0.01",
+                  "0.02",
+                  "0.03"
+                ],
+                [
+                  "0007-design-system",
+                  "`catalog_files.py start|add-frontend|check`, `CATALOG-FORMAT.md` and the design-system SKILL.md: one catalog per frontend in the repository, checked cards, no outward push.",
+                  "Its own module in SDD §8; it reuses the network check and the config list, and its park check reads both skill files.",
+                  "0001-config-frontends, 0003-prototype-files, 0006-prototype-skill",
+                  "static, integration, static",
+                  "0.02",
+                  "0.04",
+                  "0.06"
+                ],
+                [
+                  "0008-readers",
+                  "Both start answers add `prototype` and `prototype_exists` and never refuse a missing file; both SKILL.md files read it as an optional input.",
+                  "The 2 reader changes are 1 interface change of SDD §8 and trace the Coverage table of 0003.",
+                  "0003-prototype-files",
+                  "static, integration, static",
+                  "0.01",
+                  "0.02",
+                  "0.03"
+                ],
+                [
+                  "0009-owner-checks-and-registration",
+                  "Write `afkv2/tests/live/PROTOTYPE-LIVE-CHECKS.md` with the real-session checks VR-001, VR-002, VR-003, VR-018, VR-004, VR-005, VR-006, VR-016, VR-022, VR-025, VR-026, each with its given, when and then as in VERIFICATION.md's owner card; register the 2 skill folders and module names.",
+                  "Registration and the owner checklist need every other file to exist, so it runs last.",
+                  "0001-config-frontends, 0002-launcher-plain, 0003-prototype-files, 0004-mockup-show, 0005-codex-stop-notes, 0006-prototype-skill, 0007-design-system, 0008-readers",
+                  "static, static, static",
+                  "0.01",
+                  "0.01",
+                  "0.02"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "division-c9b06dd3-1-ask",
+                "props": {
+                  "text": "Sign to approve this division: 9 subtasks, plan digest c9b06dd3, app: none. Ask for changes to get another division."
+                }
+              },
+              {
+                "type": "text",
+                "id": "division-c9b06dd3-1-estimate",
+                "props": {
+                  "text": "Agent run time in days, in total: low 0.12, likely 0.23, high 0.35. Basis: past run times from 2 earlier runs."
+                }
+              }
+            ]
+          },
+          "title": "Approve the division into 9 subtasks",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "sign"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-25T15:22:14Z",
+          "raw": "[round R-1]\ndivision-c9b06dd3-1 sign",
+          "signals": [
+            {
+              "target": "division-c9b06dd3-1",
+              "item": "division-c9b06dd3-1",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "485d6a55d9f6242a"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

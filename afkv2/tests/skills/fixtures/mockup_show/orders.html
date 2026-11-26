@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Orders</title>
+<style>
+  body { font-family: sans-serif; margin: 0; }
+  #shell-nav { background: #223; color: #fff; padding: 8px 16px; }
+  #filters { display: flex; gap: 8px; padding: 12px 16px; }
+  #orders td { padding: 4px 8px; }
+</style>
+</head>
+<body>
+<nav id="shell-nav"><a href="#orders">Orders</a> <a href="#account">Account</a></nav>
+<div id="filters"><button>All</button><button>Open</button><button>Shipped</button></div>
+<table id="orders"><tbody></tbody></table>
+<script id="made-up-rows" type="application/json">
+[{"id": "A-1001", "status": "open"}, {"id": "A-1002", "status": "shipped"}, {"id": "A-1003", "status": "open"},
+ {"id": "A-1004", "status": "shipped"}, {"id": "A-1005", "status": "open"}, {"id": "A-1006", "status": "shipped"},
+ {"id": "A-1007", "status": "open"}, {"id": "A-1008", "status": "shipped"}, {"id": "A-1009", "status": "open"},
+ {"id": "A-1010", "status": "shipped"}, {"id": "A-1011", "status": "open"}, {"id": "A-1012", "status": "shipped"}]
+</script>
+<script>
+  const rows = JSON.parse(document.getElementById("made-up-rows").textContent);
+  const body = document.querySelector("#orders tbody");
+  function show(status) {
+    body.innerHTML = rows.filter((row) => !status || row.status === status)
+      .map((row) => `<tr><td>${row.id}</td><td>${row.status}</td></tr>`).join("");
+  }
+  document.querySelectorAll("#filters button").forEach((button, at) =>
+    button.addEventListener("click", () => show([null, "open", "shipped"][at])));
+  show(null);
+</script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 """The one way the engine runs the lavish host, at the pinned version.
 
 `run(argv)` takes `open`, `poll`, `reply` or `end` on one page and answers `(exit code, stdout text)`.
+`open` writes the tooltip block into the page first; `open --plain` opens the file as it is.
 A reply to the page comes from a file only (`--agent-reply-file`): no reply text crosses a command line.
 A server the host starts outlives this process; a killed process takes the host command down.
 
@@ -39,6 +40,7 @@ FORBIDDEN = {
     "stop": "stops the server that other sessions share",
 }
 FALLBACK_EXITS = {64, 65, 69, 127}
+PLAIN_FLAG = "--plain"  # afkv2's own `open` flag: no tooltip block; never on the lavish command line
 HTML = re.compile(r"\.html?$", re.IGNORECASE)
 CMD_SAFE = re.compile(r"^[\w./\\:@ ,+=-]*$")
 KILL_ON_CLOSE = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
@@ -80,7 +82,7 @@ def plan(argv: list[str]) -> str | None:
     if op != "open":
         raise Refused(f"`{op}` is not an operation this launcher runs")
     if not rest or rest[1:] not in ([], ["--no-open"], ["--reopen"]):
-        raise Refused("`open` takes one .html page and at most one of `--no-open` or `--reopen`")
+        raise Refused("`open` takes one .html page and at most one of `--no-open` or `--reopen`, plus one `--plain`")
     return _page(rest[0])
 
 
@@ -284,8 +286,17 @@ def _spawn(command: list[str], **streams):
     return child, bind_child_lifetime(child.pid)
 
 
+def _plain(argv: list[str]) -> tuple[list[str], bool]:
+    """`argv` without one `--plain` after an `open` page, and whether it held one."""
+    if argv[:1] != ["open"] or PLAIN_FLAG not in argv[2:]:
+        return argv, False
+    at = argv.index(PLAIN_FLAG, 2)
+    return argv[:at] + argv[at + 1:], True
+
+
 def run(argv: list[str]) -> tuple[int, str]:
     """Run the host. Output goes through a file: a server the host starts may hold a pipe open."""
+    argv, plain = _plain(argv)
     try:
         target = plan(argv)
         command = upstream(argv[1:] if argv[0] == "open" else argv)
@@ -293,7 +304,7 @@ def run(argv: list[str]) -> tuple[int, str]:
         return 64, f"refused: {problem}"
     if command is None:
         return 127, "lavish-axi is not on PATH; run setup"
-    if target is not None:
+    if target is not None and not plain:
         try:
             inject.inject_file(target)
         except inject.InjectError as problem:

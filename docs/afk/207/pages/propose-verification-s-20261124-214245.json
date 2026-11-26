@@ -1,0 +1,1013 @@
+{
+  "schema": "afkv2.page/2",
+  "session": {
+    "step": "Verification plan",
+    "private": false,
+    "takeovers": [],
+    "id": "s-20261124-214245",
+    "skill": "propose-verification",
+    "feature": "207",
+    "ticket": "207",
+    "started": "2026-11-24T21:45:58Z",
+    "links": {
+      "issue": "https://github.com/midnightblur/afk-driver/issues/{id}",
+      "change": "https://github.com/midnightblur/afk-driver/pull/{id}",
+      "commit": "https://github.com/midnightblur/afk-driver/commit/{id}"
+    },
+    "short_title": "Verification of #207"
+  },
+  "maps": [],
+  "notes": [],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "settled",
+      "banner": {
+        "settled": [
+          "1 verification proposer drafted: herdr could not start the Claude and Codex proposers (agent_not_ready), so Claude drafted alone",
+          "30 rows: 7 acceptance, 4 ui-e2e, 11 api, 3 integration, 2 unit, 3 static"
+        ],
+        "unlocks": [
+          "VERIFICATION.md"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "v-story-1",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "v-story-1-t",
+            "props": {
+              "columns": [
+                "Row",
+                "Level",
+                "Criteria",
+                "Given",
+                "When",
+                "Then you should see",
+                "Data",
+                "Where it runs"
+              ],
+              "rows": [
+                [
+                  "VR-004",
+                  "acceptance",
+                  "AC-008, AC-020",
+                  "a live app whose page shows real customer names",
+                  "the developer runs /afkv2:prototype and settles",
+                  "the mockup and PROTOTYPE.md hold none of the live names, only made-up ones, and the settle reports the secret scan of every written file",
+                  "WE-03: a seeded app page with 5 named customers; the judge gets the 5 names",
+                  "owner live check: a real Claude session on Windows, lavish 0.1.86 and the browser driver from setup"
+                ],
+                [
+                  "VR-022",
+                  "acceptance",
+                  "AC-026",
+                  "a real Claude session",
+                  "a hands-off subagent is told to run /afkv2:prototype on a ticket",
+                  "the subagent opens no page, writes no file and parks with the reason that a developer must run it",
+                  "WE-01 spec folder",
+                  "owner live check: a real Claude session on Windows, lavish 0.1.86 and the browser driver from setup"
+                ],
+                [
+                  "VR-001",
+                  "ui-e2e",
+                  "AC-002, AC-003, AC-004, AC-007, AC-011, AC-012, AC-013",
+                  "a scratch frontend repository with a catalog, a live block and a settled PRD with 2 stories that add an orders screen",
+                  "the developer runs /afkv2:prototype, pins the note 'filter too far right' on the filter bar in lavish and sends it",
+                  "lavish shows the mockup file itself with no grill cards; the agent receives the note with its selector, moves the filter bar and shows the mockup again",
+                  "WE-01: 2 stories, 12 made-up orders, 1 catalog with tokens and 3 cards",
+                  "owner live check: a real Claude session on Windows, lavish 0.1.86 and the browser driver from setup"
+                ],
+                [
+                  "VR-007",
+                  "api",
+                  "AC-006",
+                  "a config with no frontends entry, and a config with 2 entries",
+                  "prototype_files.py start runs with no --frontend",
+                  "the first refuses no-frontend with a reason that names catalog_files.py add-frontend; the second refuses pick-frontend and lists both names",
+                  "2 config files written by the test",
+                  "scratch git repository in a pytest temp folder; scripts run through their command line"
+                ],
+                [
+                  "VR-008",
+                  "api",
+                  "AC-009",
+                  "a mockup with fetch('/api'), a script src of https://cdn.example and an a href of #orders",
+                  "prototype_files.py check runs on it",
+                  "it refuses network-call and names the 2 lines with a call; the #orders link passes",
+                  "1 HTML fixture with 3 marked lines",
+                  "scratch git repository in a pytest temp folder; scripts run through their command line"
+                ],
+                [
+                  "VR-009",
+                  "api",
+                  "AC-010",
+                  "a mockup that holds the afkv2 tooltip block, and a clean one",
+                  "prototype_files.py check runs on each",
+                  "the first refuses afkv2-runtime; the clean one answers ok",
+                  "2 HTML fixtures",
+                  "scratch git repository in a pytest temp folder; scripts run through their command line"
+                ],
+                [
+                  "VR-017",
+                  "unit",
+                  "AC-009",
+                  "snippets: src, href, action and a CSS url() with a scheme; fetch, XMLHttpRequest, WebSocket, EventSource and import(); an href of #id",
+                  "the network check runs on each",
+                  "every snippet with a scheme or a call is flagged with its line; the #id link passes",
+                  "1 table of 10 snippets",
+                  "pytest"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "v-story-1-q",
+                "props": {
+                  "text": "Accept the rows of this story, or note a row to change it."
+                }
+              }
+            ]
+          },
+          "title": "Story 1: a mockup that looks like the app",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "v-story-2",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "v-story-2-t",
+            "props": {
+              "columns": [
+                "Row",
+                "Level",
+                "Criteria",
+                "Given",
+                "When",
+                "Then you should see",
+                "Data",
+                "Where it runs"
+              ],
+              "rows": [
+                [
+                  "VR-016",
+                  "ui-e2e",
+                  "AC-012, AC-013",
+                  "a real Codex session with the Stop hook installed by setup",
+                  "the developer runs /afkv2:prototype, pins 1 note and sends it",
+                  "the next Codex prompt holds the note with its tag and selector, and the agent edits that element",
+                  "WE-01",
+                  "owner live check: a real Codex session on Windows, lavish 0.1.86"
+                ],
+                [
+                  "VR-010",
+                  "api",
+                  "AC-016",
+                  "lavish missing on the path, a lavish install at 0.1.85, and LAVISH_AXI_HOST set",
+                  "mockup_show.py show runs in each case",
+                  "each refuses no-host with a reason that names the cause, and no file is written beside the mockup",
+                  "a .py stub install with a package.json version; no executable",
+                  "scratch git repository in a pytest temp folder; scripts run through their command line"
+                ],
+                [
+                  "VR-013",
+                  "integration",
+                  "AC-012",
+                  "recorded lavish poll output with 2 notes",
+                  "mockup_show.py wait runs against a .py lavish stub that prints it",
+                  "the notes file holds 2 entries, each with uid, prompt, selector, tag and text as recorded",
+                  "afkv2/tests/engine/fixtures/host-poll-two-prompts.txt",
+                  "scratch git repository in a pytest temp folder; scripts run through their command line"
+                ],
+                [
+                  "VR-014",
+                  "integration",
+                  "AC-010",
+                  "a clean mockup",
+                  "the launcher runs open --plain against a .py lavish stub; then open without the flag",
+                  "the file bytes are unchanged after --plain; without the flag the tooltip block is written, as today",
+                  "1 HTML fixture; the existing tip-injection cases still pass",
+                  "scratch git repository in a pytest temp folder; scripts run through their command line"
+                ],
+                [
+                  "VR-015",
+                  "integration",
+                  "AC-012",
+                  "a Codex waiting record with a null document and 2 recorded notes",
+                  "codex_stop.py runs",
+                  "its output holds 2 lines, each with the note words, the tag and the selector; a page with a page document gives the same output as today",
+                  "recorded poll output with 2 notes",
+                  "scratch git repository in a pytest temp folder; scripts run through their command line"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "v-story-2-q",
+                "props": {
+                  "text": "Accept the rows of this story, or note a row to change it."
+                }
+              }
+            ]
+          },
+          "title": "Story 2: notes pinned on elements",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "v-story-3",
+          "kind": "confirm",
+          "state": "open",
+          "body": {
+            "type": "table",
+            "id": "v-story-3-t",
+            "props": {
+              "columns": [
+                "Row",
+                "Level",
+                "Criteria",
+                "Given",
+                "When",
+                "Then you should see",
+                "Data",
+                "Where it runs"
+              ],
+              "rows": [
+                [
+                  "VR-003",
+                  "acceptance",
+                  "AC-005, AC-015",
+                  "a scratch repository with no live block, no catalog and the lavish host stopped",
+                  "the developer runs /afkv2:prototype",
+                  "the agent gives the file:// path of the mockup, takes notes in chat, and PROTOTYPE.md marks the fidelity source-only",
+                  "WE-02: the same 2 stories, frontend source only",
+                  "owner live check: a real Claude session on Windows, lavish 0.1.86 and the browser driver from setup"
+                ],
+                [
+                  "VR-006",
+                  "ui-e2e",
+                  "AC-014",
+                  "a prototype run with the lavish host running and the mockup shown",
+                  "the developer writes 'chat only' in chat",
+                  "the agent ends the lavish session and takes every later note in chat for the rest of the run",
+                  "WE-01",
+                  "owner live check: a real Claude session on Windows, lavish 0.1.86 and the browser driver from setup"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "v-story-3-q",
+                "props": {
+                  "text": "Accept the rows of this story, or note a row to change it."
+                }
+              }
+            ]
+          },
+          "title": "Story 3: chat when there is no lavish"
+        },
+        {
+          "id": "v-story-4",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "v-story-4-t",
+            "props": {
+              "columns": [
+                "Row",
+                "Level",
+                "Criteria",
+                "Given",
+                "When",
+                "Then you should see",
+                "Data",
+                "Where it runs"
+              ],
+              "rows": [
+                [
+                  "VR-002",
+                  "acceptance",
+                  "AC-017, AC-018, AC-019",
+                  "the mockup of VR-001 after the notes loop",
+                  "the developer settles the direction",
+                  "PROTOTYPE.md holds a Coverage table with 2 rows, both reachable from the nav entry, the fidelity mark live-verified with the compared screenshots named, and the INDEX Prototype row reads 'chosen <date>'",
+                  "WE-01",
+                  "owner live check: a real Claude session on Windows, lavish 0.1.86 and the browser driver from setup"
+                ],
+                [
+                  "VR-011",
+                  "api",
+                  "AC-017, AC-019",
+                  "a PRD with 3 stories and a PROTOTYPE.md with Coverage rows for stories 1 and 3",
+                  "prototype_files.py settle runs; then again after row 2 is added",
+                  "the first refuses bad-prototype naming story 2 and leaves INDEX.md unchanged; the second answers ok and the INDEX Prototype row reads 'chosen <today>'",
+                  "a spec folder fixture with PRD.md, INDEX.md, PROTOTYPE.md and 1 clean mockup",
+                  "scratch git repository in a pytest temp folder; scripts run through their command line"
+                ],
+                [
+                  "VR-012",
+                  "api",
+                  "AC-020",
+                  "a spec folder whose mockup holds a made-up token shaped like a GitHub key",
+                  "prototype_files.py settle runs",
+                  "it refuses secrets with the file and line, and the INDEX row stays unchanged",
+                  "1 made-up key-shaped string",
+                  "scratch git repository in a pytest temp folder; scripts run through their command line"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "v-story-4-q",
+                "props": {
+                  "text": "Accept the rows of this story, or note a row to change it."
+                }
+              }
+            ]
+          },
+          "title": "Story 4: the settle and PROTOTYPE.md",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "v-story-5",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "v-story-5-t",
+            "props": {
+              "columns": [
+                "Row",
+                "Level",
+                "Criteria",
+                "Given",
+                "When",
+                "Then you should see",
+                "Data",
+                "Where it runs"
+              ],
+              "rows": [
+                [
+                  "VR-018",
+                  "ui-e2e",
+                  "AC-021, AC-022",
+                  "a scratch frontend with a live block and 3 repeating shapes: shell, button, list page",
+                  "the developer runs /afkv2:design-system for it",
+                  "the catalog folder holds tokens.css, 3 card files and a README whose Cards table marks each card checked against a named screenshot",
+                  "a small static frontend served by the live block",
+                  "owner live check: a real Claude session, the browser driver from setup"
+                ],
+                [
+                  "VR-019",
+                  "api",
+                  "AC-022, AC-023",
+                  "a catalog README with 3 card rows: 1 checked, 1 unchecked, 1 whose file is missing",
+                  "catalog_files.py check runs",
+                  "it refuses bad-catalog naming the missing card file; with the file added it answers ok with 1 checked and 2 unchecked",
+                  "a catalog folder fixture with tokens.css and 3 rows",
+                  "scratch git repository in a pytest temp folder; scripts run through their command line"
+                ],
+                [
+                  "VR-020",
+                  "api",
+                  "AC-023",
+                  "a scratch repository",
+                  "catalog_files.py add-frontend runs with a valid entry, then the same name again, then a source path outside the repository",
+                  "the first writes the entry and the config read answers it in frontends; the second and third refuse bad-value and leave the config unchanged",
+                  "1 frontend source folder",
+                  "scratch git repository in a pytest temp folder; scripts run through their command line"
+                ],
+                [
+                  "VR-021",
+                  "api",
+                  "AC-024",
+                  "a catalog card with a made-up key-shaped string and a card with an https font url",
+                  "catalog_files.py check runs",
+                  "it refuses secrets for the first and network-call for the second, each with file and line",
+                  "2 card fixtures",
+                  "scratch git repository in a pytest temp folder; scripts run through their command line"
+                ],
+                [
+                  "VR-027",
+                  "unit",
+                  "—",
+                  "frontends lists: a duplicate name, a duplicate catalog, an absolute path, a name with capitals, an absent key",
+                  "the config reader runs on each",
+                  "the first 4 refuse bad-value naming the field; the absent key answers frontends []",
+                  "1 table of 5 configs",
+                  "pytest"
+                ],
+                [
+                  "VR-029",
+                  "static",
+                  "AC-025",
+                  "the design-system and prototype skill folders",
+                  "a search runs for claude.ai/design, DesignSync and @dsCard",
+                  "no file of either skill names them",
+                  "the committed tree",
+                  "CI"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "v-story-5-q",
+                "props": {
+                  "text": "Accept the rows of this story, or note a row to change it."
+                }
+              }
+            ]
+          },
+          "title": "Story 5: the design catalog",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "v-story-6",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "v-story-6-t",
+            "props": {
+              "columns": [
+                "Row",
+                "Level",
+                "Criteria",
+                "Given",
+                "When",
+                "Then you should see",
+                "Data",
+                "Where it runs"
+              ],
+              "rows": [
+                [
+                  "VR-025",
+                  "acceptance",
+                  "AC-027",
+                  "the spec folder of VR-002 with a settled PROTOTYPE.md",
+                  "the developer runs /afkv2:propose-solution",
+                  "the SDD cites the filter-bar decision of PROTOTYPE.md in an existing section, and the design gate passes with no new heading",
+                  "WE-01",
+                  "owner live check: a real Claude session on Windows, lavish 0.1.86 and the browser driver from setup"
+                ],
+                [
+                  "VR-023",
+                  "api",
+                  "AC-027, AC-029",
+                  "a spec folder with PROTOTYPE.md, and one without",
+                  "design_files.py start runs on each",
+                  "the first answers prototype_exists true and the path; the second answers prototype_exists false; neither refuses",
+                  "2 spec folder fixtures",
+                  "scratch git repository in a pytest temp folder; scripts run through their command line"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "v-story-6-q",
+                "props": {
+                  "text": "Accept the rows of this story, or note a row to change it."
+                }
+              }
+            ]
+          },
+          "title": "Story 6: propose-solution reads PROTOTYPE.md",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "v-story-7",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "v-story-7-t",
+            "props": {
+              "columns": [
+                "Row",
+                "Level",
+                "Criteria",
+                "Given",
+                "When",
+                "Then you should see",
+                "Data",
+                "Where it runs"
+              ],
+              "rows": [
+                [
+                  "VR-026",
+                  "acceptance",
+                  "AC-028",
+                  "the spec folder of VR-025 with SDD.md",
+                  "the developer runs /afkv2:propose-verification",
+                  "the plan holds ui-e2e or acceptance rows whose story column names stories 1 and 2 of the Coverage table of PROTOTYPE.md",
+                  "WE-01",
+                  "owner live check: a real Claude session on Windows, lavish 0.1.86 and the browser driver from setup"
+                ],
+                [
+                  "VR-024",
+                  "api",
+                  "AC-028, AC-029",
+                  "a spec folder with PRD, SDD and PROTOTYPE.md, and one without PROTOTYPE.md",
+                  "verification_files.py start runs on each",
+                  "both answer ok; prototype_exists is true and false; a missing PROTOTYPE.md is never named in missing",
+                  "2 spec folder fixtures",
+                  "scratch git repository in a pytest temp folder; scripts run through their command line"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "v-story-7-q",
+                "props": {
+                  "text": "Accept the rows of this story, or note a row to change it."
+                }
+              }
+            ]
+          },
+          "title": "Story 7: propose-verification reads PROTOTYPE.md",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "v-story-8",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "v-story-8-t",
+            "props": {
+              "columns": [
+                "Row",
+                "Level",
+                "Criteria",
+                "Given",
+                "When",
+                "Then you should see",
+                "Data",
+                "Where it runs"
+              ],
+              "rows": [
+                [
+                  "VR-005",
+                  "acceptance",
+                  "AC-001",
+                  "a settled PRD whose 2 stories describe an API export job and no screen",
+                  "the developer runs /afkv2:prototype",
+                  "the run stops with no_ui, no file is written in the spec folder, and the INDEX Prototype row stays '—'",
+                  "WE-04",
+                  "owner live check: a real Claude session on Windows, lavish 0.1.86 and the browser driver from setup"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "v-story-8-q",
+                "props": {
+                  "text": "Accept the rows of this story, or note a row to change it."
+                }
+              }
+            ]
+          },
+          "title": "Story 8: no screen, no mockup",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "v-story-none",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "v-story-none-t",
+            "props": {
+              "columns": [
+                "Row",
+                "Level",
+                "Criteria",
+                "Given",
+                "When",
+                "Then you should see",
+                "Data",
+                "Where it runs"
+              ],
+              "rows": [
+                [
+                  "VR-028",
+                  "static",
+                  "—",
+                  "the plugin tree with the 2 new skill folders",
+                  "plugin_check.py check and the module-name test run",
+                  "both pass: no v1 name, and prototype_files, mockup_show and catalog_files are unique module names",
+                  "the committed tree",
+                  "CI"
+                ],
+                [
+                  "VR-030",
+                  "static",
+                  "AC-030",
+                  "the afkv2 skill folders",
+                  "a search runs for writers of PROTOTYPE.md and of the INDEX Prototype row",
+                  "only skills/prototype writes them; the readers only read",
+                  "the committed tree",
+                  "CI"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "v-story-none-q",
+                "props": {
+                  "text": "Accept the rows of this story, or note a row to change it."
+                }
+              }
+            ]
+          },
+          "title": "Whole plugin",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "v-app-none",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "markdown": true,
+              "text": "**My reading:** this repository is a plugin of skills and scripts. It has no server to start, so the config gets no `live` block. The high-level rows run in 2 ways: `api` rows run each script through its command line in a scratch repository (in CI), and `ui-e2e` and `acceptance` rows are owner live checks in a real Claude or Codex session, as the existing checks in `afkv2/tests/live/` are. Accept to record `app: none`."
+            }
+          },
+          "title": "This plugin has no live app",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "v-boundaries",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "v-boundaries-t",
+            "props": {
+              "columns": [
+                "Boundary",
+                "Contract test today",
+                "Floor rows",
+                "Ticket"
+              ],
+              "rows": [
+                [
+                  "lavish-axi 0.1.86 host",
+                  "none",
+                  "VR-001, VR-010, VR-013",
+                  "proposed: a contract test that replays the pinned lavish-axi poll output and checks the fields mockup_show reads"
+                ],
+                [
+                  "Codex Stop event",
+                  "none",
+                  "VR-015, VR-016",
+                  "proposed: a contract test of the Codex Stop hook input and output shape"
+                ],
+                [
+                  "chrome-devtools-mcp 1.10.1 browser driver",
+                  "none",
+                  "VR-001, VR-018",
+                  "proposed: none; the setup proof already drives a page, a click and a screenshot"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "v-boundaries-q",
+                "props": {
+                  "text": "None of the 3 has a contract test in the repository; each keeps a high-level row as its floor. I propose the 2 contract tests as follow-up tickets, not as work of this ticket. Agree?"
+                }
+              }
+            ]
+          },
+          "title": "Boundaries the change crosses",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "v-internal",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "v-internal-t",
+            "props": {
+              "columns": [
+                "Criterion",
+                "Why",
+                "Row"
+              ],
+              "rows": [
+                [
+                  "AC-025",
+                  "an absence of an outward call; no user sees it, so a static search of the skill files proves it",
+                  "VR-029"
+                ],
+                [
+                  "AC-030",
+                  "a rule about which skill code writes a file; no user sees it, so a static search proves it",
+                  "VR-030"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "v-internal-q",
+                "props": {
+                  "text": "Agree?"
+                }
+              }
+            ]
+          },
+          "title": "Criteria with no user-visible outcome",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-24T21:46:49Z",
+          "raw": "[round R-1]\nv-story-1 accept\nv-story-2 accept\nv-story-4 accept\nv-story-5 accept\nv-story-6 accept\nv-story-7 accept\nv-story-8 accept\nv-story-none accept\nv-app-none accept\nv-boundaries accept\nv-internal accept",
+          "signals": [
+            {
+              "target": "v-story-1",
+              "item": "v-story-1",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "dba1b4d0a4d6127d"
+            },
+            {
+              "target": "v-story-2",
+              "item": "v-story-2",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "380cf74d73d6cd76"
+            },
+            {
+              "target": "v-story-4",
+              "item": "v-story-4",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "7d014e241156dde5"
+            },
+            {
+              "target": "v-story-5",
+              "item": "v-story-5",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "113886850ac506b1"
+            },
+            {
+              "target": "v-story-6",
+              "item": "v-story-6",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "d493102051330d28"
+            },
+            {
+              "target": "v-story-7",
+              "item": "v-story-7",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "97aff552e3c2c7c2"
+            },
+            {
+              "target": "v-story-8",
+              "item": "v-story-8",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "fb83552c450760aa"
+            },
+            {
+              "target": "v-story-none",
+              "item": "v-story-none",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "824f0e97e5343a5e"
+            },
+            {
+              "target": "v-app-none",
+              "item": "v-app-none",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "474db3492cb59e62"
+            },
+            {
+              "target": "v-boundaries",
+              "item": "v-boundaries",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "0054c92657e53d12"
+            },
+            {
+              "target": "v-internal",
+              "item": "v-internal",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "d552e1be1381a482"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "state": "current",
+      "banner": {
+        "settled": [
+          "11 of 12 cards: 28 rows, app none, boundaries, internal criteria"
+        ],
+        "unlocks": [
+          "VERIFICATION.md"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "v-story-3b",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "v-story-3b-t",
+            "props": {
+              "columns": [
+                "Row",
+                "Level",
+                "Criteria",
+                "Given",
+                "When",
+                "Then you should see",
+                "Data",
+                "Where it runs"
+              ],
+              "rows": [
+                [
+                  "VR-003",
+                  "acceptance",
+                  "AC-005, AC-015",
+                  "a scratch repository with no live block, no catalog and the lavish host stopped",
+                  "the developer runs /afkv2:prototype",
+                  "the agent gives the file:// path of the mockup, takes notes in chat, and PROTOTYPE.md marks the fidelity source-only",
+                  "WE-02: the same 2 stories, frontend source only",
+                  "owner live check: a real Claude session on Windows, lavish 0.1.86 and the browser driver from setup"
+                ],
+                [
+                  "VR-006",
+                  "ui-e2e",
+                  "AC-014",
+                  "a prototype run with the lavish host running and the mockup shown",
+                  "the developer writes 'chat only' in chat",
+                  "the agent ends the lavish session and takes every later note in chat for the rest of the run",
+                  "WE-01",
+                  "owner live check: a real Claude session on Windows, lavish 0.1.86 and the browser driver from setup"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "v-story-3b-q",
+                "props": {
+                  "text": "This card got no mark in round 1. Accept these 2 rows, or note a row to change it. Every other card is settled."
+                }
+              }
+            ]
+          },
+          "title": "Story 3 again: chat when there is no lavish",
+          "carries": [
+            "v-story-3"
+          ],
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-24T21:47:30Z",
+          "raw": "[round R-2]\nv-story-3b accept",
+          "signals": [
+            {
+              "target": "v-story-3b",
+              "item": "v-story-3b",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "5d10c172ff551511"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

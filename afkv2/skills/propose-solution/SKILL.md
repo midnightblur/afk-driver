@@ -15,6 +15,7 @@ The agent proposes a complete design, and the human vets it and adjusts it. Firs
 | `.afkv2/config.json`, with a tracker kind | written by `/afkv2:setup` | stop and name the file and `/afkv2:setup` |
 | `GRILL-LOG.md` with a passed exit gate, and the page documents | written by `/afkv2:grill-requirements` | stop and name them and `/afkv2:grill-requirements` |
 | `PRD.md` and the requirement ADRs | written by `/afkv2:to-prd` | stop and name the file and `/afkv2:to-prd` |
+| `PROTOTYPE.md`, optional | written by `/afkv2:prototype` | run as without it: no refusal and no new question |
 
 Read only what is on disk, and the code. A later session continues from the page document and `GRILL-LOG.md` alone. A requirement the PRD left out is a gap of the grill: name it, and send the human to `/afkv2:grill-requirements`.
 
@@ -30,7 +31,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/scripts/design_files.py" start --ticket "<ticket key>"
    ```
 
-   `missing-input`: stop and show `missing` and `writer`. The answer holds `spec_dir`, `prd`, `log`, `requirement_adrs`, `sdd`, `sdd_exists`, `adr_dir`, `doc`, `session`, `resume`, `raw_file` and `raw_pending`. `unverified_external` lists what the grill could not verify. `resume` true: take the page over by `/afkv2:use-lavish` "Take over a page" ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)), with the `Takeover` row of step 2, read `doc`, honour every steer in it, run the `read-ticket` command of step 2, and continue at step 3. `raw_pending` true: an answer waits in `raw_file`, so go to step 7. `sdd_exists` true: this session changes a design, so read `sdd` and `adr_dir`, and let each card state what the SDD holds and what the change is.
+   `missing-input`: stop and show `missing` and `writer`. The answer holds `spec_dir`, `prd`, `log`, `requirement_adrs`, `sdd`, `sdd_exists`, `prototype`, `prototype_exists`, `adr_dir`, `doc`, `session`, `resume`, `raw_file` and `raw_pending`. `unverified_external` lists what the grill could not verify. `resume` true: take the page over by `/afkv2:use-lavish` "Take over a page" ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)), with the `Takeover` row of step 2, read `doc`, honour every steer in it, run the `read-ticket` command of step 2, and continue at step 3. `raw_pending` true: an answer waits in `raw_file`, so go to step 7. `sdd_exists` true: this session changes a design, so read `sdd` and `adr_dir`, and let each card state what the SDD holds and what the change is.
 
 2. **Read the input and the code.** Read the ticket into a file in a scratch folder. Step 5 passes `<ticket file>` to the build, so the first round shows the ticket card.
 
@@ -40,7 +41,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
    On a refusal, report its `reason` to the human and leave `--ticket-file` out of each build: the first round then shows no ticket card.
 
-   Read `prd`, `requirement_adrs`, `log` and the grill documents in `<spec_dir>/pages/`. Read the repository glossary and `STAPLES.md`, when they exist; a staple the PRD accepted is a design input. Start the code reading in background subagents. Write one row per load-bearing premise ([DRAFT.md](DRAFT.md) "Premises"). Done when each critical aspect and each layer has the facts its picture and its card need.
+   Read `prd`, `requirement_adrs`, `log` and the grill documents in `<spec_dir>/pages/`. Read the repository glossary and `STAPLES.md`, when they exist; a staple the PRD accepted is a design input. `prototype_exists` true: read `prototype`, and cite each UI decision of it that changes the design in the existing SDD section it changes; the design gets no new section. Start the code reading in background subagents. Write one row per load-bearing premise ([DRAFT.md](DRAFT.md) "Premises"). Done when each critical aspect and each layer has the facts its picture and its card need.
 
    ```sh step=row
    <python> "<this skill's folder>/scripts/design_files.py" row --log "<log>" --kind "<kind>" --text "<text>"
@@ -69,7 +70,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
    | Step | Do |
    |------|----|
-   | R-1 Same inputs | Write the brief, a Markdown file in a scratch folder: the paths of `prd`, `requirement_adrs` and `log`, a digest of the code reading with its citations, each settled aspect with its reading, and each steer. A file that `HEAD` does not hold goes into the brief in full. No proposer sees the draft of the other. Run `start`. |
+   | R-1 Same inputs | Write the brief, a Markdown file in a scratch folder: the paths of `prd`, `requirement_adrs`, `log` and, when `prototype_exists` is true, `prototype`, a digest of the code reading with its citations, each settled aspect with its reading, and each steer. A file that `HEAD` does not hold goes into the brief in full. No proposer sees the draft of the other. Run `start`. |
    | R-2 Draft alone | Run `wait`. Each proposer writes a whole design, every layer, to `DRAFT.md` in its own worktree. |
    | R-3 Critique | Run `critique`, then `wait` again. Each proposer reads the draft of the other and writes what it would change, and why, to `CRITIQUE.md`. The second `wait` answers `files`: the 4 paths. |
    | R-4 Reconcile | Read the 4 files, never the pane output. A part that both critiques accept in writing becomes 1 design. Each other difference becomes 1 fork card, and each option names its tool in `by`. Write the round input of step 4 now, outside the worktrees: `cleanup` removes the worktrees and their files. Then run `cleanup`. |

@@ -1,6 +1,7 @@
 """The disk side of propose-solution, from the repository root.
 
 `design_files.py start --ticket KEY`: the paths of the spec folder; refuses a missing input and names its writer.
+  `prototype` and `prototype_exists`: PROTOTYPE.md, an optional input; a missing one is no refusal.
   The newest session open, or passed with a round after its `Last pass` round: `resume` true. The newest session
   passed its design gate and its page stays at that round: `takeover` names it, and `session` and `doc` are its own,
   so new input adds a round to that page; a log with no `Last pass` row for it gets one (the only write of start
@@ -58,6 +59,7 @@ EMPTY_CELLS = {"", "—", "-"}
 ADR_NAME = re.compile(r"^(\d{4})-.+\.md$")
 ADR_SECTIONS = ("Driven by", "Decision", "Alternatives Considered")
 SDD_NAME = "SDD.md"
+PROTOTYPE_NAME = "PROTOTYPE.md"
 # The section kinds of the catalog in DRAFT.md that every design page holds (PRD P-01, P-04, P-05).
 REQUIRED_KINDS = ("system", "patterns", "performance")
 # The later documents of a design are only the plan of the run branch: no later writer has a file in the spec folder.
@@ -132,10 +134,10 @@ def start(argv):
     doc, raw_file = pages / f"{DOC_PREFIX}{session}.json", pages / f"{DOC_PREFIX}{session}.raw.txt"
     if takeover:
         keep_last_pass(doc, log)
-    sdd = spec_dir / SDD_NAME
+    sdd, prototype = spec_dir / SDD_NAME, spec_dir / PROTOTYPE_NAME
     return {"ok": True, "ticket": args.ticket, "spec_dir": spec_dir.as_posix(), "prd": prd.as_posix(), "log": log.as_posix(),
             "requirement_adrs": (spec_dir / "adr" / "requirements").as_posix(), "sdd": sdd.as_posix(),
-            "sdd_exists": sdd.exists(), "adr_dir": (spec_dir / "adr" / "design").as_posix(), "doc": doc.as_posix(),
+            "sdd_exists": sdd.exists(), "prototype": prototype.as_posix(), "prototype_exists": prototype.is_file(), "adr_dir": (spec_dir / "adr" / "design").as_posix(), "doc": doc.as_posix(),
             "session": session, "resume": bool(resumed), "takeover": takeover, "raw_file": raw_file.as_posix(),
             "raw_pending": grill_start._raw_pending(raw_file, doc), "unverified_external": paths["unverified_external"]}
 
