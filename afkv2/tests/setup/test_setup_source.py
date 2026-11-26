@@ -36,7 +36,7 @@ def _plugin(path, home):
     (path / "afkv2" / ".claude-plugin" / "plugin.json").write_text(json.dumps({"name": "afkv2"}), encoding="utf-8")
     (path / ".claude-plugin").mkdir()
     (path / ".claude-plugin" / "marketplace.json").write_text(
-        json.dumps({"plugins": [{"name": "afkv2", "source": "./afkv2"}, {"name": "afk", "source": "./"}]}),
+        json.dumps({"plugins": [{"name": "afkv2", "source": "./afkv2"}]}),
         encoding="utf-8")
     _git(home, "-C", str(path), "add", "-A")
     _git(home, "-C", str(path), "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "x")
@@ -73,7 +73,7 @@ def _record_bytes(places):
 # ------------------------------------------------------------ suggest (VR-058)
 
 def test_source_suggests_a_checkout_two_levels_under_the_parent(area, work, home, env, system, places, capsys):
-    plugin = _plugin(area / "group" / "afk src", home)
+    plugin = _plugin(area / "group" / "plug src", home)
     code, answer = _cli(["source"], env, system, work, capsys)
     assert code == 0
     assert answer == {"ok": True, "status": "suggested", "path": str(plugin)}
@@ -81,7 +81,7 @@ def test_source_suggests_a_checkout_two_levels_under_the_parent(area, work, home
 
 
 def test_source_suggests_a_checkout_two_levels_under_the_home_folder(tmp_path, home, env, system, capsys):
-    plugin = _plugin(home / "code" / "afk", home)
+    plugin = _plugin(home / "code" / "plug", home)
     outside = tmp_path / "plain"
     outside.mkdir()
     code, answer = _cli(["source"], env, system, outside, capsys)
@@ -142,7 +142,7 @@ def test_source_writes_one_line_and_the_same_path_again_changes_nothing(tmp_path
 
 
 def test_source_keeps_a_path_with_spaces_whole(tmp_path, home, env, system, places, capsys):
-    plugin = _plugin(tmp_path / "my plugins" / "afk src", home)
+    plugin = _plugin(tmp_path / "my plugins" / "plug src", home)
     code, answer = _cli(["source", "--path", str(plugin)], env, system, tmp_path, capsys)
     assert code == 0 and answer["status"] == "written"
     assert setup.read_install_record(places)["source"] == str(plugin)
@@ -224,7 +224,7 @@ def test_the_record_readers_ignore_the_source_line(tmp_path, home, env, system, 
               end_gate.DRIVER_KEY: "0.1 2026-11-26T00:00:00+00:00"}
     setup._write_record(places, record)
     without = (other_provider._judge_models(), end_gate._driver_proven())
-    plugin = _plugin(tmp_path / "my plugins" / "afk src", home)
+    plugin = _plugin(tmp_path / "my plugins" / "plug src", home)
     assert _cli(["source", "--path", str(plugin)], env, system, tmp_path, capsys)[0] == 0
     assert f"source {plugin}\n" in places.install_record.read_text(encoding="utf-8")
     assert (other_provider._judge_models(), end_gate._driver_proven()) == without == ({"codex": "gpt-x"}, True)
