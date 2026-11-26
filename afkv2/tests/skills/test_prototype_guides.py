@@ -184,3 +184,11 @@ def test_the_screen_check_comes_before_a_frontend_refusal():
         row_message = (f"file: {SKILL_MD.name}\nsection: ## Steps, step 1 refusal row {code}\n"
                        f"expected: {check!r} before {stop!r}\nactual: {row!r}")
         assert check in row and row.index(check) < row.index(stop), row_message
+
+
+# --- an unchecked catalog card is a lead, not the look; fidelity catalog needs every card checked
+
+def test_an_unchecked_catalog_card_is_a_lead_not_the_look():
+    _states(SKILL_MD, "## Steps", "copy each checked card as it is")
+    _states(SKILL_MD, "## Steps", "a card of `catalog_unchecked` is a lead, not the look")
+    _states(HOME / "PROTOTYPE-FORMAT.md", "## Header", "every card of the catalog is checked")

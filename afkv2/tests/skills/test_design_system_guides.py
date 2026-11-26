@@ -101,3 +101,10 @@ def test_both_skills_park_a_hands_off_subagent():
     for path in (SKILL_MD, SKILLS / "prototype" / "SKILL.md"):
         _states(path, "## Hands-off", "A hands-off subagent")
         _states(path, "## Hands-off", HANDS_OFF)
+
+
+# --- a catalog with an unchecked card is a draft: it never ends done, and a prototype never copies it as the look
+
+def test_a_catalog_with_an_unchecked_card_ends_draft():
+    _states(SKILL_MD, "## Steps", "| `done` | `check` answered ok with `unchecked` 0 |")
+    _states(SKILL_MD, "## Steps", "| `draft` | `check` answered ok with an unchecked card.")

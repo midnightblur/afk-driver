@@ -26,6 +26,7 @@ sys.path.insert(0, str(SKILL.parent / "use-lavish" / "scripts"))
 sys.path.insert(0, str(PLUGIN / "engine"))
 sys.path.insert(0, str(PLUGIN / "scripts"))
 sys.path.insert(0, str(SKILL.parent / "to-prd" / "scripts"))
+sys.path.insert(0, str(SKILL.parent / "design-system" / "scripts"))
 
 import afkv2_config  # noqa: E402
 import notices  # noqa: E402
@@ -190,6 +191,15 @@ def _frontend(frontends, name):
     return next(entry for entry in frontends if name in (None, entry["name"]))
 
 
+def unchecked_cards(catalog_dir):
+    """The card files that the catalog README in `catalog_dir` marks other than `checked`; [] with no README."""
+    readme = Path(catalog_dir) / CATALOG_MARK
+    if not readme.is_file():
+        return []
+    import catalog_files  # it imports this module, so it loads at the call
+    return [card["file"] for card in catalog_files.cards_of(_read(readme)) if card["state"] != "checked"]
+
+
 def cmd_start(argv):
     parser = Parser(add_help=False)
     parser.add_argument("--ticket", required=True)
@@ -199,12 +209,14 @@ def cmd_start(argv):
     spec_dir = _spec(config, args.ticket)
     frontend = _frontend(config["frontends"], args.frontend)
     # A catalog exists when its folder holds the catalog README (decision D-2); config paths stay relative (D-1).
-    catalog_exists = (Path(config["repo_root"]) / frontend["catalog"] / CATALOG_MARK).is_file()
+    catalog_dir = Path(config["repo_root"]) / frontend["catalog"]
+    catalog_exists = (catalog_dir / CATALOG_MARK).is_file()
     live = config.get("live")
     prototype_md = spec_dir / FILE_NAME
     return {"ok": True, "ticket": args.ticket, "spec_dir": spec_dir.as_posix(), "prd": (spec_dir / "PRD.md").as_posix(),
             "requirement_adrs": (spec_dir / "adr" / "requirements").as_posix(), "index": (spec_dir / "INDEX.md").as_posix(), "prototype_md": prototype_md.as_posix(),
             "mockup_dir": (spec_dir / MOCKUP_DIR).as_posix(), "frontend": frontend, "catalog_exists": catalog_exists,
+            "catalog_unchecked": unchecked_cards(catalog_dir),
             "live": live, "anchor": "catalog" if catalog_exists else "live" if live else "source",
             "resume": prototype_md.is_file()}
 
@@ -295,6 +307,20 @@ def prototype_problems(markdown, stories, spec_dir, frontends):
     return problems
 
 
+def _catalog_problems(markdown, config):
+    """Fidelity `catalog` needs a catalog whose every card is checked against the live app."""
+    fidelity = FIDELITY.search(markdown)
+    frontend = re.search(r"^> Frontend: *(\S.*?)\s*$", markdown, re.M)
+    if not fidelity or fidelity.group(1) != "catalog" or not frontend:
+        return []
+    entry = next((item for item in config["frontends"] if item["name"] == frontend.group(1)), None)
+    unchecked = unchecked_cards(Path(config["repo_root"]) / entry["catalog"]) if entry else []
+    if not unchecked:
+        return []
+    return [f"fidelity catalog: the catalog has {len(unchecked)} unchecked card{'s' if len(unchecked) > 1 else ''}: "
+            f"{', '.join(unchecked)}; check them against the live app, or mark the fidelity source-only"]
+
+
 def _written_files(spec_dir):
     """PROTOTYPE.md and every file in the mockup folder, from the spec folder."""
     files = [spec_dir / FILE_NAME, *sorted(p for p in (spec_dir / MOCKUP_DIR).rglob("*") if p.is_file())]
@@ -316,6 +342,7 @@ def cmd_settle(argv):
     stories = prd_stories(_read(spec_dir / "PRD.md").replace("\r\n", "\n"))
     frontends = [entry["name"] for entry in config["frontends"]]
     problems = prototype_problems(_read(prototype_md).replace("\r\n", "\n"), stories, spec_dir, frontends)
+    problems += _catalog_problems(_read(prototype_md).replace("\r\n", "\n"), config)
     files = _written_files(spec_dir)
     problems += [f"{name} is over {notices.MAX_SCAN_BYTES} bytes, past what the secret scan reads"
                  for path, name in files if path.stat().st_size > notices.MAX_SCAN_BYTES]

@@ -51,7 +51,7 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
 
 `<afkv2 data folder>` is `%LOCALAPPDATA%\afkv2`. `<run>` is the ticket key and the start time of the run, such as `ABC-12-20260101T0930`.
 
-1. **Start.** Run `start`. Add `--frontend "<name>"` when the developer names the frontend. Keep `spec_dir`, `prd`, `requirement_adrs`, `prototype_md`, `mockup_dir`, `frontend`, `anchor`, `live` and `resume` of the answer. Then check for a screen by "No screen, no mockup". On a refusal:
+1. **Start.** Run `start`. Add `--frontend "<name>"` when the developer names the frontend. Keep `spec_dir`, `prd`, `requirement_adrs`, `prototype_md`, `mockup_dir`, `frontend`, `anchor`, `catalog_unchecked`, `live` and `resume` of the answer. Then check for a screen by "No screen, no mockup". On a refusal:
 
    | Code | Next action |
    |------|-------------|
@@ -66,7 +66,7 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
 
    | `anchor` | Read |
    |----------|------|
-   | `catalog` | the catalog README and its cards in `frontend.catalog`: copy their tokens and card markup as they are |
+   | `catalog` | the catalog README and its cards in `frontend.catalog`: copy each checked card as it is. A card of `catalog_unchecked` is a lead, not the look: compare it with the live app first, and fix the mockup to the live app |
    | `live` | screenshots of the live app: its shell and the screen type nearest each new screen |
    | `source` | the tokens, the components and the shell in `frontend.source`; delegate the read to a subagent, and take back a digest with a file citation for each item |
 
@@ -89,7 +89,7 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
 6. **Settle.** Only the developer settles a direction. Then:
    1. Delete the losing variants and the switcher bar from the mockup. Run `check` again.
    2. **Capability walk.** Click every story and acceptance criterion of the PRD through the mockup, from its entry screen. The Coverage table holds 1 row per story: `reachable`, or `gap` when the story or one of its criteria cannot be reached. Name each criterion that is a gap in the Decisions section.
-   3. **Fidelity pass.** With the app running, put each mockup side by side with the live screenshots, and fix each difference in the shell, the spacing, the type and the components. Record what you compared and each difference left. With no app running, mark the fidelity by the anchor: `catalog` or `source-only`.
+   3. **Fidelity pass.** With the app running, put each mockup side by side with the live screenshots, and fix each difference in the shell, the spacing, the type and the components. Record what you compared and each difference left. With no app running, mark the fidelity by the anchor: `catalog` when `catalog_unchecked` is empty, else `source-only`.
    4. Write `PROTOTYPE.md` by [PROTOTYPE-FORMAT.md](PROTOTYPE-FORMAT.md). The fidelity mark comes from the anchor and the fidelity pass.
    5. Run `settle`. `missing-input`: the spec folder has no `INDEX.md`; stop, and name `/afkv2:to-prd`. On any other refusal, fix each named file or problem, and run `settle` again. Never report done before `settle` answers ok: its secret scan covers every file the run wrote.
 

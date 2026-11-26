@@ -65,7 +65,8 @@ Run each command from the repository root, in the worktree of the branch. `<pyth
 
    | State | When |
    |-------|------|
-   | `done` | `check` answered ok |
+   | `done` | `check` answered ok with `unchecked` 0 |
+   | `draft` | `check` answered ok with an unchecked card. A draft is not the look of the app: a prototype copies only its checked cards |
    | `stopped` | the developer stopped the run before `check` answered ok |
    | `refused` | a refusal stopped the run; the line names its code |
    | `parked` | a hands-off subagent parked by "Hands-off" |

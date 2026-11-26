@@ -404,6 +404,44 @@ def test_start_picks_the_named_frontend_and_answers_the_catalog_and_live_anchors
     expect(ran.answer["catalog_exists"], True, ran.given)
     expect(ran.answer["anchor"], "catalog", ran.given)
     expect(ran.answer["resume"], True, ran.given)
+    expect(ran.answer["catalog_unchecked"], [], ran.given)
+
+
+CARDS = """# Design catalog — web
+
+## Cards
+
+| File | Kind | State | Screenshot |
+|------|------|-------|------------|
+| cards/shell.html | shell | checked | shell.png |
+| cards/button.html | component | {state} | {shot} |
+"""
+
+
+def write_catalog(repo, state):
+    folder = repo / "design" / "web"
+    folder.mkdir(parents=True, exist_ok=True)
+    shot = "button.png" if state == "checked" else "—"
+    (folder / "README.md").write_text(CARDS.format(state=state, shot=shot), encoding="utf-8")
+    note(f"design/web/README.md: cards/shell.html checked, cards/button.html {state}")
+
+
+def test_start_answers_each_unchecked_catalog_card(repo):
+    write_catalog(repo, "unchecked")
+    ran = run(repo, "start", "--ticket", TICKET)
+    expect(ran.answer["anchor"], "catalog", ran.given)
+    expect(ran.answer["catalog_unchecked"], ["cards/button.html"], ran.given)
+
+
+def test_settle_refuses_fidelity_catalog_on_a_catalog_with_an_unchecked_card(repo):
+    edit(spec(repo) / "PROTOTYPE.md", "> Fidelity: source-only", "> Fidelity: catalog")
+    write_catalog(repo, "unchecked")
+    ran = run(repo, "settle", "--ticket", TICKET)
+    expect_refusal(ran, 1, "bad-prototype")
+    expect_problem("fidelity catalog: the catalog has 1 unchecked card: cards/button.html", ran)
+    write_catalog(repo, "checked")
+    ran = run(repo, "settle", "--ticket", TICKET, pinned=True)
+    expect_ok(ran)
 
 
 # --- settle (VR-011, VR-002, VR-012) -------------------------------------------------------------------------------
