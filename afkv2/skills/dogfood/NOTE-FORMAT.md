@@ -1,6 +1,8 @@
 # The note format
 
-The afkv2 agent writes each note to this format. `scripts/dogfood_note.py` checks the note when it is sent and again when it is received; a note that fails a rule is not sent or not applied.
+The afkv2 agent writes each note to this format. `scripts/dogfood_note.py` checks the note before the afkv2 agent sends it and after the main agent receives it. The afkv2 agent does not send a note that fails a rule, and the main agent does not apply it.
+
+CK means change kind. The change kinds CK-1 to CK-4 are in `APPLY.md`.
 
 ## The grammar
 
@@ -19,12 +21,12 @@ changes:                                                  (wrap: 1 row per Draft
 open-asks: none | <list>                                  (wrap)
 ```
 
-- Line 1 is the header, exactly. Each other field starts its line with its key and a colon. Blank lines are ignored.
+- Line 1 is the header, exactly. A UTF-8 byte order mark before it is allowed. Each other field starts its line with its key and a colon. Blank lines are ignored.
 - A `<worktree path>` is the absolute path of the file in its worktree. Write it without ` - `, so that the best-effort line can name it.
-- A row of `changed` or `changes` starts with `- ` and separates its columns with ` | `.
-- A field with more than 1 line, such as `use`, continues on the next lines, each indented by 2 spaces. A key that comes twice keeps its first value; only `best-effort` repeats.
+- A row starts with `- ` and separates its columns with ` | `. A row belongs to the last `changed:` or `changes:` key above it, so a second `changed:` key adds rows.
+- A field with more than 1 line, such as `use`, continues on the next lines. Indent each of these lines by 2 spaces.
+- Any other key that comes twice keeps its first value, except `best-effort`, which repeats.
 - A `removed` row names a path that no longer exists. Every other row names a path that exists.
-- The change kinds CK-1 to CK-4 are in `APPLY.md`.
 
 ## The rule codes
 
@@ -33,7 +35,7 @@ open-asks: none | <list>                                  (wrap)
 | N-HEADER | line 1 is not the header `afkv2-note v1` |
 | N-KIND | the kind is not milestone or wrap |
 | N-NO-PATH | a milestone has 0 changed rows |
-| N-PATH-OUTSIDE | a path is not absolute and under a worktree that the session state lists |
+| N-PATH-OUTSIDE | a path of a row or of a best-effort line is not absolute, or it is not under a worktree that the session state lists |
 | N-PATH-MISSING | the path of a row that is not `removed` does not exist |
 | N-CK | a change kind is not CK-1 to CK-4 |
 | N-NO-USE | a milestone has no use line |

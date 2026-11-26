@@ -177,4 +177,58 @@ def test_module_imports_only_the_standard_library():
     tree = ast.parse((SKILL / "scripts" / "dogfood_note.py").read_text(encoding="utf-8"))
     names = {alias.name.partition(".")[0] for node in ast.walk(tree) if isinstance(node, ast.Import) for alias in node.names}
     names |= {node.module.partition(".")[0] for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) and node.module}
+    assert not [node for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) and node.level]
     assert names <= set(sys.stdlib_module_names) | {"__future__"}
+
+
+def codes(note_module, text, worktrees):
+    return [(f["code"], f["where"]) for f in note_module.check(note_module.parse(text), worktrees)]
+
+
+def test_row_after_a_scalar_joins_the_rows(note_module, worktree):
+    text = milestone(worktree, [CK1]).replace("redo: none", f"- {worktree / CK4[0]} | CK-4 | changed | a hook\nredo: none")
+    assert codes(note_module, text, [str(worktree)]) == [("N-NO-BEST-EFFORT", "line 8")]
+
+
+def test_repeated_scalar_keeps_its_first_value(note_module, worktree):
+    text = milestone(worktree, [CK1]).replace("redo: none", "use: other\n  more\nredo: none")
+    best = milestone(worktree, [CK4], best_effort=[(CK4[0], "one"), (CK4[0], "two")])
+    assert note_module.parse(text)["use"] == "Run the lane skill once."
+    assert [entry["what"] for entry in note_module.parse(best)["best_effort"]] == ["one", "two"]
+
+
+def test_failures_come_in_line_order(note_module, worktree):
+    rows = [CK4, (CK1[0], "CK-5", "changed", "x")]
+    text = milestone(worktree, rows, use=(), redo=None)
+    assert codes(note_module, text, [str(worktree)]) == [
+        ("N-NO-USE", "line 2"), ("N-NO-REDO", "line 2"), ("N-NO-BEST-EFFORT", "line 6"), ("N-CK", "line 7")]
+
+
+def test_relative_path_and_worktree_root_are_outside(note_module, worktree, monkeypatch):
+    monkeypatch.chdir(worktree)
+    text = milestone(worktree, [CK1])
+    for path in ("skills/lane/SKILL.md", str(worktree)):
+        assert codes(note_module, text.replace(str(worktree / CK1[0]), path), [str(worktree)]) == [("N-PATH-OUTSIDE", "line 6")]
+
+
+def test_best_effort_path_must_be_inside(note_module, worktree, tmp_path):
+    text = milestone(worktree, [CK1]).replace("redo: none", f"best-effort: {tmp_path / 'elsewhere.json'} - may not apply\nredo: none")
+    assert codes(note_module, text, [str(worktree)]) == [("N-PATH-OUTSIDE", "line 8")]
+
+
+def test_best_effort_needs_a_reason(note_module, worktree):
+    text = milestone(worktree, [CK4]).replace("redo: none", f"best-effort: {worktree / CK4[0]}\nredo: none")
+    assert codes(note_module, text, [str(worktree)]) == [("N-NO-BEST-EFFORT", "line 6")]
+
+
+def test_worktrees_as_1_string_and_bad_roots(note_module, worktree, monkeypatch):
+    monkeypatch.chdir(worktree)
+    text = milestone(worktree, [CK1])
+    assert codes(note_module, text, str(worktree)) == []
+    assert codes(note_module, text, ["", "."]) == [("N-PATH-OUTSIDE", "line 6")]
+
+
+def test_header_allows_a_bom_but_no_padding(note_module, worktree):
+    text = milestone(worktree, [CK1])
+    assert codes(note_module, "\ufeff" + text, [str(worktree)]) == []
+    assert codes(note_module, " " + text, [str(worktree)]) == [("N-HEADER", "line 1")]

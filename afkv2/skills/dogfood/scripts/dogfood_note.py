@@ -43,11 +43,12 @@ def _best_effort(text, line):
 
 def parse(text: str) -> dict:
     """The fields of 1 note. A scalar field holds its text, its continuation lines joined by a newline; a field the
-    note does not hold is None. `lines` maps each field the note holds to the line number of its key."""
-    lines = text.splitlines()
-    note = {"header": lines[0].strip() if lines else "", "changed": [], "best_effort": [], "changes": [], "lines": {}}
+    note does not hold is None. `lines` maps each field the note holds to the line number of its key. An indented
+    line continues the scalar field above it; a `- ` line that continues no scalar is a row of the last row key."""
+    lines = text.removeprefix("﻿").splitlines()
+    note = {"header": lines[0].rstrip() if lines else "", "changed": [], "best_effort": [], "changes": [], "lines": {}}
     note.update({_field(name): None for name in SCALARS})
-    current = None
+    current, rows = None, None
     for number, raw in enumerate(lines[1:], start=2):
         line = raw.rstrip()
         if not line.strip():
@@ -57,23 +58,25 @@ def parse(text: str) -> dict:
             name, value = match.group(1), (match.group(2) or "").strip()
             note["lines"].setdefault(_field(name), number)
             current = name
-            if name == "best-effort":
+            if name in ROWS:
+                rows = name
+            elif name == "best-effort":
                 note["best_effort"].append(_best_effort(value, number))
-            elif name in SCALARS and note[_field(name)] is None:
+            elif note[_field(name)] is None:
                 note[_field(name)] = value
-            elif name in SCALARS:
+            else:
                 current = None
             continue
-        item = line.strip()
-        if current in ROWS and item[:2] == "- ":
-            parser = _changed_row if current == "changed" else _changes_row
-            note[current].append(parser(item[2:].strip(), number))
-        elif current in SCALARS:
+        item, indented = line.strip(), line[:1] in (" ", "\t")
+        if indented and current in SCALARS:
             joined = note[_field(current)]
             note[_field(current)] = f"{joined}\n{item}" if joined else item
-        elif current == "best-effort":
+        elif indented and current == "best-effort":
             entry = note["best_effort"][-1]
             entry["what"] = f"{entry['what']}\n{item}" if entry["what"] else item
+        elif rows and item[:2] == "- ":
+            parser = _changed_row if rows == "changed" else _changes_row
+            note[rows].append(parser(item[2:].strip(), number))
     return note
 
 
@@ -87,6 +90,8 @@ def _under(path, worktrees):
         return False
     target = _key(path)
     for worktree in worktrees:
+        if not worktree or not os.path.isabs(worktree):
+            continue
         root = _key(worktree)
         try:
             if target != root and os.path.commonpath([target, root]) == root:
@@ -113,6 +118,9 @@ def _milestone(note, worktrees, kind_line):
             failures.append(_failure("N-PATH-MISSING", row["line"], f"{row['path']} does not exist"))
     if not note["use"]:
         failures.append(_failure("N-NO-USE", note["lines"].get("use", kind_line), "a milestone says how to try it in a use line"))
+    for entry in note["best_effort"]:
+        if not _under(entry["path"], worktrees):
+            failures.append(_failure("N-PATH-OUTSIDE", entry["line"], f"best-effort path {entry['path'] or '(no path)'} is not under a worktree of this session"))
     told = {_key(entry["path"]) for entry in note["best_effort"] if entry["path"] and entry["what"]}
     for row in note["changed"]:
         if row["kind"] == "CK-4" and (not row["path"] or _key(row["path"]) not in told):
@@ -123,8 +131,11 @@ def _milestone(note, worktrees, kind_line):
 
 
 def check(note, worktrees) -> list[dict]:
-    """Each failure of 1 parsed note, in line order; `worktrees` are the worktree paths the state lists. A wrong
-    header or kind is the only failure, because the other rules depend on them."""
+    """Each failure of 1 parsed note, in line order. `worktrees` are the absolute worktree paths the state lists, or
+    1 path; a root that is empty or relative holds nothing. A wrong header or kind is the only failure, because the
+    other rules depend on them."""
+    if isinstance(worktrees, (str, os.PathLike)):
+        worktrees = [worktrees]
     if note["header"] != HEADER:
         return [_failure("N-HEADER", 1, "line 1 is not the format header of NOTE-FORMAT.md")]
     kind_line = note["lines"].get("kind", 2)
@@ -134,5 +145,5 @@ def check(note, worktrees) -> list[dict]:
         if note["changes"]:
             return []
         return [_failure("N-NO-CHANGES", note["lines"].get("changes", kind_line), "a wrap names at least 1 Draft change")]
-    failures = _milestone(note, list(worktrees), kind_line)
+    failures = _milestone(note, [os.fspath(worktree) for worktree in worktrees], kind_line)
     return sorted(failures, key=lambda failure: int(failure["where"].split()[1]))
