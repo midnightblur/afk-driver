@@ -178,3 +178,88 @@ def guarded(world, *argvs):
 
 def test_worktree_runs_only_from_the_afkv2_pane(world):
     guarded(world, ["worktree", "--lane", "small", "--base", BASE])
+
+
+# note, on the fake runner.
+
+def notes_folder(world):
+    return world["data"] / f"dogfood-{MAIN.replace(':', '_')}" / "notes"
+
+
+@pytest.fixture
+def noted(world):
+    """A session with 1 listed worktree that holds the changed file, and a valid milestone note in scratch."""
+    worktree = world["tmp"] / "wt"
+    (worktree / "skills").mkdir(parents=True)
+    (worktree / "skills" / "SKILL.md").write_text("x\n", encoding="utf-8")
+    recorded = state(world)
+    recorded["base"] = BASE
+    recorded["worktrees"] = [{"path": str(worktree), "branch": "feat/afkv2-df-20261126-1730", "lane": "small",
+                              "created": "2026-11-26T17:30:00+00:00"}]
+    world["state_file"].write_text(json.dumps(recorded, indent=2) + "\n", encoding="utf-8")
+    note = world["tmp"] / "scratch" / "note.md"
+    note.parent.mkdir()
+    note.write_text(milestone(worktree), encoding="utf-8")
+    return {**world, "worktree": worktree, "note": note}
+
+
+def milestone(worktree, padding=""):
+    return ("afkv2-note v1\nkind: milestone\nask: Add a link to the report\npurpose: try the lane\nchanged:\n"
+            f"- {worktree / 'skills' / 'SKILL.md'} | CK-1 | changed | the lane asks once\n"
+            f"use: Run the lane once.{padding}\nredo: none\n")
+
+
+def wrap_note():
+    return ("afkv2-note v1\nkind: wrap\nask: Add a link to the report\nchanges:\n"
+            "- https://forge.example/pr/7 | feat/x | ask 1\nopen-asks: none\n")
+
+
+def test_note_checks_stores_prompts_the_main_pane_with_1_line_then_records_and_a_repeat_is_already_sent(noted):
+    runner = DogfoodFakeRunner(noted["env"], main_pane=MAIN)
+    seen = {}
+
+    def at_prompt(argv):
+        seen["file"] = (notes_folder(noted) / "0001.md").is_file()
+        seen["records"] = len(state(noted)["notes"])
+    runner.on(("agent", "prompt"), at_prompt)
+
+    code, answer, runner = run(noted, ["note", "--note-file", str(noted["note"])], runner)
+
+    assert code == 0 and answer["ok"] and (answer["sent"], answer["id"]) == (True, 1)
+    stored = notes_folder(noted) / "0001.md"
+    assert _same(answer["path"], stored) and stored.read_bytes() == noted["note"].read_bytes()
+    assert seen == {"file": True, "records": 0}
+    [prompt] = runner.prompts
+    assert prompt["target"] == MAIN and prompt["pane"] == MAIN
+    assert "\n" not in prompt["text"] and prompt["text"].endswith(answer["path"])
+    [record] = state(noted)["notes"]
+    assert record["id"] == 1 and record["path"] == answer["path"] and record["kind"] == "milestone"
+    assert record["sha256"] == hashlib.sha256(noted["note"].read_bytes()).hexdigest()
+    assert record["paths"] == [str(noted["worktree"] / "skills" / "SKILL.md")]
+    assert record["sent_at"].endswith("+00:00") and not state(noted)["wrap_reported"]
+
+    before = noted["state_file"].read_bytes()
+    code, again, runner = run(noted, ["note", "--note-file", str(noted["note"])])
+    assert (code, again["error"]["code"]) == (1, "already-sent") and not runner.calls
+    assert noted["state_file"].read_bytes() == before
+
+
+def test_a_failing_note_writes_nothing_and_a_wrap_note_sets_wrap_reported(noted):
+    noted["note"].write_text("afkv2-note v1\nkind: milestone\nask: x\n", encoding="utf-8")
+    before = noted["state_file"].read_bytes()
+    code, answer, runner = run(noted, ["note", "--note-file", str(noted["note"])])
+    assert (code, answer["error"]["code"]) == (1, "note-check-failed") and not runner.calls
+    assert {failure["code"] for failure in answer["failures"]} == {"N-NO-PATH", "N-NO-USE", "N-NO-REDO"}
+    assert noted["state_file"].read_bytes() == before and not notes_folder(noted).exists()
+
+    noted["note"].write_text(milestone(noted["worktree"]), encoding="utf-8")
+    assert run(noted, ["note", "--note-file", str(noted["note"])])[0] == 0
+    noted["note"].write_text(wrap_note(), encoding="utf-8")
+    code, answer, runner = run(noted, ["note", "--note-file", str(noted["note"])])
+    assert code == 0 and answer["id"] == 2 and _same(answer["path"], notes_folder(noted) / "0002.md")
+    recorded = state(noted)
+    assert recorded["wrap_reported"] and [note["kind"] for note in recorded["notes"]] == ["milestone", "wrap"]
+
+
+def test_note_runs_only_from_the_afkv2_pane(noted):
+    guarded(noted, ["note", "--note-file", str(noted["note"])])

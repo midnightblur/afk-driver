@@ -32,6 +32,7 @@ from grill_common import EXIT_UNREADABLE, Parser, Refusal  # noqa: E402
 from places import Places, write_atomic  # noqa: E402
 from proposer_engine import UNREADABLE, HerdrRunner  # noqa: E402
 from setup import read_install_record  # noqa: E402
+import dogfood_note  # noqa: E402
 
 STATE_VERSION = 1
 HARNESS = "claude"
@@ -48,6 +49,9 @@ AGENT_FILE = Path("afkv2") / "skills" / "dogfood" / "AGENT.md"
 LANES = ("small", "medium")
 SMALL_BRANCH = "feat/afkv2-df-{:%Y%m%d-%H%M}"
 NAME = re.compile(r"[A-Za-z0-9._/-]+")
+NOTE_LIMIT = 16 * 1024
+NOTE_LINE = "A note from the afkv2 pane: {}"
+GONE = ("agent_not_found", "pane_not_found")
 
 
 def _clock():
@@ -286,6 +290,11 @@ def _send(env, runner, agent, pane, text):
         return {"submitted": True}
     if _herdr_code(out, err) != "agent_prompt_stalled":
         return {"submitted": False, "prompt_error": f"herdr agent prompt: {_herdr_code(out, err) or (err or out).strip()}"}
+    return _after_stall(env, runner, agent, pane, text)
+
+
+def _after_stall(env, runner, agent, pane, text):
+    """Herdr playbook H-6 after `agent_prompt_stalled`: 1 Enter only while the text sits in the input line."""
     code, screen, err = _herdr(env, runner, "pane", "read", pane, "--source", "visible", "--lines", "40")
     if code == 0 and _in_input_line(screen, text):
         runner.sleep(ENTER_PAUSE_S)
@@ -416,7 +425,77 @@ def verb_worktree(args, env, runner):
     return _answer(worktree)
 
 
-VERBS = {"start": verb_start, "status": verb_status, "worktree": verb_worktree}
+def notes_folder(env, main_pane):
+    return state_path(env, main_pane).with_suffix("") / "notes"
+
+
+def read_note(path):
+    """The bytes and the text of 1 note file: UTF-8, at most NOTE_LIMIT bytes; else `note-unreadable`, exit 2."""
+    try:
+        body = Path(path).read_bytes()
+        if len(body) > NOTE_LIMIT:
+            raise Refusal("note-unreadable", f"the note file {path} holds {len(body)} bytes; a note holds at most "
+                                             f"{NOTE_LIMIT}", EXIT_UNREADABLE)
+        return body, body.decode("utf-8")
+    except (OSError, UnicodeDecodeError) as problem:
+        raise Refusal("note-unreadable", f"the note file {path}: {problem}", EXIT_UNREADABLE) from None
+
+
+def _next_id(state, folder):
+    ids = [note["id"] for note in state["notes"]]
+    ids += [int(path.stem) for path in folder.glob("[0-9][0-9][0-9][0-9].md")] if folder.is_dir() else []
+    return max(ids, default=0) + 1
+
+
+def _prompt_main(env, runner, main_pane, text):
+    """1 prompt to the main pane by its pane id: True, `unconfirmed` after a stall that H-6 does not confirm, or a
+    refusal when herdr typed nothing (plan decision D-8)."""
+    code, out, err = _herdr(env, runner, "agent", "prompt", main_pane, text, "--wait", "--until", "working",
+                            "--timeout", PROMPT_MS)
+    if code == 0:
+        return True
+    problem = _herdr_code(out, err)
+    if problem == "agent_prompt_stalled":
+        return True if _after_stall(env, runner, main_pane, main_pane, text)["submitted"] else "unconfirmed"
+    if problem in GONE:
+        raise Refusal("main-pane-gone", f"the main pane {main_pane} is gone: the work stays committed; tell the "
+                                        f"developer in this pane")
+    raise Refusal("herdr-failed", f"herdr agent prompt {main_pane}: {problem or (err or out).strip()}")
+
+
+def verb_note(args, env, runner):
+    """Check the note, store it as notes/NNNN.md, prompt the main pane with 1 line holding its path, then record
+    id, SHA-256 and paths in the state (SDD §7, ADR-0001 design). The state names the target; no argument does."""
+    state = _afkv2_state(env, runner)
+    body, text = read_note(args.note_file)
+    digest = hashlib.sha256(body).hexdigest()
+    sent = next((note for note in state["notes"] if note["sha256"] == digest), None)
+    if sent:
+        raise Refusal("already-sent", f"this note was sent as {sent['path']}: send a changed note")
+    note = dogfood_note.parse(text)
+    failures = dogfood_note.check(note, [worktree["path"] for worktree in state["worktrees"]])
+    if failures:
+        raise Refusal("note-check-failed", f"the note breaks {len(failures)} rule(s) of NOTE-FORMAT.md",
+                      failures=failures)
+    main_pane = state["main_pane"]
+    folder = notes_folder(env, main_pane)
+    path = folder / f"{_next_id(state, folder):04d}.md"
+    write_atomic(path, body)
+    try:
+        sent = _prompt_main(env, runner, main_pane, NOTE_LINE.format(path))
+    except Refusal:
+        path.unlink(missing_ok=True)
+        raise
+    record = {"id": int(path.stem), "sha256": digest, "path": str(path), "kind": note["kind"], "sent_at": _now(),
+              "paths": [row["path"] for row in note["changed"]]}
+    state = _read_state(state_path(env, main_pane)) or state
+    state["notes"] = [*state["notes"], record]
+    state["wrap_reported"] = state["wrap_reported"] or note["kind"] == "wrap"
+    _write_state(env, state)
+    return {"ok": True, "sent": sent, "id": record["id"], "path": record["path"]}
+
+
+VERBS = {"start": verb_start, "status": verb_status, "worktree": verb_worktree, "note": verb_note}
 
 
 def _parser():
@@ -428,6 +507,7 @@ def _parser():
     worktree.add_argument("--lane", required=True, choices=LANES)
     worktree.add_argument("--base", required=True)
     worktree.add_argument("--branch")
+    verbs.add_parser("note").add_argument("--note-file", required=True)
     return parser
 
 
