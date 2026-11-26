@@ -8,6 +8,8 @@ Verbs:
   note --note-file N   afkv2 pane: check the note, store it, send its path to the main pane and record it
   tell --kind feedback|wrap --text-file F
                        main pane: send feedback or the wrap-up request to the afkv2 agent
+  check-note --note-file N
+                       main pane: the parsed note, or its failures; writes nothing
 
 Each verb prints 1 JSON object, `{"ok": true, ...}` or `{"ok": false, "error": {"code", "reason"}}`, and exits 0 ok,
 1 refused, 2 unreadable input. The caller is the pane of `HERDR_PANE_ID`, never an argument. dogfood.py is the only
@@ -539,7 +541,24 @@ def verb_tell(args, env, runner):
     return {"ok": True, "sent": sent, "kind": args.kind}
 
 
-VERBS = {"start": verb_start, "status": verb_status, "worktree": verb_worktree, "note": verb_note, "tell": verb_tell}
+def verb_check_note(args, env, runner):
+    """The parsed note, checked against the worktrees of the session by the 1 parser of note (plan decision D-11).
+    Pure: no herdr or git call, no write."""
+    pane, state = _main_state(env, runner, "check-note")
+    _, text = read_note(args.note_file)
+    if not state:
+        raise Refusal("no-pane", f"the main pane {pane} has no dogfood session, so no worktree list to check the note "
+                                 f"against")
+    note = dogfood_note.parse(text)
+    failures = dogfood_note.check(note, [worktree["path"] for worktree in state["worktrees"]])
+    if failures:
+        raise Refusal("note-check-failed", f"the note breaks {len(failures)} rule(s) of NOTE-FORMAT.md: apply nothing "
+                                           f"from it, and ask the afkv2 agent for a complete note", failures=failures)
+    return {"ok": True, "note": note}
+
+
+VERBS = {"start": verb_start, "status": verb_status, "worktree": verb_worktree, "note": verb_note, "tell": verb_tell,
+         "check-note": verb_check_note}
 
 
 def _parser():
@@ -555,6 +574,7 @@ def _parser():
     tell = verbs.add_parser("tell")
     tell.add_argument("--kind", required=True, choices=tuple(TELL_LINES))
     tell.add_argument("--text-file", required=True)
+    verbs.add_parser("check-note").add_argument("--note-file", required=True)
     return parser
 
 

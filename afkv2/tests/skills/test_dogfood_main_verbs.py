@@ -140,3 +140,64 @@ def test_tell_to_a_dialog_answers_prompt_blocked_and_no_pane_answers_no_pane(wor
     world["state_file"].unlink()
     code, answer, runner = run(world, argv)
     assert (code, answer["error"]["code"]) == (1, "no-pane") and not herdr_calls(runner)
+
+
+# check-note (VR-041).
+
+def milestone(worktree):
+    return ("afkv2-note v1\nkind: milestone\nask: Add a link to the report\npurpose: try the lane\nchanged:\n"
+            f"- {worktree / 'skills' / 'SKILL.md'} | CK-1 | changed | the lane asks once\n"
+            "use: Run the lane once.\nredo: none\n")
+
+
+def snapshot(folder):
+    return sorted((str(path), path.stat().st_mtime_ns) for path in folder.rglob("*"))
+
+
+def test_check_note_answers_the_parsed_note_or_its_failures_and_writes_nothing(world):
+    notes = world["data"] / f"dogfood-{MAIN.replace(':', '_')}" / "notes"
+    notes.mkdir(parents=True)
+    note = notes / "0001.md"
+    note.write_text(milestone(world["worktree"]), encoding="utf-8")
+    before = snapshot(world["data"])
+
+    code, answer, runner = run(world, ["check-note", "--note-file", str(note)])
+    assert code == 0 and answer["ok"] and not runner.calls
+    assert answer["note"] == json.loads(json.dumps(dogfood.dogfood_note.parse(note.read_text(encoding="utf-8"))))
+    assert answer["note"]["kind"] == "milestone"
+    assert [row["path"] for row in answer["note"]["changed"]] == [str(world["worktree"] / "skills" / "SKILL.md")]
+
+    note.write_text("afkv2-note v1\nkind: milestone\nask: x\n", encoding="utf-8")
+    before = snapshot(world["data"])
+    code, answer, runner = run(world, ["check-note", "--note-file", str(note)])
+    assert (code, answer["error"]["code"]) == (1, "note-check-failed") and not runner.calls
+    assert {failure["code"] for failure in answer["failures"]} == {"N-NO-PATH", "N-NO-USE", "N-NO-REDO"}
+    assert all(set(failure) >= {"code", "where", "reason"} for failure in answer["failures"])
+    assert snapshot(world["data"]) == before
+
+    outside = world["tmp"] / "elsewhere"
+    (outside / "skills").mkdir(parents=True)
+    (outside / "skills" / "SKILL.md").write_text("x\n", encoding="utf-8")
+    note.write_text(milestone(outside), encoding="utf-8")
+    before = snapshot(world["data"])
+    code, answer, runner = run(world, ["check-note", "--note-file", str(note)])
+    assert (code, answer["error"]["code"]) == (1, "note-check-failed")
+    assert {failure["code"] for failure in answer["failures"]} == {"N-PATH-OUTSIDE"}
+    assert snapshot(world["data"]) == before
+
+
+def test_check_note_refuses_an_unreadable_note_and_a_pane_with_no_session(world):
+    for content in (b"\xff\xfe bad", b"x" * (16 * 1024 + 1), None):
+        path = world["tmp"] / "other.md"
+        path.unlink(missing_ok=True)
+        if content is not None:
+            path.write_bytes(content)
+        code, answer, runner = run(world, ["check-note", "--note-file", str(path)])
+        assert (code, answer["error"]["code"]) == (2, "note-unreadable") and not runner.calls
+    note = world["tmp"] / "note.md"
+    note.write_text(milestone(world["worktree"]), encoding="utf-8")
+    world["state_file"].unlink()
+    before = snapshot(world["data"])
+    code, answer, runner = run(world, ["check-note", "--note-file", str(note)])
+    assert (code, answer["error"]["code"]) == (1, "no-pane") and not runner.calls
+    assert snapshot(world["data"]) == before
