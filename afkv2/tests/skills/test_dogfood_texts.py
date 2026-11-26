@@ -162,3 +162,56 @@ def test_each_agent_command_block_runs_against_main_with_the_fake_runner(world):
         answers[step] = json.loads(out[0])
         assert code == 0, (step, answers[step])
     assert answers["worktree-medium"]["branch"] == "feat/afkv2-211"
+
+
+# APPLY.md: the change kinds, the redo, the bans and the tell (AC-018 to AC-022, AC-024).
+
+APPLY_MD = SKILL_DIR / "APPLY.md"
+
+
+def kind_steps():
+    """{change kind: step text} of the numbered steps under `## The change kinds`."""
+    kinds = section(APPLY_MD, "## The change kinds")
+    found = re.findall(r"\d+\. \*\*(CK-\d)[^*]*\*\*(.*?)(?= \d+\. \*\*CK-|$)", kinds)
+    return dict(found)
+
+
+def test_apply_has_1_step_per_change_kind_of_the_note_parser():
+    import dogfood_note
+    assert list(kind_steps()) == list(dogfood_note.CHANGE_KINDS)
+
+
+def test_apply_ck1_follows_the_worktree_skill_at_once_also_inside_a_running_skill():
+    step = kind_steps()["CK-1"]
+    assert "worktree" in step and "in place of the installed copy" in step
+    assert "running" in step and "at once" in step and "say so" in step
+
+
+def test_apply_ck2_runs_the_script_from_the_worktree_and_ck3_follows_the_core_text():
+    steps = kind_steps()
+    assert "worktree" in steps["CK-2"] and "CK-1" in steps["CK-2"]
+    assert "worktree" in steps["CK-3"] and "session instruction" in steps["CK-3"]
+
+
+def test_apply_ck4_is_best_effort_and_told_to_the_developer():
+    step = kind_steps()["CK-4"]
+    assert "best effort" in step and "installed plugin" in step and "Tell the developer" in step
+    assert "`best-effort`" in step
+
+
+def test_apply_redoes_the_named_delta_at_once_and_tells_it():
+    redo = section(APPLY_MD, "## The redo")
+    assert "`redo`" in redo and "at once" in redo and "no question" in redo and "what you redid" in redo
+
+
+def test_apply_writes_no_plugin_file_lasts_only_for_the_session_and_applies_nothing_from_a_failing_note():
+    body = flat(APPLY_MD)
+    assert "Write no plugin file" in body
+    assert "only for this session" in body and "installed plugin does not change" in body
+    assert "`check-note`" in body and "apply nothing" in body
+    assert "[SKILL.md](SKILL.md)" in body
+
+
+def test_apply_tells_the_developer_what_applied_and_how_to_try_it():
+    tell = section(APPLY_MD, "## Tell the developer")
+    assert "`use`" in tell and "each row" in tell and "best effort" in tell
