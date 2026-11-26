@@ -3,6 +3,7 @@
 `verification_files.py start --ticket KEY [--target REF]`: the session paths, and the live state of the repository
   config: {block, proven_here}. Refuses `missing-input` naming the writer of a missing PRD, SDD or grill log.
   `prototype` and `prototype_exists`: PROTOTYPE.md, an optional input kept out of `WRITERS`; a missing one is no refusal.
+  `prototype_exists` is true only when the INDEX.md `Prototype` row says `chosen`; an unsettled file counts as absent.
   The newest session with a page document and no `written` row resumes.
 `verification_files.py sync --doc FILE --log FILE`: copies each new note of the page into this skill's log section.
 `verification_files.py write --spec-dir DIR --plan FILE --doc FILE [--target REF]`: writes VERIFICATION.md.
@@ -46,6 +47,7 @@ NOTE_ROW = re.compile(r"^- Note: (\S+) · ")
 FILE_NAME = "VERIFICATION.md"
 INDEX_ROW = "Verification plan"
 PROTOTYPE_NAME = "PROTOTYPE.md"
+PROTOTYPE_ROW = "Prototype"
 WRITERS = {"PRD.md": "/afkv2:to-prd", "SDD.md": "/afkv2:propose-solution", "GRILL-LOG.md": "/afkv2:grill-requirements"}
 TARGETS = ("origin/HEAD", "origin/main", "origin/master", "main", "master")
 GIT_SECONDS = 60
@@ -181,6 +183,18 @@ def _new_session(pages):
     return session
 
 
+def prototype_chosen(spec_dir, prototype):
+    """True when `prototype` exists and the INDEX.md `Prototype` row, which prototype settle writes, says `chosen`.
+    A file without that row is unsettled and counts as absent; a missing INDEX.md is no refusal."""
+    try:
+        lines = (Path(spec_dir) / "INDEX.md").read_text("utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        return False
+    cells = [[cell.strip() for cell in line.split("|")] for line in lines if line.startswith("|")]
+    state = next((row[3] for row in cells if len(row) > 3 and row[1] == PROTOTYPE_ROW), "")
+    return state.startswith("chosen") and Path(prototype).is_file()
+
+
 def start(argv):
     parser = Parser(add_help=False)
     parser.add_argument("--ticket")
@@ -207,7 +221,7 @@ def start(argv):
             "requirement_adrs": (spec_dir / "adr" / "requirements").as_posix(),
             "design_adrs": (spec_dir / "adr" / "design").as_posix(), "verification": verification.as_posix(),
             "verification_exists": verification.is_file(), "prototype": prototype.as_posix(),
-            "prototype_exists": prototype.is_file(), "doc": doc.as_posix(), "session": session,
+            "prototype_exists": prototype_chosen(spec_dir, prototype), "doc": doc.as_posix(), "session": session,
             "resume": resumed is not None, "raw_file": raw_file.as_posix(),
             "live": live_state(config["repo_root"], args.target)}
 
