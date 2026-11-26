@@ -12,7 +12,7 @@ A developer who uses afkv2 for real work in another repository cannot use an afk
 | SDD | SDD.md | draft |
 | Design ADRs | adr/design/ | 4 records |
 | Design brief | DESIGN-BRIEF.md | — |
-| Verification plan | VERIFICATION.md | — |
+| Verification plan | VERIFICATION.md | draft |
 | Plan | plan/PLAN.md | — |
 | Smoke gate | plan/PLAN.md | — |
 | Understanding | understanding/index.html | — |

@@ -1,0 +1,1722 @@
+{
+  "schema": "afkv2.page/2",
+  "session": {
+    "step": "Verification plan",
+    "private": false,
+    "takeovers": [],
+    "id": "s-20261126-192906",
+    "skill": "propose-verification",
+    "feature": "211",
+    "ticket": "211",
+    "started": "2026-11-26T19:41:50Z",
+    "links": {
+      "issue": "https://github.com/midnightblur/afk-driver/issues/{id}",
+      "change": "https://github.com/midnightblur/afk-driver/pull/{id}",
+      "commit": "https://github.com/midnightblur/afk-driver/commit/{id}"
+    },
+    "short_title": "afkv2 dogfood"
+  },
+  "maps": [],
+  "notes": [],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "current",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "VERIFICATION.md",
+          "/afkv2:to-subtasks"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-made",
+          "kind": "info",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "id": "i-made-b",
+            "props": {
+              "text": "Claude drafted 63 rows and Codex drafted 21; each critiqued the other. The Claude draft is the base, because both critiques accepted its environments, its row data and its live rows. From the Codex draft I took the card for no live app, the close check with real git, and 1 row that checks every verb from every pane. The Codex proposer started stuck on its \"hooks need review\" dialog again; I dismissed it with Escape and submitted its brief by hand.",
+              "markdown": true
+            }
+          },
+          "title": "2 proposers drafted and critiqued; I merged 1 plan of 63 rows",
+          "section": "sec-plan"
+        },
+        {
+          "id": "i-app-none",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-app-none-b",
+            "props": {
+              "text": "The plugin has no server to start, and the repository config has no live block. The high-level rows run in real herdr panes with real Claude and Codex agents (E-HERDR, E-LIVE-C, E-LIVE-X), and each live run is recorded in a result table. Only your `accept` mark settles this card; the plan then holds no live app.",
+              "markdown": true
+            }
+          },
+          "title": "This build has no live HTTP app; the high levels run in real herdr panes",
+          "section": "sec-env",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-f-contract",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-f-contract-q",
+            "props": {
+              "text": "A contract row proves that 2 sides agree on their messages. The 2 proposers disagree on whether this plan has 2 contract rows: the setup record (VR-062) and the note format (VR-042). Which reading?",
+              "markdown": true
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-f-contract-opt-a",
+                "props": {
+                  "text": "**A.** Both are contract rows, and both boundaries count as having contract tests (the Claude proposer). Cost: VR-042 checks a text against its parser, which is closer to a lockstep check than to 2 parts agreeing.",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-f-contract-opt-b",
+                "props": {
+                  "text": "**B.** Neither is a contract row: VR-042 is static, VR-062 is integration, and both boundaries get a proposed ticket (the Codex proposer). Cost: the record readers already have tests that can take the new line; a ticket for that defers 1 small test.",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-f-contract-opt-c",
+                "props": {
+                  "text": "**C.** Split them: VR-062 is a contract row, because setup's real writer writes the record and each real reader reads it; VR-042 is static, and the note boundary gets a ticket to replay recorded notes through the parser (my reconcile).",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-f-contract-recommend",
+                "props": {
+                  "text": "Each row gets the level that matches what it runs: 2 real programs agree on the record, but the note has only 1 program and a text.",
+                  "label": "Recommended: C"
+                }
+              }
+            ]
+          },
+          "title": "How 2 boundaries count: the install record and the milestone note",
+          "section": "sec-boundaries",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "c"
+          }
+        },
+        {
+          "id": "i-f-codex",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-f-codex-q",
+            "props": {
+              "text": "A Codex main agent gets live rows for start, the queue, Ctrl+Enter, the 2 worked examples and the wrap-up. Feedback from the main pane (VR-044) and the setup journey (VR-056, VR-057) run on Claude only. Add Codex rows?",
+              "markdown": true
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-f-codex-opt-a",
+                "props": {
+                  "text": "**A.** Add 2 Codex rows: main-pane feedback, and the setup journey that confirms a path. Cost: about 20 more minutes of live run, agent-run.",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-f-codex-opt-b",
+                "props": {
+                  "text": "**B.** Add 1 Codex row for main-pane feedback only. Cost: the setup step on Codex stays unproven live.",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-f-codex-opt-c",
+                "props": {
+                  "text": "**C.** Keep both Claude-only. Cost: a Codex main agent that drops the error text from feedback ships unseen.",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-f-codex-recommend",
+                "props": {
+                  "text": "Both are main-agent behaviour that each harness reads from text on its own, and an agent runs them at small cost.",
+                  "label": "Recommended: A"
+                }
+              }
+            ]
+          },
+          "title": "Codex live coverage of feedback and setup",
+          "section": "sec-story-3",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "i-d-pane-ui",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-d-pane-ui-decision",
+            "props": {
+              "text": "Rows that watch a journey in a real herdr pane stay at ui-e2e; rows that run a whole worked example stay at acceptance.",
+              "label": "Decision"
+            },
+            "style": "font-weight: 600",
+            "children": [
+              {
+                "type": "text",
+                "id": "i-d-pane-ui-why",
+                "props": {
+                  "text": "The pane is the screen, and acceptance is kept for the worked examples in business words.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-d-pane-ui-alternatives",
+                "props": {
+                  "text": "- move every live row to acceptance (the Codex critique)",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-d-pane-ui-evidence",
+                "props": {
+                  "text": "LEVELS.md: ui-e2e asserts what the user sees through the real screen; the pane is the screen the developer works in.",
+                  "label": "Evidence",
+                  "badge": "spec"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-d-pane-ui-reverse",
+                "props": {
+                  "text": "Change the level of the live rows; no row changes what it runs.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-d-pane-ui-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Journeys you see in a pane are ui-e2e",
+          "section": "sec-plan",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-d-api",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-d-api-decision",
+            "props": {
+              "text": "The outside-herdr rows run dogfood.py as a real child process (api); the no-source and source-broken rows run it in a real herdr shell pane (api).",
+              "label": "Decision"
+            },
+            "style": "font-weight: 600",
+            "children": [
+              {
+                "type": "text",
+                "id": "i-d-api-why",
+                "props": {
+                  "text": "A lower level would leave AC-002 with no high row.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-d-api-alternatives",
+                "props": {
+                  "text": "- lower them to integration or unit (the Codex critique)",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-d-api-evidence",
+                "props": {
+                  "text": "AC-002 and AC-003 are what the developer sees; DRAFT.md needs a high-level row for each, and a child process is the real entry point.",
+                  "label": "Evidence",
+                  "badge": "spec"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-d-api-reverse",
+                "props": {
+                  "text": "Lower them with a lower: card per row.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-d-api-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "The 4 refusal rows of start stay at api",
+          "section": "sec-story-1",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-d-agent-run",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-d-agent-run-decision",
+            "props": {
+              "text": "Every live row is agent-run through herdr by default, with a recorded result table.",
+              "label": "Decision"
+            },
+            "style": "font-weight: 600",
+            "children": [
+              {
+                "type": "text",
+                "id": "i-d-agent-run-why",
+                "props": {
+                  "text": "An agent can drive herdr panes, and your time is the costliest resource.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-d-agent-run-alternatives",
+                "props": {
+                  "text": "- owner-run for every live row (the Codex draft)",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-d-agent-run-evidence",
+                "props": {
+                  "text": "The brief allows agent or owner; your standing rule is to keep your part minimal.",
+                  "label": "Evidence",
+                  "badge": "spec"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-d-agent-run-reverse",
+                "props": {
+                  "text": "Mark rows owner-run in the result table.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-d-agent-run-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "An agent runs the live rows; you only when a row says owner-run",
+          "section": "sec-env",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-d-small",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-d-small-decision",
+            "props": {
+              "text": "I dropped the live dialog row (the unit row VR-046 proves prompt-blocked); VR-032 runs in a real herdr shell pane, not a child process; VR-002 expects 1 outcome, no approval prompt; the git boundary keeps its proposed ticket.",
+              "label": "Decision"
+            },
+            "style": "font-weight: 600",
+            "children": [
+              {
+                "type": "text",
+                "id": "i-d-small-why",
+                "props": {
+                  "text": "Each fix makes a row run where its outcome is certain, or follows a stated rule.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-d-small-alternatives",
+                "props": {
+                  "text": "- keep the live dialog row\n- keep VR-032 in a child process on an unchecked guess",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-d-small-evidence",
+                "props": {
+                  "text": "The 2 critiques (Codex D-05, D-06, D-07, D-09) and DRAFT.md's ticket rule.",
+                  "label": "Evidence",
+                  "badge": "spec"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-d-small-reverse",
+                "props": {
+                  "text": "Each is 1 row edit.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-d-small-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "4 smaller fixes from the critiques",
+          "section": "sec-story-2",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-d-auto",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-d-auto-decision",
+            "props": {
+              "text": "VR-020 checks that start refuses auto-approval-banned when a Claude managed setting disables bypass mode, or cannot be parsed.",
+              "label": "Decision"
+            },
+            "style": "font-weight: 600",
+            "children": [
+              {
+                "type": "text",
+                "id": "i-d-auto-why",
+                "props": {
+                  "text": "The trigger already exists in the playbook, so it is no design gap.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-d-auto-alternatives",
+                "props": {
+                  "text": "- send the refusal back to the design as a gap (the Codex critique)",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-d-auto-evidence",
+                "props": {
+                  "text": "herdr playbook H-4 defines the ban: disableBypassPermissionsMode disable in a managed source, and an unreadable policy counts as a ban.",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-d-auto-reverse",
+                "props": {
+                  "text": "Drop the row.",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-d-auto-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "The auto-approval refusal gets a unit row",
+          "section": "sec-story-1",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-26T19:46:50Z",
+          "raw": "[round R-1]\ni-f-contract c\ni-f-codex a\ni-app-none accept\ni-d-pane-ui accept\ni-d-api accept\ni-d-agent-run accept\ni-d-small accept\ni-d-auto accept",
+          "signals": [
+            {
+              "target": "i-f-contract",
+              "item": "i-f-contract",
+              "mark": "c",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "c9f0f2655de45ebb"
+            },
+            {
+              "target": "i-f-codex",
+              "item": "i-f-codex",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "f2659961083baaee"
+            },
+            {
+              "target": "i-app-none",
+              "item": "i-app-none",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "d64e398214e8aa79"
+            },
+            {
+              "target": "i-d-pane-ui",
+              "item": "i-d-pane-ui",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "64e72b9bd603f857"
+            },
+            {
+              "target": "i-d-api",
+              "item": "i-d-api",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "83d338d2cfd944c8"
+            },
+            {
+              "target": "i-d-agent-run",
+              "item": "i-d-agent-run",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "6c55c679fe7655a6"
+            },
+            {
+              "target": "i-d-small",
+              "item": "i-d-small",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "41de5ac92693090b"
+            },
+            {
+              "target": "i-d-auto",
+              "item": "i-d-auto",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "4eecd3464f338a8b"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "id": "sec-plan",
+      "title": "The plan: 63 rows, 33 at the high levels",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "sec-plan-t",
+        "props": {
+          "columns": [
+            "Level",
+            "Rows",
+            "Runs"
+          ],
+          "rows": [
+            [
+              "acceptance",
+              "6",
+              "a real 2-agent journey in herdr, by a worked example"
+            ],
+            [
+              "ui-e2e",
+              "20",
+              "a journey you see in a real pane"
+            ],
+            [
+              "api",
+              "7",
+              "the real dogfood.py command, as a child process or in a real herdr shell pane"
+            ],
+            [
+              "integration",
+              "5",
+              "real git in tmp folders"
+            ],
+            [
+              "contract",
+              "1",
+              "setup's real writer against the existing record readers"
+            ],
+            [
+              "unit",
+              "18",
+              "in-process, with the fake herdr runner"
+            ],
+            [
+              "static",
+              "6",
+              "skill-text and plugin checks"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-plan-t-see",
+            "props": {
+              "text": "Every acceptance criterion has at least 1 high-level row; 31 rows run live in herdr, by an agent unless a row says owner-run.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Reconciled from the Claude and Codex drafts and their critiques."
+        }
+      ]
+    },
+    {
+      "id": "sec-env",
+      "title": "5 environments and 5 data sets, named once",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "sec-env-t",
+        "props": {
+          "columns": [
+            "Id",
+            "What it is"
+          ],
+          "rows": [
+            [
+              "E-CI",
+              "CI windows-latest, pytest, tmp folders; LOCALAPPDATA redirected per test; herdr is the in-process FakeRunner extended with `agent get`; real git where the row says so. No fake executable."
+            ],
+            [
+              "E-CI-SUB",
+              "E-CI, but dogfood.py runs as a child process by argument list with LOCALAPPDATA in tmp; no herdr on PATH."
+            ],
+            [
+              "E-HERDR",
+              "Agent-run live: this Windows machine, herdr 0.9.5, 1 herdr tab; the verbs run from real shell panes (real HERDR_ENV and HERDR_PANE_ID); LOCALAPPDATA\\afkv2 in a scratch folder; result recorded in a live result table."
+            ],
+            [
+              "E-LIVE-C",
+              "E-HERDR plus a real Claude Code main agent in the main pane, afkv2 installed from the feature build, auto mode; the afkv2 agent is the real Claude Opus agent that start opens. Agent-run through herdr; owner-run only where the row says so."
+            ],
+            [
+              "E-LIVE-X",
+              "E-LIVE-C with a real Codex main agent in the main pane; the afkv2 agent stays Claude (AC-005)."
+            ],
+            [
+              "D-WORK",
+              "Throwaway work repository df-work: git init, 1 committed README.md, no remote; any write there is an afkv2-agent write."
+            ],
+            [
+              "D-SRC",
+              "Main checkout of the plugin source at the feature head; base branch verify/df-base pushed from feat/afkv2 for the run; the install record holds source <D-SRC>. Draft changes target verify/df-base and are closed after the run."
+            ],
+            [
+              "D-ASK",
+              "The worked-example asks: WE-01 \"step 4 of small-change is unclear\"; WE-02 ask 1 \"add a link to the ticket on the review page\", ask 2 \"the gc refusal text is unclear\"; a feature-sized ask \"add a new skill that lists my open Draft changes\"."
+            ],
+            [
+              "D-NOTE",
+              "Note files by NOTE-FORMAT.md: 1 valid milestone per change kind CK-1..CK-4, 1 valid wrap, 1 invalid note per rule code; a 16 KiB and a 16 KiB + 1 body."
+            ],
+            [
+              "D-REC",
+              "Install records in tmp: no source line; source <D-SRC>; a path with spaces; a path that no longer exists; a linked-worktree path."
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-env-t-see",
+            "props": {
+              "text": "The rows name these ids; no live HTTP app exists, so the high levels run in real herdr panes.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Reconciled from the Claude and Codex drafts and their critiques."
+        }
+      ]
+    },
+    {
+      "id": "sec-story-1",
+      "title": "Story 1: ask and keep working, 22 rows",
+      "state": "current",
+      "links": [
+        "sec-env"
+      ],
+      "body": {
+        "type": "table",
+        "id": "sec-story-1-t",
+        "props": {
+          "columns": [
+            "Id",
+            "Criteria",
+            "Given",
+            "When",
+            "Then",
+            "Level",
+            "Data",
+            "Environment"
+          ],
+          "rows": [
+            [
+              "VR-001",
+              "AC-001",
+              "A Claude main agent idles in the main pane in D-WORK and the install record has the source line.",
+              "The developer types /afkv2:dogfood with the WE-01 ask.",
+              "Within 120 s a second pane opens beside the main pane, herdr agent get dogfood-<4 hex> answers with working folder D-SRC and a first prompt that holds the role line and the ask, and the main agent hands the turn back to the developer.",
+              "ui-e2e",
+              "D-WORK, D-SRC, D-ASK WE-01",
+              "E-LIVE-C"
+            ],
+            [
+              "VR-002",
+              "AC-001",
+              "A Codex main agent idles in the main pane in D-WORK and the install record has the source line.",
+              "The developer runs the dogfood skill with the WE-01 ask.",
+              "The afkv2 pane opens as in VR-001, and no Codex approval prompt blocks the dogfood.py start call.",
+              "ui-e2e",
+              "D-WORK, D-SRC, D-ASK WE-01",
+              "E-LIVE-X"
+            ],
+            [
+              "VR-003",
+              "AC-004",
+              "The afkv2 pane of VR-001 is live and building.",
+              "The developer runs /afkv2:dogfood again with WE-02 ask 2.",
+              "Within 35 s start answers existing, herdr pane list still shows 2 panes in the tab, and the afkv2 pane shows ask 2 as a new prompt.",
+              "ui-e2e",
+              "VR-001 session, D-ASK WE-02 ask 2",
+              "E-LIVE-C"
+            ],
+            [
+              "VR-004",
+              "AC-005",
+              "The afkv2 pane of VR-001 is open.",
+              "The verifier reads the afkv2 pane status line and lets the agent make its first file edit.",
+              "The pane shows Claude Opus at the highest effort, and the first edit and the first shell command run with no approval dialog.",
+              "ui-e2e",
+              "VR-001 session",
+              "E-LIVE-C"
+            ],
+            [
+              "VR-009",
+              "AC-009, AC-011",
+              "The afkv2 pane of VR-001 is open with the base verify/df-base confirmed.",
+              "The developer gives the feature-sized ask in the afkv2 pane.",
+              "The afkv2 agent calls worktree --lane medium --branch <name>, git branch in D-SRC shows a branch apart from the small-asks branch, and the afkv2 pane shows /afkv2:grill-requirements running in that worktree.",
+              "ui-e2e",
+              "D-ASK feature ask, D-SRC",
+              "E-LIVE-C"
+            ],
+            [
+              "VR-010",
+              "AC-009",
+              "The afkv2 pane of VR-001 got the WE-01 ask.",
+              "The afkv2 agent starts work.",
+              "The afkv2 pane shows /afkv2:small-change running in the small-asks worktree feat/afkv2-df-<yyyymmdd-hhmm> cut from verify/df-base.",
+              "ui-e2e",
+              "D-ASK WE-01, D-SRC",
+              "E-LIVE-C"
+            ],
+            [
+              "VR-011",
+              "AC-010",
+              "A new pane session has opened and has no worktree yet.",
+              "The afkv2 agent starts the first ask.",
+              "It asks the developer in its pane which integration branch to use, suggests feat/afkv2, and calls worktree only after the answer (design ADR-0003).",
+              "ui-e2e",
+              "D-ASK WE-01",
+              "E-LIVE-C"
+            ],
+            [
+              "VR-005",
+              "AC-002",
+              "HERDR_ENV is not set and the install record has the source line.",
+              "dogfood.py start --ask-file F runs.",
+              "It prints 1 JSON refusal with code outside-herdr whose reason names start herdr and run the skill again, exits 1, and leaves no state file.",
+              "api",
+              "D-REC with source, D-ASK WE-01",
+              "E-CI-SUB"
+            ],
+            [
+              "VR-006",
+              "AC-002",
+              "HERDR_ENV=1 is set but no herdr is on PATH.",
+              "dogfood.py start --ask-file F runs.",
+              "It answers outside-herdr with the same repair, exits 1, and writes no state file.",
+              "api",
+              "D-REC with source, D-ASK WE-01",
+              "E-CI-SUB"
+            ],
+            [
+              "VR-007",
+              "AC-003",
+              "A herdr shell pane, and an install record with no source line.",
+              "dogfood.py start --ask-file F runs from that pane.",
+              "It answers no-source with a reason that names /afkv2:setup, exits 1, and herdr pane list shows no new pane.",
+              "api",
+              "D-REC no source",
+              "E-HERDR"
+            ],
+            [
+              "VR-008",
+              "AC-003",
+              "A herdr shell pane, and a source line whose path no longer exists.",
+              "dogfood.py start --ask-file F runs.",
+              "It answers source-broken with a reason that names setup, and opens no pane.",
+              "api",
+              "D-REC gone path",
+              "E-HERDR"
+            ],
+            [
+              "VR-012",
+              "—",
+              "A FakeRunner with no live state and a main pane id.",
+              "main([start, --ask-file, F], env, runner) runs.",
+              "The runner records 1 pane split, then agent start with --model, --effort and the auto-approval flag, then 1 agent prompt, and the state file (version 1, agent dogfood-<first 4 hex of SHA-256 of the pane id>) is written after agent start answers and before the prompt.",
+              "unit",
+              "FakeRunner, ask of 20 characters",
+              "E-CI"
+            ],
+            [
+              "VR-013",
+              "—",
+              "A FakeRunner that fails pane split, or fails agent start.",
+              "start runs.",
+              "It answers herdr-failed or agent-not-ready, writes no state file, and records pane close for a pane it opened.",
+              "unit",
+              "FakeRunner failure modes",
+              "E-CI"
+            ],
+            [
+              "VR-014",
+              "AC-004",
+              "A live state whose agent herdr agent get answers, and a stale state whose agent is gone.",
+              "start runs with a new ask.",
+              "The live state answers existing with 1 agent prompt and 0 pane split; the stale state opens a new pane, replaces the state file and reuses no old small branch.",
+              "unit",
+              "FakeRunner with agent get, 2 state files",
+              "E-CI"
+            ],
+            [
+              "VR-015",
+              "—",
+              "Agent names dogfood-<4 hex> clash with live agents 1, 2 and 3 times.",
+              "start runs.",
+              "It takes the next 4 hex digits after each clash and refuses after 3 tries.",
+              "unit",
+              "FakeRunner agents with clashing names",
+              "E-CI"
+            ],
+            [
+              "VR-016",
+              "AC-017",
+              "A state with a main pane id, an afkv2 pane id and a third pane id.",
+              "Each of the 7 verbs runs from each of the 3 pane ids, and each verb is given a target pane argument.",
+              "Each verb runs only from its permitted pane; every other call answers in-afkv2-pane or not-afkv2-pane with no herdr or git call; no verb accepts a target pane argument.",
+              "unit",
+              "state file, FakeRunner, 3 pane ids",
+              "E-CI"
+            ],
+            [
+              "VR-017",
+              "—",
+              "Ask files of 0 characters, 8001 characters, and bytes that are not UTF-8.",
+              "start runs with each.",
+              "Each answers ask-unreadable with exit 2; asks of 1 and of 8000 characters are taken.",
+              "unit",
+              "5 ask files",
+              "E-CI"
+            ],
+            [
+              "VR-018",
+              "—",
+              "A state file with version 2, and a main pane id with characters outside [A-Za-z0-9_-].",
+              "status and start run.",
+              "The unknown version refuses; the file name holds _ for each such character; at most 10 state files are read for the lookup.",
+              "unit",
+              "state files",
+              "E-CI"
+            ],
+            [
+              "VR-019",
+              "—",
+              "Each verb of dogfood.py on a success path and a refusal path.",
+              "The verb runs through main.",
+              "Stdout is 1 JSON object, ok true or ok false with error code and reason, and the exit is 0, 1 or 2 by the SDD section 3 contract.",
+              "unit",
+              "FakeRunner, D-NOTE",
+              "E-CI"
+            ],
+            [
+              "VR-020",
+              "—",
+              "A Claude managed settings file that sets disableBypassPermissionsMode to disable, and one that cannot be parsed.",
+              "start runs with each.",
+              "Each answers auto-approval-banned and records no pane split (herdr playbook H-4).",
+              "unit",
+              "2 managed settings files in tmp",
+              "E-CI"
+            ],
+            [
+              "VR-021",
+              "AC-002, AC-003",
+              "The dogfood SKILL.md.",
+              "The skill-text test reads it.",
+              "It maps outside-herdr, no-source and source-broken to the repair it tells the developer, and its command blocks run against main with a FakeRunner with no argument error.",
+              "static",
+              "dogfood SKILL.md",
+              "E-CI"
+            ],
+            [
+              "VR-022",
+              "—",
+              "The new skill folder and its 2 scripts.",
+              "The plugin check and the module-name test run.",
+              "The skill passes the plugin check, and dogfood.py, dogfood_note.py and their test modules have names unique in the tree.",
+              "static",
+              "afkv2 tree",
+              "E-CI"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-story-1-t-see",
+            "props": {
+              "text": "High-level rows first; each Then is what a judge compares to.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Reconciled from the Claude and Codex drafts and their critiques."
+        }
+      ]
+    },
+    {
+      "id": "sec-story-2",
+      "title": "Story 2: a milestone is applied at once, 21 rows",
+      "state": "current",
+      "links": [
+        "sec-env"
+      ],
+      "body": {
+        "type": "table",
+        "id": "sec-story-2-t",
+        "props": {
+          "columns": [
+            "Id",
+            "Criteria",
+            "Given",
+            "When",
+            "Then",
+            "Level",
+            "Data",
+            "Environment"
+          ],
+          "rows": [
+            [
+              "VR-027",
+              "AC-014, AC-015, AC-018",
+              "The WE-01 session of VR-001, with the Claude main agent idle.",
+              "The afkv2 agent commits the step-4 edit of small-change in its worktree.",
+              "With no developer input in either pane, notes/0001.md appears naming <worktree>/afkv2/skills/small-change/SKILL.md and a use line, and the main pane says it applied the small-change update and that the next small change uses it.",
+              "acceptance",
+              "D-ASK WE-01, D-SRC, D-WORK",
+              "E-LIVE-C"
+            ],
+            [
+              "VR-028",
+              "AC-018",
+              "The WE-01 session on a Codex main agent.",
+              "The afkv2 agent sends the WE-01 milestone note.",
+              "The Codex main agent runs check-note, says what it applied and how to try it, and its next small change reads the worktree SKILL.md.",
+              "acceptance",
+              "D-ASK WE-01, D-SRC, D-WORK",
+              "E-LIVE-X"
+            ],
+            [
+              "VR-029",
+              "AC-016, AC-019, AC-020, AC-021",
+              "A Claude main agent is at step 6 of a small change in D-WORK; steps 1 to 5 ran under the old text.",
+              "A note arrives that changes how step 3 writes the test plan (CK-1) and changes a hook (CK-4).",
+              "The note holds a redo line for the step-3 test plan and a best-effort line for the hook, and the main agent says it follows the new text from now on, shows the step-3 test plan rewritten, and says the hook part may not apply in this session.",
+              "acceptance",
+              "WE-03 note, a throwaway small change in D-WORK",
+              "E-LIVE-C"
+            ],
+            [
+              "VR-030",
+              "AC-019, AC-020, AC-021",
+              "A Codex main agent is at step 6 of a small change in D-WORK.",
+              "The WE-03 note arrives.",
+              "The Codex main agent switches to the new text, redoes the step-3 test plan at once without a question, and names the hook part best effort.",
+              "acceptance",
+              "WE-03 note, a throwaway small change in D-WORK",
+              "E-LIVE-X"
+            ],
+            [
+              "VR-023",
+              "AC-014",
+              "A Claude main agent is in a working turn of at least 60 s.",
+              "dogfood.py note sends a valid milestone note to the main pane during that turn.",
+              "The main pane shows the 1-line prompt as queued input, the current turn ends with no mention of the note, and the main agent takes the note as its next turn.",
+              "ui-e2e",
+              "D-NOTE milestone CK-1, D-WORK",
+              "E-LIVE-C"
+            ],
+            [
+              "VR-024",
+              "AC-014",
+              "A Codex main agent is in a working turn of at least 60 s.",
+              "dogfood.py note sends a valid milestone note during that turn.",
+              "The main pane shows the prompt queued, the current turn ends with no mention of it, and Codex takes the note as its next turn.",
+              "ui-e2e",
+              "D-NOTE milestone CK-1, D-WORK",
+              "E-LIVE-X"
+            ],
+            [
+              "VR-025",
+              "AC-014",
+              "The note prompt of VR-023 is queued in a working Claude main pane.",
+              "The verifier presses Ctrl+Enter in the main pane.",
+              "The main agent takes the note inside the current turn, before that turn ends.",
+              "ui-e2e",
+              "VR-023 state",
+              "E-LIVE-C"
+            ],
+            [
+              "VR-026",
+              "AC-014",
+              "The note prompt of VR-024 is queued in a working Codex main pane.",
+              "The verifier presses Ctrl+Enter in the main pane.",
+              "The main agent takes the note inside the current turn.",
+              "ui-e2e",
+              "VR-024 state",
+              "E-LIVE-X"
+            ],
+            [
+              "VR-031",
+              "AC-023",
+              "A sent milestone note names a changed file, and the afkv2 agent then deletes that file before the main agent's turn ends.",
+              "The Claude main agent runs check-note on the note.",
+              "check-note answers N-PATH-MISSING, the main agent applies nothing, and the afkv2 pane receives a tell --kind feedback that asks for a complete note.",
+              "ui-e2e",
+              "D-NOTE milestone CK-1, the deleted path",
+              "E-LIVE-C"
+            ],
+            [
+              "VR-033",
+              "AC-017",
+              "A herdr tab with the main pane, the afkv2 pane and a third bystander shell pane.",
+              "The afkv2 agent runs note with a valid note.",
+              "Only the main pane shows the 1-line prompt, herdr pane read of the bystander pane is unchanged, and note --target <pane> refuses as an unknown argument.",
+              "ui-e2e",
+              "D-NOTE milestone CK-1",
+              "E-LIVE-C"
+            ],
+            [
+              "VR-035",
+              "AC-022, AC-024",
+              "Before VR-027, the verifier records the SHA-256 of every file under the installed afkv2 plugin root and git status of each dogfood worktree.",
+              "VR-027 and VR-029 finish their apply.",
+              "Every installed file hash is the same, the worktrees show no change by the main agent, and a new Claude session in D-WORK reads the installed small-change text, not the worktree text.",
+              "ui-e2e",
+              "hash list of the install, D-SRC worktrees",
+              "E-LIVE-C"
+            ],
+            [
+              "VR-032",
+              "AC-023",
+              "A herdr shell pane that is the main pane of a state listing the worktree, a note with no changed row and one with no use line.",
+              "dogfood.py check-note --note-file N runs from that pane.",
+              "It answers note-check-failed with failures N-NO-PATH or N-NO-USE, each with code, where and reason, exits 1, and the notes folder and state file are unchanged.",
+              "api",
+              "D-NOTE invalid N-NO-PATH, N-NO-USE",
+              "E-HERDR"
+            ],
+            [
+              "VR-034",
+              "AC-017",
+              "A herdr shell pane that is the main pane of a live state.",
+              "dogfood.py note --note-file N runs from it.",
+              "It answers not-afkv2-pane and sends no prompt.",
+              "api",
+              "D-NOTE milestone CK-1",
+              "E-HERDR"
+            ],
+            [
+              "VR-036",
+              "AC-015, AC-023",
+              "The valid D-NOTE milestones for CK-1 to CK-4 and the valid wrap.",
+              "dogfood_note.parse and check(note, worktrees) run.",
+              "Each returns 0 failures and the parsed fields equal the note text.",
+              "unit",
+              "D-NOTE valid",
+              "E-CI"
+            ],
+            [
+              "VR-037",
+              "AC-015, AC-023",
+              "1 invalid note per rule code, N-HEADER to N-NO-CHANGES.",
+              "check runs on each.",
+              "Each returns exactly its own rule code with a where, and redo: none passes N-NO-REDO.",
+              "unit",
+              "D-NOTE invalid, a tmp worktree folder",
+              "E-CI"
+            ],
+            [
+              "VR-038",
+              "—",
+              "Note bodies of 16 KiB and of 16 KiB + 1.",
+              "note runs.",
+              "The first is checked and sent; the second refuses before any herdr call.",
+              "unit",
+              "D-NOTE size pair",
+              "E-CI"
+            ],
+            [
+              "VR-039",
+              "AC-014, AC-017",
+              "A live state and a valid note, with HERDR_PANE_ID the afkv2 pane.",
+              "note runs, then runs again with the same body.",
+              "The first records the check, then notes/0001.md, then 1 agent prompt to the state's main_pane whose text is 1 line holding the path, then the state record with sha256; the repeat answers already-sent with no prompt.",
+              "unit",
+              "FakeRunner, D-NOTE milestone CK-1",
+              "E-CI"
+            ],
+            [
+              "VR-040",
+              "—",
+              "A FakeRunner whose main pane is gone, and one whose prompt is not confirmed.",
+              "note runs.",
+              "The first answers main-pane-gone and records no note; the second answers sent unconfirmed and sends no second prompt.",
+              "unit",
+              "FakeRunner failure modes",
+              "E-CI"
+            ],
+            [
+              "VR-041",
+              "—",
+              "check-note on a valid and on an invalid note.",
+              "It runs.",
+              "It returns the parsed note or the failures, and the listing and mtime of the data folder are unchanged.",
+              "unit",
+              "D-NOTE",
+              "E-CI"
+            ],
+            [
+              "VR-042",
+              "AC-015",
+              "NOTE-FORMAT.md (the grammar the afkv2 agent emits by) and dogfood_note.py (the parser).",
+              "The test parses each example note of NOTE-FORMAT.md and compares its rule-code table with the codes the module emits.",
+              "Every example parses with 0 failures, and the 2 code sets are equal.",
+              "static (fork)",
+              "NOTE-FORMAT.md, dogfood_note.py",
+              "E-CI"
+            ],
+            [
+              "VR-043",
+              "AC-013, AC-017, AC-021, AC-022, AC-024",
+              "AGENT.md and APPLY.md.",
+              "The skill-text test reads them.",
+              "AGENT.md points at NOTE-FORMAT.md and dogfood.py note and bans a prompt to any other pane, writes to the work repository and a merge; APPLY.md has 1 step per CK-1 to CK-4, says CK-4 is best effort and is told to the developer, bans plugin writes, and says the apply lasts only for the session.",
+              "static",
+              "AGENT.md, APPLY.md",
+              "E-CI"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-story-2-t-see",
+            "props": {
+              "text": "High-level rows first; each Then is what a judge compares to.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Reconciled from the Claude and Codex drafts and their critiques."
+        }
+      ]
+    },
+    {
+      "id": "sec-story-3",
+      "title": "Story 3: feedback in either pane, 3 rows",
+      "state": "current",
+      "links": [
+        "sec-env"
+      ],
+      "body": {
+        "type": "table",
+        "id": "sec-story-3-t",
+        "props": {
+          "columns": [
+            "Id",
+            "Criteria",
+            "Given",
+            "When",
+            "Then",
+            "Level",
+            "Data",
+            "Environment"
+          ],
+          "rows": [
+            [
+              "VR-044",
+              "AC-025",
+              "The WE-01 change is applied and a trial of it in D-WORK printed an error.",
+              "The developer tells the Claude main agent in the main pane that the trial failed.",
+              "The afkv2 pane receives 1 prompt that holds the developer's words and the error text as it was printed.",
+              "ui-e2e",
+              "the trial error text, VR-027 session",
+              "E-LIVE-C"
+            ],
+            [
+              "VR-045",
+              "AC-026",
+              "The WE-01 session is open.",
+              "The developer types feedback in the afkv2 pane.",
+              "The afkv2 agent acts on it in its next turn, the main pane shows no prompt, and the main agent's tool log shows no dogfood.py call.",
+              "ui-e2e",
+              "VR-027 session, a 1-line feedback",
+              "E-LIVE-C"
+            ],
+            [
+              "VR-046",
+              "—",
+              "A FakeRunner with a live state.",
+              "tell runs with --kind feedback, --kind wrap, texts of 0 and 8001 characters, a stalled agent, an agent with a dialog, and no pane.",
+              "Feedback and wrap each send 1 agent prompt; the bad texts refuse; a stall gets exactly 1 Enter and no resend; a dialog answers prompt-blocked and types nothing; no pane answers no-pane.",
+              "unit",
+              "FakeRunner",
+              "E-CI"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-story-3-t-see",
+            "props": {
+              "text": "High-level rows first; each Then is what a judge compares to.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Reconciled from the Claude and Codex drafts and their critiques."
+        }
+      ]
+    },
+    {
+      "id": "sec-we-02",
+      "title": "A new ask while one builds, 3 rows",
+      "state": "current",
+      "links": [
+        "sec-env"
+      ],
+      "body": {
+        "type": "table",
+        "id": "sec-we-02-t",
+        "props": {
+          "columns": [
+            "Id",
+            "Criteria",
+            "Given",
+            "When",
+            "Then",
+            "Level",
+            "Data",
+            "Environment"
+          ],
+          "rows": [
+            [
+              "VR-047",
+              "AC-012, AC-029",
+              "The afkv2 agent builds WE-02 ask 1 and has sent no note.",
+              "The developer sends ask 2 through the main agent.",
+              "The afkv2 pane says ask 2 is queued, the small branch has no ask-2 commit before notes/0001.md exists, the afkv2 agent starts ask 2 right after that note, and the afkv2 pane stays open after each note.",
+              "acceptance",
+              "D-ASK WE-02",
+              "E-LIVE-C"
+            ],
+            [
+              "VR-048",
+              "AC-010",
+              "WE-02 ran to 2 milestones.",
+              "The afkv2 agent runs /afkv2:create-change-request.",
+              "gh pr view shows 1 Draft change from the 1 small-asks branch into verify/df-base, with 1 section per ask.",
+              "ui-e2e",
+              "D-ASK WE-02, D-SRC",
+              "E-LIVE-C"
+            ],
+            [
+              "VR-049",
+              "AC-010, AC-011",
+              "A real git source repository in tmp with a base branch, and a state file.",
+              "worktree --lane small --base B runs twice, then --lane medium with and without --branch, then with a missing base and a bad name.",
+              "The first small call creates feat/afkv2-df-<yyyymmdd-hhmm> from B and records it; the second answers the recorded worktree for the same lane and branch, or small-exists for another; medium without --branch, a bad or existing name and a missing base refuse and leave the state unchanged.",
+              "integration",
+              "tmp git repo, base B",
+              "E-CI, real git"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-we-02-t-see",
+            "props": {
+              "text": "High-level rows first; each Then is what a judge compares to.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Reconciled from the Claude and Codex drafts and their critiques."
+        }
+      ]
+    },
+    {
+      "id": "sec-story-5",
+      "title": "The wrap-up, 6 rows",
+      "state": "current",
+      "links": [
+        "sec-env"
+      ],
+      "body": {
+        "type": "table",
+        "id": "sec-story-5-t",
+        "props": {
+          "columns": [
+            "Id",
+            "Criteria",
+            "Given",
+            "When",
+            "Then",
+            "Level",
+            "Data",
+            "Environment"
+          ],
+          "rows": [
+            [
+              "VR-050",
+              "AC-027, AC-028, AC-013",
+              "The WE-02 session holds 1 finished ask and 1 open ask, with a Claude main agent.",
+              "The developer tells the main agent the main work is done.",
+              "The afkv2 agent pushes and updates the Draft change, the main pane reports the change URL and the open ask, the afkv2 pane closes, D-SRC still lists each dogfood worktree and branch, the Draft change is not merged, D-WORK is clean, and the state file and notes folder are gone.",
+              "acceptance",
+              "VR-047 session",
+              "E-LIVE-C"
+            ],
+            [
+              "VR-051",
+              "AC-027",
+              "A WE-01 session with a Codex main agent.",
+              "The developer tells the main agent the main work is done.",
+              "The main agent sends the wrap, reports the wrap note, then runs close, and the afkv2 pane closes.",
+              "ui-e2e",
+              "VR-028 session",
+              "E-LIVE-X"
+            ],
+            [
+              "VR-052",
+              "AC-028",
+              "A live state whose afkv2 pane the verifier closed by hand.",
+              "dogfood.py close --force runs from the main pane.",
+              "It answers ok with worktrees and branches listed as kept, and git worktree list of D-SRC is unchanged.",
+              "api",
+              "1 small worktree",
+              "E-HERDR"
+            ],
+            [
+              "VR-053",
+              "AC-028",
+              "A wrapped state that lists 1 small and 1 medium real git worktree in a tmp source repository.",
+              "close runs.",
+              "It deletes the state and the notes folder, and git worktree list and git branch still show both worktrees and both branches.",
+              "integration",
+              "tmp git repo, 2 worktrees, wrap note",
+              "E-CI, real git"
+            ],
+            [
+              "VR-054",
+              "AC-027, AC-029",
+              "A FakeRunner with a live state.",
+              "close runs before a wrap note, with --force on a live pane, after a wrap note, and with no state.",
+              "Before the wrap it answers no-wrap-report; --force on a live pane refuses; after the wrap it records 1 pane close; no state answers ok; no verb but close records a pane close of the afkv2 pane.",
+              "unit",
+              "FakeRunner, wrap note",
+              "E-CI"
+            ],
+            [
+              "VR-055",
+              "AC-029",
+              "The dogfood SKILL.md.",
+              "The skill-text test reads it.",
+              "It states the 1 exception to playbook rule H-8: the afkv2 pane stays open after each result until the wrap-up.",
+              "static",
+              "dogfood SKILL.md",
+              "E-CI"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-story-5-t-see",
+            "props": {
+              "text": "High-level rows first; each Then is what a judge compares to.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Reconciled from the Claude and Codex drafts and their critiques."
+        }
+      ]
+    },
+    {
+      "id": "sec-setup",
+      "title": "Setup records the plugin source, 8 rows",
+      "state": "current",
+      "links": [
+        "sec-env"
+      ],
+      "body": {
+        "type": "table",
+        "id": "sec-setup-t",
+        "props": {
+          "columns": [
+            "Id",
+            "Criteria",
+            "Given",
+            "When",
+            "Then",
+            "Level",
+            "Data",
+            "Environment"
+          ],
+          "rows": [
+            [
+              "VR-056",
+              "AC-006, AC-007",
+              "A Claude session in D-WORK, D-SRC a child of D-WORK's parent folder, and an install record with no source line.",
+              "The developer runs /afkv2:setup and confirms the suggested path.",
+              "Setup suggests the D-SRC path and asks to confirm or type another, the install record holds source <D-SRC>, and a second /afkv2:setup asks nothing about the source.",
+              "ui-e2e",
+              "D-REC no source, D-SRC",
+              "E-LIVE-C"
+            ],
+            [
+              "VR-057",
+              "AC-006, AC-008",
+              "A Claude session with no plugin checkout in the search roots, and a linked worktree of D-SRC.",
+              "The developer runs /afkv2:setup, is asked for a path, and types the linked-worktree path, then a path of D-WORK.",
+              "Setup says the first is not a main checkout and the second is not the plugin source, and the install record holds no source line.",
+              "ui-e2e",
+              "D-REC no source, a linked worktree, D-WORK",
+              "E-LIVE-C"
+            ],
+            [
+              "VR-062",
+              "—",
+              "An install record that setup's real writer wrote with a source line, one with spaces in its path.",
+              "The existing readers in other_provider.py and autopilot end_gate.py read it.",
+              "Each ignores the line and answers as before.",
+              "contract (fork)",
+              "D-REC with source",
+              "E-CI"
+            ],
+            [
+              "VR-058",
+              "AC-006",
+              "Tmp homes where a plugin main checkout sits 2 levels under the parent folder, sits 3 levels deep, or does not exist.",
+              "setup.main([source]) runs.",
+              "It answers suggested with the path for the first and none for the others, and reads no folder outside the current repository, its main checkout, and 2 levels of the parent and home folders.",
+              "integration",
+              "tmp folders, real git",
+              "E-CI, real git"
+            ],
+            [
+              "VR-059",
+              "AC-007, AC-008",
+              "Tmp repositories: a plugin main checkout, the same with a space in its path, a linked worktree of it, a repository without the plugin markers, a plain folder, and a relative path.",
+              "setup.main([source, --path, P]) runs with each, and twice for the first.",
+              "The checkout answers written both times with 1 line, read back whole by read_install_record; the others answer not-main-checkout, not-plugin-source, not-a-repo or a refusal of the relative path, and the record is unchanged.",
+              "integration",
+              "tmp repos, D-REC",
+              "E-CI, real git"
+            ],
+            [
+              "VR-060",
+              "—",
+              "An install record with a source line.",
+              "Another setup run rewrites the record (prepare).",
+              "The source line is kept.",
+              "integration",
+              "D-REC with source",
+              "E-CI"
+            ],
+            [
+              "VR-061",
+              "—",
+              "Records with a good, a missing and a broken source line.",
+              "setup.main([status]) runs.",
+              "source reads ok, missing and broken in turn, and every caller of status in the tree reads fields by name.",
+              "unit",
+              "D-REC",
+              "E-CI"
+            ],
+            [
+              "VR-063",
+              "AC-006",
+              "The setup SKILL.md.",
+              "The skill-text test reads it.",
+              "It holds the source step, which runs only when status reports source missing or broken.",
+              "static",
+              "setup SKILL.md",
+              "E-CI"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-setup-t-see",
+            "props": {
+              "text": "High-level rows first; each Then is what a judge compares to.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Reconciled from the Claude and Codex drafts and their critiques."
+        }
+      ]
+    },
+    {
+      "id": "sec-boundaries",
+      "title": "7 boundaries; 1 has a contract test today",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "sec-boundaries-t",
+        "props": {
+          "columns": [
+            "Boundary",
+            "Contract test",
+            "Rows",
+            "Ticket"
+          ],
+          "rows": [
+            [
+              "herdr CLI 0.9.5: pane and agent verbs, HERDR_ENV, HERDR_PANE_ID",
+              "no",
+              "VR-001, VR-003, VR-007, VR-034, VR-052",
+              "propose: a check of the herdr JSON answers that HerdrRunner reads, per verb, on the pinned herdr"
+            ],
+            [
+              "claude CLI start flags",
+              "no",
+              "VR-001, VR-004",
+              "propose: a live check that the pinned claude CLI takes the start flags and reports model and effort"
+            ],
+            [
+              "Claude and Codex input queue of a typed prompt",
+              "no",
+              "VR-023 to VR-026",
+              "propose: a live check with a result table, run again at each harness upgrade"
+            ],
+            [
+              "git worktree and branch",
+              "no",
+              "VR-009, VR-049, VR-050, VR-053",
+              "propose: a check of the git worktree output that dogfood.py reads, on the CI git"
+            ],
+            [
+              "install record: setup writes, dogfood reads, other readers ignore",
+              "yes, by the recommended fork option",
+              "VR-062, VR-059, VR-007",
+              "—"
+            ],
+            [
+              "milestone note: AGENT.md emits by NOTE-FORMAT.md, dogfood_note.py parses",
+              "no, by the recommended fork option",
+              "VR-042, VR-027, VR-031",
+              "propose: a check that replays recorded afkv2 agent notes through the parser"
+            ],
+            [
+              "lanes and forge: small-change, grill-requirements, create-change-request",
+              "no",
+              "VR-009, VR-010, VR-048, VR-050",
+              "propose: a skill-text check that create-change-request takes its target from the invocation and AGENT.md passes the confirmed base"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-boundaries-t-see",
+            "props": {
+              "text": "Each boundary with no contract test keeps a live high-level row and a proposed ticket.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Reconciled from the Claude and Codex drafts and their critiques."
+        }
+      ]
+    }
+  ]
+}

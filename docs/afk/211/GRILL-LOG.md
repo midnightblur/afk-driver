@@ -72,3 +72,7 @@
 - Spinoff: proposer engine reported a Codex proposer submitted while Codex 0.167.2 showed a hooks-review dialog and never read the brief → the Codex draft is lost and the session drafts alone; a startup dialog the engine does not detect is outside this ticket
 - Settled: design gate passed 2026-11-26 · session s-20261125-211334
 - Last pass: R3 · session s-20261125-211334
+
+## Verification plan
+
+- Settled: verification written 2026-11-26 · session s-20261126-192906
