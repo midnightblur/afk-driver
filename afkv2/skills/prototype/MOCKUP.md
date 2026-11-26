@@ -1,13 +1,22 @@
 # Mockup rules
 
-A mockup is 1 self-contained HTML file per screen in the `prototype/` folder of the spec folder. It looks like the app, and the developer can use it: clicks move between screens, forms check their input, and actions change the in-file state. `prototype_files.py check` enforces the rules of "The file"; the other rules are yours.
+A mockup is 1 self-contained HTML file in the `prototype/` folder of the spec folder, and it holds every screen. It looks like the app, and the developer can use it: clicks move between screens, forms check their input, and actions change the in-file state. `prototype_files.py check` enforces the rules of "The file" and "Screens and routes"; the other rules are yours.
 
 ## The file
 
 - Inline all CSS and JS. Use no build step, no framework runtime and no import that needs a server.
 - The file opens from its `file://` path and makes no network call: no URL with a scheme and no `//host` address in any place of the file, and no `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `sendBeacon` or `import()`. A relative path, a `#id` link and a `data:`, `blob:`, `javascript:`, `mailto:`, `tel:` or `about:` URL pass the check. Draw icons as inline SVG, and use the system fonts or the font names of the anchor.
 - Never copy the afkv2 tooltip block or any lavish runtime into the file.
-- Keep the file near 100 KB, at most 500 KB.
+- Keep the file near 100 KB per screen, at most 500 KB.
+
+## Screens and routes
+
+lavish annotates only the file that it opened, and it refuses a load of that file with a changed query. So the mockup never loads a page: every click stays in the 1 file.
+
+- Route each screen by the hash: `#/<screen>`, with its parameters after it, such as `#/detail?id=7&as=ann`. Render the screen on load and on `hashchange`.
+- Keep all state in the hash or in the in-file data, also the viewer and the variant. Never read or write `location.search` or `location.pathname`.
+- Link only to a `#` route. Never link to another file, never call `location.assign`, `location.replace` or `location.reload`, and never let a form submit: handle it in script.
+- lavish drops the hash when it reloads the file after an edit. Keep the route in `window.name` at each render, such as `mockup:#/detail?id=7`, and restore it on load when the hash is empty. An unknown route shows the entry screen.
 
 ## App shell and neighbours
 
@@ -31,10 +40,11 @@ A mockup is 1 self-contained HTML file per screen in the `prototype/` folder of 
 ## Regions
 
 - Put an `id` on every region the developer may note: each table, form, filter bar, card, dialog and navigation block. A lavish note selector stops at the nearest `id`, so a region with an `id` names the element of the note.
+- Start each `id` with its screen, such as `detail-items`: the note names no route, so the `id` names the screen.
 - Keep each `id` stable across edits.
 
 ## Variants
 
-- When the direction is unclear, put 2 to 3 variants in the 1 file. A `?variant=<name>` parameter picks a variant, and a switcher bar at the edge of the screen changes it.
+- When the direction is unclear, put 2 to 3 variants in the 1 file. A `variant=<name>` parameter of the hash route picks a variant, and a switcher bar at the edge of the screen changes it.
 - Make the variants differ in layout, in the order of the information or in the main action, not only in color.
 - At the settle, delete the losing variants and the switcher bar.

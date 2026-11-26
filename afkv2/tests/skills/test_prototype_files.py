@@ -184,6 +184,60 @@ def test_the_network_check_flags_a_protocol_relative_address():
     expect([finding["line"] for finding in prototype_files.find_network_calls(text)], [1], repr(text))
 
 
+# --- the page-leave check: lavish annotates only the file it opened, and drops a load whose query changed ---------
+
+LEAVES = [
+    ('<a href="detail.html">Detail</a>', "a link to another file"),
+    ('<a href="./detail.html?id=1">Detail</a>', "a relative link with a query"),
+    ("<a href=\"${L('detail.html')}\">", "a link built in a template"),
+    ('<a href="">Self</a>', "an empty href reloads the file"),
+    ('<form action="save.html">', "a form that posts to a file"),
+    ('<button formaction="save">Save</button>', "a formaction"),
+    ("location.search = 'as=bob';", "a query write"),
+    ("const q = new URLSearchParams(location.search);", "a query read"),
+    ("window.location.href = 'detail.html';", "an href write"),
+    ("document.location = 'detail.html';", "a location write"),
+    ("location.assign('detail.html');", "assign"),
+    ("location.replace('detail.html');", "replace"),
+    ("location.reload();", "reload"),
+    ("const path = location.pathname;", "a path read"),
+]
+STAYS = [
+    '<a href="#/detail?id=1">Detail</a>',
+    "<a href=\"#/${screen}\">",
+    '<a href="javascript:void 0">x</a>',
+    "location.hash = '#/detail';",
+    "const route = location.hash;",
+    "addEventListener('hashchange', route);",
+    "if (a.href == b.href) go();",
+    '<img src="logo.png" alt="">',
+]
+
+
+@pytest.mark.parametrize("snippet, why", LEAVES)
+def test_the_page_leave_check_flags_a_load_of_another_page(snippet, why):
+    found = prototype_files.find_page_leaves(f"<p>x</p>\n{snippet}\n")
+    expect([finding["line"] for finding in found], [2], f"{why}: {snippet!r}")
+
+
+@pytest.mark.parametrize("snippet", STAYS)
+def test_the_page_leave_check_passes_hash_routes_and_inline_content(snippet):
+    expect(prototype_files.find_page_leaves(snippet), [], repr(snippet))
+
+
+def test_check_refuses_page_leave_naming_each_line(tmp_path):
+    text = clean_lf().decode("utf-8").replace('<a href="#orders">', '<a href="orders-detail.html">')
+    (tmp_path / "orders.html").write_text(text + "<script>location.reload();</script>\n", encoding="utf-8",
+                                          newline="\n")
+    note("orders.html is clean.html with its #orders link set to orders-detail.html on line 11, and a reload call "
+         "on the last line")
+    ran = run(tmp_path, "check", "--mockup", "orders.html")
+    expect_refusal(ran, 1, "page-leave")
+    lines = [finding["line"] for finding in ran.answer["error"]["lines"]]
+    expect(lines, [11, text.count("\n") + 1], ran.given)
+    expect_in("orders.html:11", ran.answer["error"]["reason"], ran.given)
+
+
 # --- check (VR-008, VR-009) ----------------------------------------------------------------------------------------
 
 def test_check_refuses_network_call_naming_each_line_with_a_call(tmp_path):
@@ -486,6 +540,7 @@ def test_settle_refuses_secrets_with_the_file_and_line_and_keeps_the_index(repo)
 @pytest.mark.parametrize("old, new, code_name", [
     ("<nav id=\"nav\">", "<script src=\"https://cdn.example/a.js\"></script>\n<nav id=\"nav\">", "network-call"),
     ("</body>", f"{inject.MARK_START}\n{inject.MARK_END}\n</body>", "afkv2-runtime"),
+    ("<nav id=\"nav\">", "<a href=\"detail.html\">Detail</a>\n<nav id=\"nav\">", "page-leave"),
 ])
 def test_settle_runs_the_mockup_checks_on_every_mockup_and_keeps_the_index(repo, old, new, code_name):
     edit(spec(repo) / "prototype" / "orders.html", old, new)
@@ -496,6 +551,20 @@ def test_settle_runs_the_mockup_checks_on_every_mockup_and_keeps_the_index(repo,
     expect(prototype_row(repo), FIXTURE_ROW, ran.given)
     after = (spec(repo) / "INDEX.md").read_bytes()
     expect(after.decode("utf-8"), before.decode("utf-8"), f"{ran.given}: INDEX.md unchanged")
+
+
+def test_settle_takes_a_mockup_cell_with_a_hash_route(repo):
+    edit(spec(repo) / "PROTOTYPE.md", "| prototype/orders.html |", "| prototype/orders.html#/orders |")
+    ran = run(repo, "settle", "--ticket", TICKET, pinned=True)
+    expect_ok(ran)
+
+
+def test_settle_refuses_a_second_html_file_in_the_mockup_folder(repo):
+    shutil.copyfile(FIXTURES / "clean.html", spec(repo) / "prototype" / "detail.html")
+    note("prototype/detail.html is clean.html")
+    ran = run(repo, "settle", "--ticket", TICKET)
+    expect_refusal(ran, 1, "bad-prototype")
+    expect_problem("prototype/ holds 2 HTML files: detail.html, orders.html", ran)
 
 
 def test_settle_checks_every_file_of_the_mockup_folder(repo):

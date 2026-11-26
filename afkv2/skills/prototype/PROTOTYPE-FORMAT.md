@@ -2,7 +2,7 @@
 
 `PROTOTYPE.md` is the settled record of a prototype run, in the spec folder of the ticket. Only the prototype skill writes `PROTOTYPE.md` and the `INDEX.md` Prototype row. Every other skill only reads them. `scripts/prototype_files.py settle` checks the file against this page and refuses `bad-prototype` with a list of `problems`.
 
-The mockups sit in `prototype/` of the spec folder, 1 HTML file per screen.
+The mockup sits in `prototype/` of the spec folder: 1 HTML file that holds every screen, each at its own `#/<screen>` route.
 
 ## Header
 
@@ -41,9 +41,9 @@ The sections come in this order, each a `##` heading with the name in the first 
 
 | Screen | Mockup | Entry point | Stories |
 |--------|--------|-------------|---------|
-| the screen name | the mockup file from the spec folder, such as `prototype/orders.html` | where the user enters the screen | the story numbers, such as `1, 2` |
+| the screen name | the mockup file from the spec folder and the route of the screen, such as `prototype/orders.html#/detail` | where the user enters the screen | the story numbers, such as `1, 2` |
 
-At least 1 row. Each mockup file exists in `prototype/`.
+At least 1 row. The mockup file of each row exists in `prototype/`, and `prototype/` holds only 1 HTML file.
 
 ## Coverage table
 
@@ -55,4 +55,4 @@ At least 1 row. Each mockup file exists in `prototype/`.
 
 ## Checks at settle
 
-Settle checks every file in `prototype/` for `network-call` and `afkv2-runtime`, and scans `PROTOTYPE.md` and every file in `prototype/` for secrets (`secrets`, with file, line and shape). A file over 2 MiB (2 097 152 bytes), past what the scan reads, refuses `bad-prototype`. Only after every check passes does settle set the `INDEX.md` Prototype row to `chosen <YYYY-MM-DD>`.
+Settle checks every file in `prototype/` for `afkv2-runtime`, `network-call` and `page-leave`, and scans `PROTOTYPE.md` and every file in `prototype/` for secrets (`secrets`, with file, line and shape). A file over 2 MiB (2 097 152 bytes), past what the scan reads, refuses `bad-prototype`. Only after every check passes does settle set the `INDEX.md` Prototype row to `chosen <YYYY-MM-DD>`.

@@ -1,11 +1,11 @@
 ---
 name: prototype
-description: /afkv2:prototype — turns a settled PRD that adds or changes a screen into 1 clickable HTML mockup per screen that looks like the app, with made-up data. Anchors on the design catalog, the live app or the frontend source, shows the mockup file in lavish or by its file:// path, edits it for each note, and settles PROTOTYPE.md and the INDEX row. Stops with no_ui when no story adds or changes a screen. Use after the PRD is settled, before the design.
+description: /afkv2:prototype — turns a settled PRD that adds or changes a screen into 1 clickable HTML mockup that holds every screen and looks like the app, with made-up data. Anchors on the design catalog, the live app or the frontend source, shows the mockup file in lavish or by its file:// path, edits it for each note, and settles PROTOTYPE.md and the INDEX row. Stops with no_ui when no story adds or changes a screen. Use after the PRD is settled, before the design.
 ---
 
 # /afkv2:prototype
 
-1 run turns the screen stories of a settled PRD into 1 clickable mockup per screen, takes the developer's notes on it, and settles `PROTOTYPE.md`. Write each mockup by [MOCKUP.md](MOCKUP.md), and `PROTOTYPE.md` by [PROTOTYPE-FORMAT.md](PROTOTYPE-FORMAT.md). Only this skill writes `PROTOTYPE.md` and the `INDEX.md` Prototype row.
+1 run turns the screen stories of a settled PRD into 1 clickable mockup that holds every screen, takes the developer's notes on it, and settles `PROTOTYPE.md`. Write each mockup by [MOCKUP.md](MOCKUP.md), and `PROTOTYPE.md` by [PROTOTYPE-FORMAT.md](PROTOTYPE-FORMAT.md). Only this skill writes `PROTOTYPE.md` and the `INDEX.md` Prototype row.
 
 ## Hands-off
 
@@ -60,7 +60,7 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
    | `pick-frontend` | first check for a screen in the same way. Then ask the developer which of the listed names, and run `start` again with `--frontend` |
    | any other code | the repository config is missing or broken: stop, and give the developer the reason |
 
-   `resume` true: read `PROTOTYPE.md` and the mockups it names, and run `check` on each mockup; fix each line it names, as in step 3. Run step 2, then go to step 4.
+   `resume` true: read `PROTOTYPE.md` and the mockup it names, and run `check` on it; fix each line it names, as in step 3. Run step 2, then go to step 4.
 
 2. **Anchor.** Copy the look of the app from the source that `anchor` names:
 
@@ -80,7 +80,7 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
 
    Also map the neighbours of each screen: the screens a story enters from, and the screens the new screen links to.
 
-3. **Draft.** Write 1 mockup per screen into `mockup_dir`, by [MOCKUP.md](MOCKUP.md), with made-up data only: copy the look of the app, and never copy a record from a screenshot, the live screen or its database. A mockup of an earlier run is already in `mockup_dir`: keep it and its edits, and change it instead of a new draft. The direction is unclear: give 2 to 3 variants in the file. Run `check` on each mockup, and fix each line it names. Done when `check` answers ok for every mockup.
+3. **Draft.** Write 1 mockup file with every screen into `mockup_dir`, by [MOCKUP.md](MOCKUP.md), with made-up data only: copy the look of the app, and never copy a record from a screenshot, the live screen or its database. A mockup of an earlier run is already in `mockup_dir`: keep it and its edits, and change it instead of a new draft. It has 1 file per screen: merge the screens and their edits into 1 file, and delete the other files. The direction is unclear: give 2 to 3 variants in the file. Run `check` on the mockup, and fix each line it names. Done when `check` answers ok.
 
 4. **Take the notes.** By "Notes loop".
 
@@ -111,7 +111,7 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
 
 ## Notes loop
 
-Show the mockup in lavish only when the developer did not ask for chat only. Else, or when `show` refuses, take the notes in chat. With several screens, show the entry screen; the developer clicks through to the others.
+Show the mockup in lavish only when the developer did not ask for chat only. Else, or when `show` refuses, take the notes in chat. lavish shows the entry screen; the developer clicks through to the others, all in the 1 file.
 
 Each note names its element by the `selector`, the `tag` and the `text` that lavish pins on it; a note in chat names it in words. Give each note an edit of the mockup or a reply, never neither. Run `check` after each edit. Repeat the loop until the developer settles a direction or stops.
 

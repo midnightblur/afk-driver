@@ -75,6 +75,17 @@ _NAMES = re.compile(r"<!DOCTYPE[^>]*>|https?://www\.w3\.org/(?:2000/svg|1999/xht
                     r"|XML/1998/namespace|2000/xmlns/?)(?![\w/.-])", re.I)
 
 
+# A load of another page. lavish (0.1.86) annotates only the file it opened and refuses a load whose query changed,
+# so a mockup is 1 page that routes by its hash. A link or a form target counts unless it starts with `#` or a scheme
+# (a scheme URL is a network call); a `location` use counts unless it is the hash.
+PAGE_LEAVE = {
+    "link": re.compile(r"\b(?:href|action|formaction)\s*=(?!=)\s*"
+                       r"(?![\"']?\s*(?:#|[A-Za-z][A-Za-z0-9+.-]*:|[/\\]{2}))", re.I),
+    "location-call": re.compile(r"\blocation\s*\.\s*(?:search|pathname|assign|replace|reload)\b"),
+    "location-write": re.compile(r"\blocation(?:\s*\.\s*href)?\s*=(?!=)"),
+}
+
+
 def _line_of(breaks, offset):
     return bisect.bisect_right(breaks, offset) + 1
 
@@ -82,12 +93,24 @@ def _line_of(breaks, offset):
 def find_network_calls(text):
     """1 finding `{line, found, text}` per line with a call or a scheme URL, in line order. `found` names each kind
     on that line; `text` is the stripped line. Works on any text: a mockup, a catalog card or a style sheet."""
+    return _find(text, NETWORK, _NAMES)
+
+
+def find_page_leaves(text):
+    """1 finding `{line, found, text}` per line that loads another page: a link or a form target that is not a `#`
+    route, or a `location` use that is not the hash."""
+    return _find(text, PAGE_LEAVE)
+
+
+def _find(text, patterns, names_pattern=None):
+    """1 finding per line where a pattern of `patterns` matches, each line read with its HTML entities decoded. A
+    match of the kind `address` inside a match of `names_pattern` does not count."""
     lines = text.split("\n")
     decoded = "\n".join(html.unescape(line).replace("\n", " ") for line in lines)
     breaks = [match.start() for match in re.finditer("\n", decoded)]
-    names = [match.span() for match in _NAMES.finditer(decoded)]
+    names = [match.span() for match in names_pattern.finditer(decoded)] if names_pattern else []
     kinds = {}
-    for kind, pattern in NETWORK.items():
+    for kind, pattern in patterns.items():
         for match in pattern.finditer(decoded):
             if kind == "address" and any(start <= match.start() < end for start, end in names):
                 continue
@@ -109,7 +132,7 @@ def _where(findings, name):
 
 
 def check_text(text, name):
-    """Refuse `afkv2-runtime`, then `network-call`, for the text of one written file; `name` names it."""
+    """Refuse `afkv2-runtime`, then `network-call`, then `page-leave`, for the text of one written file; `name` names it."""
     marks = [number for number, line in enumerate(text.split("\n"), 1) if MARK_START in line or MARK_END in line]
     if marks:
         where = _where([{"line": number} for number in marks], name)
@@ -120,6 +143,11 @@ def check_text(text, name):
     if calls:
         raise Refusal("network-call", f"a network call or a scheme URL at {_where(calls, name)}: a mockup makes no "
                                       "network call; inline the asset or use a #id link", file=str(name), lines=calls)
+    leaves = find_page_leaves(text)
+    if leaves:
+        raise Refusal("page-leave", f"a load of another page at {_where(leaves, name)}: a mockup is 1 page that "
+                                    "routes by its hash; link to #/<screen> and keep all state in the hash",
+                      file=str(name), lines=leaves)
 
 
 def cmd_check(argv):
@@ -237,8 +265,12 @@ def prototype_problems(markdown, stories, spec_dir, frontends):
     screens = _table(bodies.get("Screens", ""))
     if "Screens" in bodies and not screens:
         problems.append("the Screens table has no row")
+    pages = sorted(p.name for p in (spec_dir / MOCKUP_DIR).glob("*.html"))
+    if len(pages) > 1:
+        problems.append(f"{MOCKUP_DIR}/ holds {len(pages)} HTML files: {', '.join(pages)}; a mockup is 1 file that "
+                        "routes each screen by its hash")
     for screen in screens:
-        mockup = screen.get("Mockup", "").strip("` ")
+        mockup = screen.get("Mockup", "").strip("` ").split("#", 1)[0]  # the file; `#/<screen>` is its route
         parts = PurePosixPath(mockup).parts
         if len(parts) < 2 or parts[0] != MOCKUP_DIR or ".." in parts:
             problems.append(f"screen {screen.get('Screen')!r}: mockup {mockup or '(empty)'} is not a file in {MOCKUP_DIR}/")

@@ -101,6 +101,26 @@ def test_mockup_is_clickable_from_the_entry_screen_inside_the_shell():
     _states(MOCKUP_MD, shell, "neighbour")
 
 
+# lavish (0.1.86) annotates only the file it opened, refuses a load with a changed query, and drops the hash when it
+# reloads after an edit; window.name survives that reload (proved in a scratch lavish session)
+
+def test_the_mockup_is_1_file_that_routes_by_its_hash():
+    routes = "## Screens and routes"
+    _states(MOCKUP_MD, "# Mockup rules", "1 self-contained HTML file in the `prototype/` folder")
+    _states(MOCKUP_MD, "# Mockup rules", "per screen in the", present=False)
+    _states(MOCKUP_MD, routes, "Route each screen by the hash: `#/<screen>`")
+    _states(MOCKUP_MD, routes, "Never read or write `location.search` or `location.pathname`.")
+    _states(MOCKUP_MD, routes, "Never link to another file")
+    _states(MOCKUP_MD, routes, "Keep the route in `window.name` at each render")
+    _states(MOCKUP_MD, routes, "An unknown route shows the entry screen.")
+    _states(MOCKUP_MD, "## Regions", "Start each `id` with its screen")
+    _states(MOCKUP_MD, "## Variants", "`variant=<name>` parameter of the hash route")
+    _states(SKILL_MD, "## Steps", "merge the screens and their edits into 1 file")
+    _states(SKILL_MD, "## Notes loop", "all in the 1 file")
+    _states(HOME / "PROTOTYPE-FORMAT.md", "## Screens table", "`prototype/orders.html#/detail`")
+    _states(HOME / "PROTOTYPE-FORMAT.md", "## Checks at settle", "`page-leave`")
+
+
 def test_every_verb_the_guides_name_exists():
     """Each `<script> <verb>` the guides name is a `cmd_<verb>` of that script; the notes loop calls `wait`."""
     scripts = HOME / "scripts"
