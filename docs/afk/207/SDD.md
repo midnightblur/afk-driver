@@ -70,8 +70,8 @@ Every surface answers one JSON object: `{"ok": true, ...}` or `{"ok": false, "er
 | `prototype_files.py start` | `--ticket K [--frontend NAME]` | `spec_dir, prd, index, prototype_md, mockup_dir, frontend {name, source, catalog}, catalog_exists, live, resume` | `missing-input` (no PRD; `writer` to-prd), `no-frontend` (reason names `catalog_files.py add-frontend`), `pick-frontend` (lists the names; several entries and no `--frontend`) |
 | `prototype_files.py check` | `--mockup F` | `file` | `network-call` (each line), `afkv2-runtime` (the tooltip block), `unreadable` |
 | `prototype_files.py settle` | `--ticket K` | `scanned` (files), `index_state` (`chosen <date>`) | `bad-prototype` (`problems`, for example a missing coverage row), `network-call`, `afkv2-runtime`, `secrets` (`file, line, shape`) |
-| `mockup_show.py show` | `--mockup F` | `url` | `no-host` (lavish missing, pin mismatch or `LAVISH_AXI_HOST` set; `reason`) |
-| `mockup_show.py wait` | `--mockup F --notes-file N` | `count`, `ended`; N holds `[{uid, prompt, selector, tag, text}]` | `no-session` |
+| `mockup_show.py show` | `--mockup F` | `url`, `tab` (`reused` when a tab record shows the mockup already open, and the show adds `--no-open`; else null) | `no-host` (lavish missing, pin mismatch or `LAVISH_AXI_HOST` set; `reason`), `no-data-folder` (on Codex, `LOCALAPPDATA` not set) |
+| `mockup_show.py wait` | `--mockup F --notes-file N` | `count`, `ended`; N holds `[{uid, prompt, selector, tag, text}]` | `no-session`, `no-host` as show, `notes-unwritten` (N cannot be written after the poll; the notes are in the `notes` field), `no-data-folder` (on Codex, `LOCALAPPDATA` not set) |
 | `mockup_show.py reply` | `--mockup F --reply-file R` | ok | `no-session` |
 | `mockup_show.py end` | `--mockup F` | ok | none |
 | `catalog_files.py start` | `--frontend NAME` | `frontend, catalog_dir, catalog_exists, cards, live` | `no-frontend`, `pick-frontend` |
@@ -94,6 +94,7 @@ Existing callers: every change to an existing surface adds a flag or a field; no
 | catalog | the catalog folder of the entry | per frontend | git | forever; a card for a gone shape removed only after the developer's yes | refreshed in place | no | git history |
 | screenshots | `<afkv2 data folder>/shots/<run>/` | per run | none | deleted at the end of the run | none | possibly: live data, never committed | no |
 | notes file | `<afkv2 data folder>/notes/<run>.json` | per run | none | deleted at the end of the run | none | no | no |
+| tab record | `<afkv2 data folder>/mockup-tabs/<12 hex of the SHA-256 of the mockup path>.json`, `{page, url}` | per mockup | none | written by `show` when it opens a tab; deleted by `end`, by `wait` on `ended` or `no-session`, and by a `show` whose session status is not `opened`; best effort, no record without a data folder | none | no | no |
 
 **frontends entry** (writer: `catalog_files.py add-frontend` only, ADR-0002, fork f-writer):
 

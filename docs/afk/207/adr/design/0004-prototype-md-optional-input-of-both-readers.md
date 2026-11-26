@@ -17,7 +17,7 @@ AC-027, AC-028, AC-029, requirement ADR-0003, grill card i-readers.
 
 ## Decision
 
-Both start answers add `prototype` and `prototype_exists`. Neither refuses a missing file, and propose-verification keeps it out of its required files. Each SKILL.md gets an optional input row, and reads the file in its read step and in its proposer brief. propose-solution cites each UI decision in the SDD section it changes. propose-verification derives `ui-e2e` and `acceptance` rows from the Coverage rows, traced by the existing `story` and `criteria` columns.
+Both start answers add `prototype` and `prototype_exists`. `prototype_exists` is true only when PROTOTYPE.md exists and the INDEX.md `Prototype` row says `chosen`: an unsettled file counts as absent (`prd_files.prototype_chosen`). Neither refuses a missing file, and propose-verification keeps it out of its required files. Each SKILL.md gets an optional input row, and reads the file in its read step and in its proposer brief. propose-solution cites each UI decision in the SDD section it changes. propose-verification derives `ui-e2e` and `acceptance` rows from the Coverage rows, traced by the existing `story` and `criteria` columns.
 
 ```mermaid
 flowchart LR
