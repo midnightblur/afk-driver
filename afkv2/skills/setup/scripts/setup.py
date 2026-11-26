@@ -168,7 +168,8 @@ def _child_folders(folder: Path) -> list[Path]:
 
 def suggest_source(run: tools.Runner, cwd: Path, home: Path) -> Path | None:
     """The first main checkout of the plugin source among the current repository, its main checkout, and the
-    folders 1 and 2 levels under the parent folder of the current repository (or of `cwd`) and under `home`.
+    folders 1 and 2 levels under the parent folder of the current repository (or of `cwd`) and under `home`;
+    a drive or filesystem root is never a search root.
     Never a recursive scan: only the 2 roots and their children are listed."""
     top = repo_top(run, cwd) if cwd.is_dir() else None
     candidates = []
@@ -176,6 +177,8 @@ def suggest_source(run: tools.Runner, cwd: Path, home: Path) -> Path | None:
         common = _common_dir(run, top)
         candidates += [top] + ([common.parent] if common and common.name == ".git" else [])
     for root in dict.fromkeys(((top or cwd).parent, home)):
+        if root.parent == root:
+            continue  # a drive or filesystem root: never listed
         for child in _child_folders(root):
             candidates += [child, *_child_folders(child)]
     seen = set()

@@ -242,3 +242,19 @@ def test_the_setup_skill_holds_the_source_step():
     assert "`source` is `missing` or `broken`" in step
     assert "--path" in step and "not-main-checkout" in step and "not-plugin-source" in step and "not-a-repo" in step
     assert text.index("**Prepare.**") < block < text.index("**herdr.**")
+
+
+def test_source_never_lists_a_drive_root(home, env, system, monkeypatch, capsys):
+    """A working folder at a drive or filesystem root has the root as its parent: the search skips that root.
+    The listing is a recorder that reads nothing, so the test itself lists no root."""
+    listed = []
+
+    def record(folder):
+        listed.append(Path(folder))
+        return []
+
+    monkeypatch.setattr(setup, "_child_folders", record)
+    root = Path(home.anchor)
+    code, answer = _cli(["source"], env, system, root, capsys)
+    assert (code, answer["status"]) == (0, "none")
+    assert listed == [home]
