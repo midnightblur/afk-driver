@@ -36,6 +36,7 @@ START_MS, PROMPT_MS = "90000", "30000"
 COMMAND_S = 120
 ASK_LIMIT = 8000
 NAME_TRIES = 3
+LOOKUP_LIMIT = 10
 MANAGED_PREFERENCES, CLAUDE_DOMAIN = "/Library/Managed Preferences", "com.anthropic.claudecode"
 FORWARD_LINE = "A new ask from the main pane:"
 AGENT_FILE = Path("afkv2") / "skills" / "dogfood" / "AGENT.md"
@@ -190,12 +191,35 @@ def state_path(env, main_pane):
     return _places(env).data / f"dogfood-{safe}.json"
 
 
-def _read_state(env, main_pane):
-    """The state of the main pane, or None."""
-    path = state_path(env, main_pane)
-    if not path.exists():
+def _read_state(path):
+    """The state in `path`, or None when the file is absent; any other file refuses (plan decision D-1)."""
+    try:
+        state = json.loads(Path(path).read_text(encoding="utf-8"))
+    except FileNotFoundError:
         return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as problem:
+        raise Refusal("state-unreadable", f"the state file {path} cannot be read: {problem}; delete it after a "
+                                          f"look", EXIT_UNREADABLE) from None
+    if not isinstance(state, dict) or state.get("version") != STATE_VERSION:
+        raise Refusal("state-unreadable", f"the state file {path} is not a version {STATE_VERSION} dogfood state; "
+                                          f"delete it after a look", EXIT_UNREADABLE)
+    return state
+
+
+def find_state(env, pane):
+    """`(role, state)` of the caller pane: `main` for its own state file, `afkv2` for the state whose afkv2 pane it
+    is, else `(None, None)`. The lookup reads at most LOOKUP_LIMIT files, the newest first."""
+    own = state_path(env, pane)
+    state = _read_state(own)
+    if state:
+        return "main", state
+    folder = _places(env).data
+    others = [path for path in folder.glob("dogfood-*.json") if path != own] if folder.is_dir() else []
+    for path in sorted(others, key=lambda path: path.stat().st_mtime_ns, reverse=True)[:LOOKUP_LIMIT]:
+        state = _read_state(path)
+        if state and state.get("afkv2_pane") == pane:
+            return "afkv2", state
+    return None, None
 
 
 def _live(env, runner, state):
@@ -250,9 +274,12 @@ def _start_agent(env, runner, name, pane):
 def verb_start(args, env, runner):
     """Open the afkv2 pane beside the main pane, start its agent, write the state, then send the role and the ask."""
     main_pane = _herdr_pane(env, runner)
+    role, state = find_state(env, main_pane)
+    if role == "afkv2":
+        raise Refusal("in-afkv2-pane", f"this pane is the afkv2 pane of the main pane {state['main_pane']}: run start "
+                                       f"from the main pane")
     ask = _read_ask(args.ask_file)
     source = _source(env, runner)
-    state = _read_state(env, main_pane)
     if state and _live(env, runner, state):
         _herdr_ok(env, runner, "agent", "prompt", state["agent"], f"{FORWARD_LINE}\n\n{ask}", "--wait", "--until",
                   "working", "--timeout", PROMPT_MS)
@@ -278,13 +305,20 @@ def verb_start(args, env, runner):
     return {"ok": True, "status": "opened", "agent": name, "pane": pane, "state": state}
 
 
-VERBS = {"start": verb_start}
+def verb_status(args, env, runner):
+    """The state of the session of the caller pane, from either pane, or null. Writes nothing."""
+    pane = env.get("HERDR_PANE_ID")
+    return {"ok": True, "state": find_state(env, pane)[1] if pane else None}
+
+
+VERBS = {"start": verb_start, "status": verb_status}
 
 
 def _parser():
     parser = Parser(prog="dogfood.py")
     verbs = parser.add_subparsers(dest="verb", required=True)
     verbs.add_parser("start").add_argument("--ask-file", required=True)
+    verbs.add_parser("status")
     return parser
 
 

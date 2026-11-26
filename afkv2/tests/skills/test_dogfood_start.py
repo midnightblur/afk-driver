@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -221,3 +222,49 @@ def test_a_live_state_gets_the_ask_and_a_stale_state_is_replaced_by_a_new_pane(w
         state = json.loads(state_file(world).read_text(encoding="utf-8"))
         assert state == answer["state"] and state["afkv2_pane"] == answer["pane"] != "w1:p7"
         assert (state["base"], state["worktrees"]) == (None, [])
+
+
+def _snapshot(folder):
+    return {path: path.stat().st_mtime_ns for path in folder.rglob("*")}
+
+
+def test_status_reads_the_state_from_either_pane_and_refuses_an_unknown_version(world):
+    old = _old_state(world, name_of(MAIN), "w1:p7")
+    before = _snapshot(world["tmp"])
+    for pane, expected in ((MAIN, old), ("w1:p7", old), ("w1:p9", None)):
+        code, answer, runner = run(world, ["status"], env={**world["env"], "HERDR_PANE_ID": pane})
+        assert (code, answer) == (0, {"ok": True, "state": expected}) and not runner.calls
+    code, answer, runner = run(world, ["status"], env={key: value for key, value in world["env"].items()
+                                                        if not key.startswith("HERDR")})
+    assert (code, answer) == (0, {"ok": True, "state": None})
+    assert _snapshot(world["tmp"]) == before
+
+    code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])],
+                               env={**world["env"], "HERDR_PANE_ID": "w1:p7"})
+    assert (code, answer["error"]["code"]) == (1, "in-afkv2-pane") and not _herdr_calls(runner)
+
+    for text in (json.dumps({**old, "version": 2}), "{broken"):
+        state_file(world).write_text(text, encoding="utf-8")
+        for argv in (["status"], ["start", "--ask-file", str(world["ask"])]):
+            code, answer, runner = run(world, argv)
+            assert (code, answer["error"]["code"]) == (2, "state-unreadable") and not _herdr_calls(runner)
+            assert str(state_file(world)) in answer["error"]["reason"]
+
+
+def test_the_state_file_name_is_sanitised_and_the_lookup_reads_at_most_10_files(world):
+    pane = "w1:p 2/é"
+    code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])],
+                               env={**world["env"], "HERDR_PANE_ID": pane})
+    assert code == 0 and (world["data"] / "dogfood-w1_p_2__.json").is_file()
+    assert answer["state"]["main_pane"] == pane
+
+    for n in range(12):
+        path = world["data"] / f"dogfood-w5_p{n}.json"
+        text = "{broken" if n < 2 else json.dumps({**answer["state"], "main_pane": f"w5:p{n}",
+                                                   "afkv2_pane": f"w6:p{n}"})
+        path.write_text(text, encoding="utf-8")
+        os.utime(path, (1_700_000_000 + n, 1_700_000_000 + n))
+    code, answer, runner = run(world, ["status"], env={**world["env"], "HERDR_PANE_ID": "w7:p1"})
+    assert (code, answer) == (0, {"ok": True, "state": None})
+    code, answer, runner = run(world, ["status"], env={**world["env"], "HERDR_PANE_ID": "w6:p11"})
+    assert code == 0 and answer["state"]["main_pane"] == "w5:p11"
