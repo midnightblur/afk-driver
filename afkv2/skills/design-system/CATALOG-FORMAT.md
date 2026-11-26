@@ -10,7 +10,7 @@ A design catalog records the look of 1 frontend: its tokens and 1 card per repea
 | `tokens.css` | the design tokens as CSS custom properties on `:root`: colours, spacing, radii, type |
 | `cards/<shape>.html` | 1 card per shape: an HTML fragment with inline styles that use the tokens of `tokens.css` |
 
-A card holds made-up data only: never a record from a screenshot, the live screen or its database. A card makes no network call: no address in `src`, `href`, `action`, CSS `url()` or `@import`, no `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `import()` or `sendBeacon`. Inline each asset, and use a `#id` link. `check` refuses `network-call` and `secrets` with the file and the line. `README.md` may name the address and the calls of the live app.
+A card holds made-up data only: never a record from a screenshot, the live screen or its database. A card makes no network call: no URL with a scheme and no `//host` address in any place of the card, and no `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `import()` or `sendBeacon`. A relative path, a `#id` link and a `data:`, `blob:`, `javascript:`, `mailto:`, `tel:` or `about:` URL pass the check. Inline each asset, and use a `#id` link. `check` refuses `network-call` and `secrets` with the file and the line. `README.md` may name the address and the calls of the live app.
 
 ## README
 

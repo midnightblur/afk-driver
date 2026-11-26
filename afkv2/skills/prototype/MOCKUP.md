@@ -5,7 +5,7 @@ A mockup is 1 self-contained HTML file per screen in the `prototype/` folder of 
 ## The file
 
 - Inline all CSS and JS. Use no build step, no framework runtime and no import that needs a server.
-- The file opens from its `file://` path and makes no network call: no URL with a scheme in `src`, `href`, `action`, `srcset`, `poster` or CSS `url()`, and no `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource` or `import()`. Draw icons as inline SVG, and use the system fonts or the font names of the anchor.
+- The file opens from its `file://` path and makes no network call: no URL with a scheme and no `//host` address in any place of the file, and no `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `sendBeacon` or `import()`. A relative path, a `#id` link and a `data:`, `blob:`, `javascript:`, `mailto:`, `tel:` or `about:` URL pass the check. Draw icons as inline SVG, and use the system fonts or the font names of the anchor.
 - Never copy the afkv2 tooltip block or any lavish runtime into the file.
 - Keep the file near 100 KB, at most 500 KB.
 
