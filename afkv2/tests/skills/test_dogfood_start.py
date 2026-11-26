@@ -188,3 +188,36 @@ def test_an_agent_name_that_clashes_takes_the_next_4_hex_digits_at_most_3_tries(
     code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])], runner)
     assert (code, answer["error"]["code"]) == (1, "herdr-failed") and not runner.calls_of("pane", "split")
     assert all(name_of(MAIN, n) in answer["error"]["reason"] for n in range(3))
+
+
+def _old_state(world, agent, pane):
+    state = {"version": 1, "main_pane": MAIN, "agent": agent, "afkv2_pane": pane, "harness": "claude",
+             "source": str(world["source"]), "base": "feat/afkv2",
+             "worktrees": [{"path": str(world["tmp"] / "wt"), "branch": "feat/afkv2-df-20261126-0900", "lane": "small",
+                            "created": "2026-11-26T09:00:00+00:00"}],
+             "notes": [], "wrap_reported": False, "started": "2026-11-26T09:00:00+00:00"}
+    state_file(world).write_text(json.dumps(state), encoding="utf-8")
+    return state
+
+
+def test_a_live_state_gets_the_ask_and_a_stale_state_is_replaced_by_a_new_pane(world):
+    old = _old_state(world, name_of(MAIN), "w1:p7")
+    runner = DogfoodFakeRunner(world["env"])
+    runner.add_agent(name_of(MAIN), "w1:p7")
+    code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])], runner)
+    assert (code, answer["status"], answer["agent"], answer["pane"]) == (0, "existing", name_of(MAIN), "w1:p7")
+    assert answer["state"] == old == json.loads(state_file(world).read_text(encoding="utf-8"))
+    assert not runner.calls_of("pane", "split") and not runner.started
+    [prompt] = runner.prompts
+    assert prompt["target"] == name_of(MAIN) and prompt["text"].endswith(ASK)
+
+    for live_elsewhere in (False, True):
+        _old_state(world, name_of(MAIN), "w1:p7")
+        runner = DogfoodFakeRunner(world["env"])
+        if live_elsewhere:
+            runner.add_agent(name_of(MAIN), "w1:p8")
+        code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])], runner)
+        assert (code, answer["status"]) == (0, "opened") and len(runner.calls_of("pane", "split")) == 1
+        state = json.loads(state_file(world).read_text(encoding="utf-8"))
+        assert state == answer["state"] and state["afkv2_pane"] == answer["pane"] != "w1:p7"
+        assert (state["base"], state["worktrees"]) == (None, [])

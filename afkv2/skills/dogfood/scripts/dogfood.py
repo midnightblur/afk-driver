@@ -37,6 +37,7 @@ COMMAND_S = 120
 ASK_LIMIT = 8000
 NAME_TRIES = 3
 MANAGED_PREFERENCES, CLAUDE_DOMAIN = "/Library/Managed Preferences", "com.anthropic.claudecode"
+FORWARD_LINE = "A new ask from the main pane:"
 AGENT_FILE = Path("afkv2") / "skills" / "dogfood" / "AGENT.md"
 
 
@@ -189,6 +190,25 @@ def state_path(env, main_pane):
     return _places(env).data / f"dogfood-{safe}.json"
 
 
+def _read_state(env, main_pane):
+    """The state of the main pane, or None."""
+    path = state_path(env, main_pane)
+    if not path.exists():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _live(env, runner, state):
+    """Liveness: herdr answers the agent name of the state, in the afkv2 pane of the state."""
+    code, out, err = _herdr(env, runner, "agent", "get", state["agent"])
+    if code != 0:
+        if _herdr_code(out, err) == "agent_not_found":
+            return False
+        raise Refusal("herdr-failed", f"herdr agent get {state['agent']}: {_herdr_code(out, err) or (err or out).strip()}")
+    agent = ((_parsed(out) or {}).get("result") or {}).get("agent") or {}
+    return agent.get("pane_id") == state["afkv2_pane"]
+
+
 def _write_state(env, state):
     write_atomic(state_path(env, state["main_pane"]), (json.dumps(state, indent=2) + "\n").encode("utf-8"))
 
@@ -232,6 +252,11 @@ def verb_start(args, env, runner):
     main_pane = _herdr_pane(env, runner)
     ask = _read_ask(args.ask_file)
     source = _source(env, runner)
+    state = _read_state(env, main_pane)
+    if state and _live(env, runner, state):
+        _herdr_ok(env, runner, "agent", "prompt", state["agent"], f"{FORWARD_LINE}\n\n{ask}", "--wait", "--until",
+                  "working", "--timeout", PROMPT_MS)
+        return {"ok": True, "status": "existing", "agent": state["agent"], "pane": state["afkv2_pane"], "state": state}
     _check_auto_approval(env, runner)
     name = _agent_name(env, runner, main_pane)
     split = _herdr_ok(env, runner, "pane", "split", "--pane", main_pane, "--direction", "right", "--cwd", source,
