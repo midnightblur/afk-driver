@@ -172,6 +172,8 @@ def test_add_frontend_writes_the_entry_and_the_config_read_answers_it(repo):
     ("shop", "frontend/web", "../outside", "inside the repository"),
     ("shop", "frontend/none", "design/shop", "no folder"),
     ("Shop", "frontend/web", "design/shop", "lower case"),
+    ("shop", "frontend/web", ".", "not the repository root"),
+    ("shop", "frontend/web", "./", "not the repository root"),
 ])
 def test_add_frontend_refuses_bad_value_and_leaves_the_config_unchanged(repo, name, source, catalog, words):
     expect_ok(run(repo, "add-frontend", "--name", "web", "--source", "frontend/web", "--catalog", "design/web"))
@@ -190,6 +192,7 @@ def test_add_frontend_refuses_an_absolute_source_outside_the_repository(repo, tm
     before = config_bytes(repo)
     ran = run(repo, "add-frontend", "--name", "web", "--source", str(outside), "--catalog", "design/web")
     expect_refusal(ran, "bad-value")
+    expect_error_reason_holds(ran, "must stay inside the repository root")
     expect_config_unchanged(repo, ran, before)
 
 
