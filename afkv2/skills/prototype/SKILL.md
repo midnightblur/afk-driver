@@ -117,7 +117,7 @@ Each note names its element by the `selector`, the `tag` and the `text` that lav
 
 ### In lavish
 
-1. Run `show`. `no-host`: lavish is missing, at another version or on an unsafe host. Its reason holds the `file://` path: go on by "In chat". `status` `user-ended`: the developer ended this session in the browser, and lavish does not open it again: run `end`, and go on by "In chat".
+1. Run `show`. `no-host`: lavish is missing, at another version or on an unsafe host. Its reason holds the `file://` path: go on by "In chat". `status` `user-ended`: the developer ended this session in the browser, and lavish does not open it again: run `end`, and go on by "In chat". `tab` `reused`: lavish opened no new tab, because a tab showed the mockup before. When the developer does not see the mockup, run `end`, then `show`.
 2. Wait for the notes. On Claude, run `wait` with `--notes-file "<afkv2 data folder>/notes/<run>.json"` as a background command the harness tracks; its exit tells you the notes are in the notes file. On Codex, run `show` before you end each turn: the Stop hook waits only on the waiting record that `show` writes, and it clears the record after each wait. A later `show` reuses the open tab. Then end your turn, and the Stop hook hands back 1 line per note with its tag, selector and text.
 3. Read each note, and give it an edit of the mockup or a reply.
 4. Show the edited mockup: lavish reloads the saved file in the open session, so run no `show` for it. Write 1 Markdown line per note to a reply file, the edit made or the answer, and run `reply`.

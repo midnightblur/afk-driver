@@ -90,6 +90,7 @@ def test_each_note_gets_an_edit_or_a_reply_and_a_new_show():
     # `show` reuses the open tab by its tab record; only `end` forgets the record when the Stop hook saw the end
     _states(SKILL_MD, lavish, "To show it again, run `end`, then `show`: lavish then opens a new tab.")
     _states(SKILL_MD, lavish, "`notes-unwritten` | the notes are in the `notes` field of the refusal")
+    _states(SKILL_MD, lavish, "When the developer does not see the mockup, run `end`, then `show`.")
 
 
 def test_mockup_is_clickable_from_the_entry_screen_inside_the_shell():
