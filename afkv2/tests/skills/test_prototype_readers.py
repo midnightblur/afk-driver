@@ -196,3 +196,15 @@ def test_propose_verification_guide_reads_the_prototype_and_derives_rows_from_it
     _holds(skill, "step 2", read, "`ui-e2e` and `acceptance` rows from each `reachable` row of its Coverage table")
     _holds(skill, "step 2", read, "`story` and `criteria`")
     _holds(skill, "step 2", read, "no new column")
+
+
+# --- a bad `frontends` list in the config: propose-verification never reads it, so it does not refuse
+
+def test_verification_start_with_a_bad_frontends_list_answers_ok(tmp_path):
+    root = _repo(tmp_path)
+    web = {"name": "web", "source": "src", "catalog": "docs/catalog"}
+    config = root / ".afkv2" / "config.json"
+    config.write_text(json.dumps({**json.loads(config.read_text("utf-8")), "frontends": [web, web]}), "utf-8")
+    given, code, answer = _start(VERIFICATION_FILES, root, "frontends [web, web] in the config")
+    _expect(given, "exit code", code, 0, answer)
+    _expect(given, "ok", answer.get("ok"), True, answer)

@@ -111,7 +111,7 @@ def _proven_head_at(repo_root, commit):
 
 
 def _config(repo_root):
-    config = afkv2_config.read_config(repo_root)
+    config = afkv2_config.read_config(repo_root, with_frontends=False)
     if not config["ok"]:
         raise Refusal(config["error"]["code"], config["error"]["reason"])
     return config

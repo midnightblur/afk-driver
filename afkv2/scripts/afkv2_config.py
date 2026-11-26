@@ -38,10 +38,11 @@ class Refusal(Exception):
         self.reason = reason
 
 
-def read_config(start: str | os.PathLike | None = None, *, with_live: bool = True) -> dict:
+def read_config(start: str | os.PathLike | None = None, *, with_live: bool = True, with_frontends: bool = True) -> dict:
     """Resolve the `.afkv2` values for the repository that holds `start` (default: cwd).
 
-    `with_live=False` skips the stored `live` block, so a caller can replace a bad one."""
+    `with_live=False` skips the stored `live` block, so a caller can replace a bad one.
+    `with_frontends=False` skips the `frontends` list, so a caller that never reads it is not refused by a bad one."""
     try:
         config_file = _find_config(Path(start or os.getcwd()).resolve())
         repo_root = config_file.parent.parent
@@ -55,8 +56,9 @@ def read_config(start: str | os.PathLike | None = None, *, with_live: bool = Tru
             "ownership": _ownership(raw),
             "forge": _forge(raw),
             "data_folder": str(data_folder()),
-            "frontends": _check_frontends(raw.get("frontends")),
         }
+        if with_frontends:
+            answer["frontends"] = _check_frontends(raw.get("frontends"))
         if with_live and raw.get("live") is not None:
             answer["live"] = live_block(raw["live"])
         return answer
