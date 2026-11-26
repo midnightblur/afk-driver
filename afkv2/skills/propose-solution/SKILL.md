@@ -41,7 +41,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
    On a refusal, report its `reason` to the human and leave `--ticket-file` out of each build: the first round then shows no ticket card.
 
-   Read `prd`, `requirement_adrs`, `log` and the grill documents in `<spec_dir>/pages/`. Read the repository glossary and `STAPLES.md`, when they exist; a staple the PRD accepted is a design input. `prototype_exists` true: read `prototype`, and cite each UI decision of it that changes the design in the existing SDD section it changes; the design gets no new section. Start the code reading in background subagents. Write one row per load-bearing premise ([DRAFT.md](DRAFT.md) "Premises"). Done when each critical aspect and each layer has the facts its picture and its card need.
+   Read `prd`, `requirement_adrs`, `log` and the grill documents in `<spec_dir>/pages/`. Read the repository glossary and `STAPLES.md`, when they exist; a staple the PRD accepted is a design input. `prototype_exists` true: read `prototype`, and cite each UI decision of it that changes the design in the existing SDD section it changes; the design gets no new section. Design each `Implies:` item of its Decisions section, such as a field that keeps an order, in the SDD section that owns that data or behaviour, and cite the decision. Start the code reading in background subagents. Write one row per load-bearing premise ([DRAFT.md](DRAFT.md) "Premises"). Done when each critical aspect and each layer has the facts its picture and its card need.
 
    ```sh step=row
    <python> "<this skill's folder>/scripts/design_files.py" row --log "<log>" --kind "<kind>" --text "<text>"

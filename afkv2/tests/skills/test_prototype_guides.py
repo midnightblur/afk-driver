@@ -197,3 +197,21 @@ def test_an_unchecked_catalog_card_is_a_lead_not_the_look():
 def test_the_prototype_asks_for_a_running_app_when_the_config_starts_none():
     _states(SKILL_MD, "## Steps", "ask the developer once for the address of a running app")
     _states(SKILL_MD, "## Steps", "An address the developer gives is their app: start no app and stop none there")
+
+
+# --- a note against a settled point gets an impact assessment, and a requirement change leaves with it;
+# a mockup decision that implies data or behaviour names it for the design
+
+def test_a_note_against_a_settled_point_gets_an_impact_assessment():
+    bound = "## Bound to the PRD"
+    _states(SKILL_MD, bound, "an impact assessment")
+    _states(SKILL_MD, bound, "every acceptance criterion, ADR, worked example, validation and use case it touches or breaks")
+    _states(SKILL_MD, bound, "what else must change")
+    _states(SKILL_MD, bound, "a recommendation")
+    _states(SKILL_MD, bound, "stop with `prd_change`")
+    _states(SKILL_MD, bound, "the round 0 input of `/afkv2:grill-requirements`")
+    _states(SKILL_MD, "## Steps", "| `prd_change` |")
+
+
+def test_a_decision_that_implies_data_or_behaviour_names_it():
+    _states(HOME / "PROTOTYPE-FORMAT.md", "## Sections", "`Implies:`")

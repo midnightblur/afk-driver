@@ -107,6 +107,7 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
    | `settled` | `settle` answered ok |
    | `no_ui` | no story adds or changes a screen |
    | `prd_gap` | step 5 stopped the run |
+   | `prd_change` | the developer changes a settled requirement, by "Bound to the PRD" |
    | `stopped` | the developer stopped the run before a settle |
    | `refused` | a refusal stopped the run; the line names its code |
    | `parked` | a hands-off subagent parked by "Hands-off" |
@@ -118,9 +119,18 @@ The PRD and the requirement ADRs in `requirement_adrs` bind the mockup. Read bot
 | The note | Action |
 |----------|--------|
 | fits the settled points | edit the mockup |
-| contradicts a settled point | make no edit for it. Reply with the point, quote it and cite its id: the acceptance criterion or the ADR number. The developer withdraws the note, or changes the requirement by `/afkv2:grill-requirements` |
+| contradicts a settled point | make no edit for it. Reply with the point, quote it and cite its id: the acceptance criterion or the ADR number. Add an impact assessment of the change, by the list below. The developer withdraws the note, or changes the requirement |
 | asks what the requirements say | reply with the point and cite its id; draw it when the mockup does not show it |
 | needs an answer that the PRD and the ADRs do not hold | a PRD gap: step 5 |
+
+The impact assessment reads the PRD, the requirement ADRs and `log`, and the code where a point names it. It holds:
+
+1. Whether the change makes sense, against the problem and the goal of the PRD.
+2. Every acceptance criterion, ADR, worked example, validation and use case it touches or breaks, each by its id.
+3. What else must change with it: other points, data, screens, and later documents that exist.
+4. a recommendation: change, change with the other changes named, or keep the point. Mark each claim you did not verify as an inference.
+
+The developer changes the requirement: write the note and the assessment to `<afkv2 data folder>/prototype/<ticket key>-requirement-change.md`, stop with `prd_change`, and name the file as the round 0 input of `/afkv2:grill-requirements`. The grill takes it as unverified input. The mockup keeps the settled point until the PRD changes.
 
 ## Notes loop
 
