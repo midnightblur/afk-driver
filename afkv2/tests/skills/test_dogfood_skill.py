@@ -161,6 +161,22 @@ def test_a_note_is_checked_then_applied_by_apply_md():
     assert "[APPLY.md](APPLY.md)" in note
 
 
+def test_the_wrap_request_ends_the_turn_and_the_wrap_note_closes():
+    body = text()
+    request = body[body.index("**Wrap-up"):body.index("**The wrap note")]
+    assert "step=wrap" in request and "step=close" not in request and "ends" in request
+    wrap_note = section("**The wrap note")
+    assert "open ask" in wrap_note and wrap_note.index("Draft change") < wrap_note.index("step=close")
+    note = body[body.index("**A note"):body.index("**Feedback")]
+    assert "`kind` `wrap`: step 6" in note
+
+
+def test_an_undelivered_prompt_is_not_sent_again():
+    body = " ".join(text().split())
+    assert "`submitted` `false`" in body and "`sent` `unconfirmed`" in body
+    assert "send nothing again" in body and "look at the afkv2 pane" in body
+
+
 def test_the_wrap_up_tells_wrap_then_closes():
     body = text()
     assert body.index("step=wrap") < body.index("step=close\n") < body.index("step=close-force")
@@ -178,4 +194,4 @@ def test_the_skill_passes_the_plugin_check_and_its_modules_have_unique_names():
     names = [Path(path).name for path in tree]
     for name in ("dogfood.py", "dogfood_note.py", "test_dogfood_skill.py", "test_dogfood_start.py",
                  "test_dogfood_note.py", "test_dogfood_pane_verbs.py", "test_dogfood_main_verbs.py"):
-        assert names.count(name) <= 1, name
+        assert names.count(name) == 1, name

@@ -11,6 +11,8 @@ You are the main agent. The afkv2 agent builds the change in its own pane and pl
 
 Run each command from any folder. `<python>` is the Python in the setup install record (line `python`). Write each input file (the ask, the feedback, the wrap-up request) in scratch, outside every repository. Every answer is 1 JSON object: `{"ok": true, ...}` or `{"ok": false, "error": {"code", "reason"}}`; exit 0 is ok, 1 is refused, 2 is unreadable input. dogfood.py knows both panes, so no command takes a pane id.
 
+An ok answer can still hold a prompt that the afkv2 agent did not take: `submitted` `false` with `prompt_error` from `start`, or `sent` `unconfirmed` from `tell`. Then send nothing again. Tell the developer to look at the afkv2 pane.
+
 ## Steps
 
 1. **Start.** Write the ask of the developer to a file, then run:
@@ -33,7 +35,7 @@ Run each command from any folder. `<python>` is the Python in the setup install 
    <python> "<this skill's folder>/scripts/dogfood.py" check-note --note-file "<note file>"
    ```
 
-   `note-check-failed`: apply nothing. Send the `failures` as feedback (step 4) and ask for a complete note. `kind` `milestone`: apply it at once by [APPLY.md](APPLY.md), with no question to the developer. `kind` `wrap`: step 5.
+   `note-check-failed`: apply nothing. Send the `failures` as feedback (step 4) and ask for a complete note. `kind` `milestone`: apply it at once by [APPLY.md](APPLY.md), with no question to the developer. `kind` `wrap`: step 6.
 
 4. **Feedback.** The developer gives feedback on a trial in this pane. Write the feedback and the evidence you saw to 1 file: the command, the error and the output, verbatim. Then run:
 
@@ -49,13 +51,15 @@ Run each command from any folder. `<python>` is the Python in the setup install 
    <python> "<this skill's folder>/scripts/dogfood.py" tell --kind wrap --text-file "<text file>"
    ```
 
-   Wait for the wrap note, and check it by step 3. Show the developer each Draft change and each open ask of the note. Then close the session:
+   Your turn ends here. The wrap note arrives later as a prompt; check it by step 3. Do not poll and do not wait in a loop. The afkv2 pane is dead (`no-pane` at the wrap request): run `close --force` of step 6.
+
+6. **The wrap note.** Show the developer each Draft change and each open ask of the note. Then close the session:
 
    ```sh step=close
    <python> "<this skill's folder>/scripts/dogfood.py" close
    ```
 
-   Tell the developer that the answered `worktrees` and `branches` stay. The afkv2 pane is dead (`no-pane` at the wrap request): close with `--force`; nothing is deleted.
+   Tell the developer that the answered `worktrees` and `branches` stay. A dead afkv2 pane after step 5: close with `--force`; nothing is deleted.
 
    ```sh step=close-force
    <python> "<this skill's folder>/scripts/dogfood.py" close --force
@@ -63,7 +67,7 @@ Run each command from any folder. `<python>` is the Python in the setup install 
 
 ## The 1 exception to rule H-8
 
-Rule H-8 of the [herdr playbook](../herdr-playbook/SKILL.md) closes each pane once its result is read. In this skill, the afkv2 pane stays open after each milestone and each result until the wrap-up. Only `close` of step 5 closes it.
+Rule H-8 of the [herdr playbook](../herdr-playbook/SKILL.md) closes each pane once its result is read. In this skill, the afkv2 pane stays open after each milestone and each result until the wrap-up. Only `close` of step 6 closes it.
 
 ## Refusals
 
@@ -80,9 +84,9 @@ A refusal of `start` starts nothing. Tell the developer the reason and the repai
 | `herdr-failed` | a herdr command failed; `reason` names it | tell the developer the reason |
 | `state-unreadable` | the session state file is broken | tell the developer the path in `reason`; the developer deletes it after a look |
 | `ask-unreadable`, `text-unreadable` | the input file is absent, not UTF-8, empty or over 8000 characters | fix the file, then run the command again |
-| `no-pane` | this pane has no live afkv2 pane | run step 1 for an ask; at the wrap-up, `close --force` |
+| `no-pane` | this pane has no live afkv2 pane | run step 1 for an ask; at the wrap-up, `close --force` of step 6 |
 | `prompt-blocked` | the afkv2 agent shows a dialog, so nothing was typed | tell the developer to look at the afkv2 pane |
 | `note-unreadable` | the note file is absent, not UTF-8 or over 16 KiB | send feedback: the note did not arrive |
 | `note-check-failed` | the note breaks a rule of [NOTE-FORMAT.md](NOTE-FORMAT.md) | step 3: apply nothing, ask for a complete note |
-| `no-wrap-report` | the afkv2 agent sent no wrap note, or `--force` met a live agent | run the wrap request of step 5 and wait for the note |
+| `no-wrap-report` | the afkv2 agent sent no wrap note, or `--force` met a live agent | run the wrap request of step 5; the note arrives as a prompt |
 | `usage` | a command line is wrong | fix the command against its block |
