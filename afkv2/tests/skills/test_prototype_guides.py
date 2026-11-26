@@ -101,6 +101,21 @@ def test_mockup_is_clickable_from_the_entry_screen_inside_the_shell():
     _states(MOCKUP_MD, shell, "neighbour")
 
 
+# the PRD and its requirement ADRs bind the mockup: a note against a settled point is flagged, never applied silently
+
+def test_the_prd_and_its_requirement_adrs_bind_the_draft_and_each_note():
+    bound = "## Bound to the PRD"
+    _states(SKILL_MD, bound, "The PRD and the requirement ADRs in `requirement_adrs` bind the mockup.")
+    _states(SKILL_MD, bound, "contradicts a settled point")
+    _states(SKILL_MD, bound, "make no edit for it")
+    _states(SKILL_MD, bound, "cite its id")
+    _states(SKILL_MD, bound, "step 5")
+    _states(SKILL_MD, "## Steps", "Keep `spec_dir`, `prd`, `requirement_adrs`,")
+    _states(SKILL_MD, "## Steps", 'by "Bound to the PRD"')
+    _states(SKILL_MD, "### In lavish", 'check it by "Bound to the PRD"')
+    _states(SKILL_MD, "### In chat", 'check it by "Bound to the PRD"')
+
+
 # lavish (0.1.86) annotates only the file it opened, refuses a load with a changed query, and drops the hash when it
 # reloads after an edit; window.name survives that reload (proved in a scratch lavish session)
 

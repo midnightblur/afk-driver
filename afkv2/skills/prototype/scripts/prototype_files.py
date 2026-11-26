@@ -203,7 +203,7 @@ def cmd_start(argv):
     live = config.get("live")
     prototype_md = spec_dir / FILE_NAME
     return {"ok": True, "ticket": args.ticket, "spec_dir": spec_dir.as_posix(), "prd": (spec_dir / "PRD.md").as_posix(),
-            "index": (spec_dir / "INDEX.md").as_posix(), "prototype_md": prototype_md.as_posix(),
+            "requirement_adrs": (spec_dir / "adr" / "requirements").as_posix(), "index": (spec_dir / "INDEX.md").as_posix(), "prototype_md": prototype_md.as_posix(),
             "mockup_dir": (spec_dir / MOCKUP_DIR).as_posix(), "frontend": frontend, "catalog_exists": catalog_exists,
             "live": live, "anchor": "catalog" if catalog_exists else "live" if live else "source",
             "resume": prototype_md.is_file()}

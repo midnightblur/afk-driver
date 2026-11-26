@@ -51,7 +51,7 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
 
 `<afkv2 data folder>` is `%LOCALAPPDATA%\afkv2`. `<run>` is the ticket key and the start time of the run, such as `ABC-12-20260101T0930`.
 
-1. **Start.** Run `start`. Add `--frontend "<name>"` when the developer names the frontend. Keep `spec_dir`, `prd`, `prototype_md`, `mockup_dir`, `frontend`, `anchor`, `live` and `resume` of the answer. Then check for a screen by "No screen, no mockup". On a refusal:
+1. **Start.** Run `start`. Add `--frontend "<name>"` when the developer names the frontend. Keep `spec_dir`, `prd`, `requirement_adrs`, `prototype_md`, `mockup_dir`, `frontend`, `anchor`, `live` and `resume` of the answer. Then check for a screen by "No screen, no mockup". On a refusal:
 
    | Code | Next action |
    |------|-------------|
@@ -80,7 +80,7 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
 
    Also map the neighbours of each screen: the screens a story enters from, and the screens the new screen links to.
 
-3. **Draft.** Write 1 mockup file with every screen into `mockup_dir`, by [MOCKUP.md](MOCKUP.md), with made-up data only: copy the look of the app, and never copy a record from a screenshot, the live screen or its database. A mockup of an earlier run is already in `mockup_dir`: keep it and its edits, and change it instead of a new draft. It has 1 file per screen: merge the screens and their edits into 1 file, and delete the other files. The direction is unclear: give 2 to 3 variants in the file. Run `check` on the mockup, and fix each line it names. Done when `check` answers ok.
+3. **Draft.** Write 1 mockup file with every screen into `mockup_dir`, by [MOCKUP.md](MOCKUP.md) and by "Bound to the PRD", with made-up data only: copy the look of the app, and never copy a record from a screenshot, the live screen or its database. A mockup of an earlier run is already in `mockup_dir`: keep it and its edits, and change it instead of a new draft. It has 1 file per screen: merge the screens and their edits into 1 file, and delete the other files. The direction is unclear: give 2 to 3 variants in the file. Run `check` on the mockup, and fix each line it names. Done when `check` answers ok.
 
 4. **Take the notes.** By "Notes loop".
 
@@ -109,6 +109,17 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
    | `refused` | a refusal stopped the run; the line names its code |
    | `parked` | a hands-off subagent parked by "Hands-off" |
 
+## Bound to the PRD
+
+The PRD and the requirement ADRs in `requirement_adrs` bind the mockup. Read both before the draft, and draw each settled point as they state it: every choice they allow, such as a single or a multiple pick, and no choice they rule out. Check each note against both before you act on it:
+
+| The note | Action |
+|----------|--------|
+| fits the settled points | edit the mockup |
+| contradicts a settled point | make no edit for it. Reply with the point, quote it and cite its id: the acceptance criterion or the ADR number. The developer withdraws the note, or changes the requirement by `/afkv2:grill-requirements` |
+| asks what the requirements say | reply with the point and cite its id; draw it when the mockup does not show it |
+| needs an answer that the PRD and the ADRs do not hold | a PRD gap: step 5 |
+
 ## Notes loop
 
 Show the mockup in lavish only when the developer did not ask for chat only. Else, or when `show` refuses, take the notes in chat. lavish shows the entry screen; the developer clicks through to the others, all in the 1 file.
@@ -119,7 +130,7 @@ Each note names its element by the `selector`, the `tag` and the `text` that lav
 
 1. Run `show`. `no-host`: lavish is missing, at another version or on an unsafe host. Its reason holds the `file://` path: go on by "In chat". `status` `user-ended`: the developer ended this session in the browser, and lavish does not open it again: run `end`, and go on by "In chat". `tab` `reused`: lavish opened no new tab, because a tab showed the mockup before. When the developer does not see the mockup, run `end`, then `show`.
 2. Wait for the notes. On Claude, run `wait` with `--notes-file "<afkv2 data folder>/notes/<run>.json"` as a background command the harness tracks; its exit tells you the notes are in the notes file. On Codex, run `show` before you end each turn: the Stop hook waits only on the waiting record that `show` writes, and it clears the record after each wait. A later `show` reuses the open tab. Then end your turn, and the Stop hook hands back 1 line per note with its tag, selector and text.
-3. Read each note, and give it an edit of the mockup or a reply.
+3. Read each note, check it by "Bound to the PRD", and give it an edit of the mockup or a reply.
 4. Show the edited mockup: lavish reloads the saved file in the open session, so run no `show` for it. Write 1 Markdown line per note to a reply file, the edit made or the answer, and run `reply`.
 5. Go to step 2.
 
@@ -135,7 +146,7 @@ On Codex, the Stop hook can end the wait with no note: the wait timed out, the d
 
 ### In chat
 
-Give the developer the `file://` path of the mockup: they open it in a browser and give their notes in chat. Give each note an edit of the mockup or a reply, and tell the developer to reload the mockup after each edit.
+Give the developer the `file://` path of the mockup: they open it in a browser and give their notes in chat. For each note, check it by "Bound to the PRD", then give it an edit of the mockup or a reply, and tell the developer to reload the mockup after each edit.
 
 ### Chat only
 

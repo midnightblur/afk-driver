@@ -377,9 +377,11 @@ def test_start_answers_the_paths_and_the_source_anchor(repo):
     note("PROTOTYPE.md deleted")
     ran = run(repo, "start", "--ticket", TICKET)
     expect(ran.code, 0, f"{ran.given} (answer {ran.answer!r})")
-    paths = {key: relative(ran.answer[key], repo) for key in ("spec_dir", "prd", "index", "prototype_md", "mockup_dir")}
+    keys = ("spec_dir", "prd", "requirement_adrs", "index", "prototype_md", "mockup_dir")
+    paths = {key: relative(ran.answer[key], repo) for key in keys}
     expect([key for key in paths if "\\" in ran.answer[key]], [], f"{ran.given} (answer {ran.answer!r})")
-    expect(paths, {"spec_dir": "docs/PROJ-7", "prd": "docs/PROJ-7/PRD.md", "index": "docs/PROJ-7/INDEX.md",
+    expect(paths, {"spec_dir": "docs/PROJ-7", "prd": "docs/PROJ-7/PRD.md",
+                   "requirement_adrs": "docs/PROJ-7/adr/requirements", "index": "docs/PROJ-7/INDEX.md",
                    "prototype_md": "docs/PROJ-7/PROTOTYPE.md", "mockup_dir": "docs/PROJ-7/prototype"}, ran.given)
     expect(ran.answer["frontend"], {"name": "web", "source": "frontend/web", "catalog": "design/web"}, ran.given)
     expect(ran.answer["catalog_exists"], False, ran.given)
