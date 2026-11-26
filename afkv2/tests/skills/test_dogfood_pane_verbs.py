@@ -284,3 +284,40 @@ def test_a_note_of_16_kib_is_sent_and_16_kib_plus_1_byte_refuses_before_any_herd
             path.write_bytes(content)
         code, answer, runner = run(noted, ["note", "--note-file", str(path)])
         assert (code, answer["error"]["code"]) == (2, "note-unreadable") and not runner.calls
+
+
+def test_a_gone_main_pane_records_no_note_and_an_unconfirmed_prompt_is_recorded_with_no_second_prompt(noted):
+    argv = ["note", "--note-file", str(noted["note"])]
+    before = noted["state_file"].read_bytes()
+    for herdr_code in ("agent_not_found", "pane_not_found"):
+        runner = DogfoodFakeRunner(noted["env"], main_pane=MAIN)
+        runner.answer(("agent", "prompt"), herdr_error(herdr_code))
+        code, answer, runner = run(noted, argv, runner)
+        assert (code, answer["error"]["code"]) == (1, "main-pane-gone") and MAIN in answer["error"]["reason"]
+        assert noted["state_file"].read_bytes() == before and not list(notes_folder(noted).glob("*.md"))
+    runner = DogfoodFakeRunner(noted["env"], main_pane=MAIN)
+    runner.panes[MAIN]["blocked"] = True
+    code, answer, runner = run(noted, argv, runner)
+    assert (code, answer["error"]["code"]) == (1, "herdr-failed") and not runner.prompts
+    assert noted["state_file"].read_bytes() == before and not list(notes_folder(noted).glob("*.md"))
+
+    runner = DogfoodFakeRunner(noted["env"], main_pane=MAIN)
+    runner.panes[MAIN]["stall"] = True
+    runner.answer(("agent", "wait"), herdr_error("timeout"))
+    code, answer, runner = run(noted, argv, runner)
+    assert code == 0 and (answer["sent"], answer["id"]) == ("unconfirmed", 1)
+    assert len(runner.prompts) == 1 and not runner.keys
+    [record] = state(noted)["notes"]
+    assert record["path"] == answer["path"] and Path(answer["path"]).is_file()
+    code, again, runner = run(noted, argv)
+    assert (code, again["error"]["code"]) == (1, "already-sent") and not runner.prompts
+
+
+def test_a_stalled_note_prompt_still_in_the_input_line_gets_1_enter(noted):
+    noted["note"].write_text(milestone(noted["worktree"]), encoding="utf-8")
+    runner = DogfoodFakeRunner(noted["env"], main_pane=MAIN)
+    runner.panes[MAIN]["stall"] = True
+    runner.on(("pane", "read"), lambda argv: runner.screens.update({MAIN: runner.prompts[-1]["text"]}))
+    code, answer, runner = run(noted, ["note", "--note-file", str(noted["note"])], runner)
+    assert code == 0 and answer["sent"] is True and len(runner.prompts) == 1
+    assert runner.keys == [(MAIN, ["enter"])]

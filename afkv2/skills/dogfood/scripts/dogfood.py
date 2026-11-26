@@ -455,6 +455,11 @@ def _prompt_main(env, runner, main_pane, text):
     if code == 0:
         return True
     problem = _herdr_code(out, err)
+    if problem == "agent_prompt_stalled":
+        return True if _after_stall(env, runner, main_pane, main_pane, text)["submitted"] else "unconfirmed"
+    if problem in GONE:
+        raise Refusal("main-pane-gone", f"the main pane {main_pane} is gone: the work stays committed; tell the "
+                                        f"developer in this pane")
     raise Refusal("herdr-failed", f"herdr agent prompt {main_pane}: {problem or (err or out).strip()}")
 
 
