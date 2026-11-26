@@ -23,7 +23,7 @@ from dogfood_runner import DogfoodFakeRunner  # noqa: E402
 MAIN, SIDE = "w1:p1", "w1:p2"
 STEP = re.compile(r"^ *```sh step=([\w-]+)\n *(.*?)\n *```", re.S | re.M)
 AFKV2_PANE_VERBS = {"worktree", "note", "status"}
-AFKV2_PANE_CODES = {"not-afkv2-pane", "bad-branch", "small-exists", "base-missing", "worktree-failed",
+AFKV2_PANE_CODES = {"outside-herdr", "not-afkv2-pane", "bad-branch", "small-exists", "base-missing", "worktree-failed",
                     "note-unreadable", "note-check-failed", "already-sent", "main-pane-gone", "herdr-failed",
                     "state-unreadable", "usage"}
 
@@ -36,6 +36,22 @@ def section(path, heading):
     body = path.read_text("utf-8")
     start = body.index(heading)
     end = body.find("\n## ", start + len(heading))
+    return " ".join(body[start:end if end != -1 else len(body)].split())
+
+
+def step(path, lead):
+    """The flat text of 1 bold-led step or paragraph, from `lead` to the next bold lead or heading."""
+    body = flat(path)
+    start = body.index(lead)
+    ends = [end for end in (body.find(" **", start + len(lead)), body.find(" ## ", start)) if end != -1]
+    return body[start:min(ends, default=len(body))]
+
+
+def paragraph(path, lead):
+    """The flat text of the paragraph that starts with `lead`."""
+    body = path.read_text("utf-8")
+    start = body.index(lead)
+    end = body.find("\n\n", start)
     return " ".join(body[start:end if end != -1 else len(body)].split())
 
 
@@ -58,11 +74,15 @@ def test_agent_asks_the_integration_branch_at_each_pane_session_start_before_any
 
 
 def test_agent_runs_a_small_ask_by_small_change_and_a_feature_ask_by_grill_requirements_in_a_medium_worktree():
-    body = flat(AGENT_MD)
-    assert "/afkv2:small-change" in body and "small-asks worktree" in body
-    assert "/afkv2:grill-requirements" in body and "medium worktree" in body
-    assert "worktree --lane medium" in body and "feat/afkv2-<ticket key" in body
-    assert "grow" in body and "ticket key" in body
+    small = paragraph(AGENT_MD, "A small ask")
+    assert "`/afkv2:small-change`" in small and "small-asks worktree" in small
+    assert "grill-requirements" not in small
+    assert "step 9" in small and "before the next small ask" in small
+    feature = paragraph(AGENT_MD, "A feature ask")
+    assert "ticket key" in feature and "medium worktree" in feature and "feat/afkv2-<ticket key>" in feature
+    assert "`/afkv2:grill-requirements`" in paragraph(AGENT_MD, "Run `/afkv2:grill-requirements`")
+    grow = paragraph(AGENT_MD, "A grow")
+    assert "medium lane" in grow and "cherry-pick" in grow and "revert" in grow
 
 
 def test_agent_passes_the_confirmed_base_as_the_target_of_create_change_request():
@@ -82,23 +102,30 @@ def test_agent_names_the_3_lead_lines_of_dogfood_py_verbatim():
 
 def test_agent_queues_a_new_ask_and_says_so_in_its_pane():
     body = flat(AGENT_MD)
-    queue = body[body.index("**A new ask"):]
-    queue = queue[:queue.index("**", len("**A new ask") + 2)]
-    assert "queue" in queue and "pane" in queue and "milestone" in queue
+    queue = step(AGENT_MD, "**A new ask")
+    assert "say in this pane that it is queued" in queue and "milestone" in queue
 
 
 def test_agent_sends_a_note_at_each_milestone_by_note_format_with_no_question_and_names_the_redo():
     body = flat(AGENT_MD)
     assert "[NOTE-FORMAT.md](NOTE-FORMAT.md)" in body
     assert "note --note-file" in body and "milestone" in body
-    assert "no question" in body and "`redo`" in body
-    assert "scratch" in body
+    milestone = step(AGENT_MD, "**A milestone")
+    assert "no question" in milestone and "`redo`" in milestone
+    assert "in scratch, outside every repository" in milestone
 
 
 def test_agent_wraps_up_with_a_push_each_draft_change_and_a_wrap_note():
-    wrap = flat(AGENT_MD)
-    wrap = wrap[wrap.index("**The wrap-up"):]
+    wrap = step(AGENT_MD, "**The wrap-up")
     assert "push" in wrap and "Draft change" in wrap and "kind: wrap" in wrap and "open-asks" in wrap
+    assert "commits ahead of the base" in wrap and "`none` as its url" in wrap and "`none | none |" in wrap
+
+
+def test_agent_refusal_rows_keep_the_ticket_and_the_session_base():
+    rows = refusal_rows(AGENT_MD)
+    assert "same ticket" in rows["bad-branch"]
+    assert "`base` of `status`" in rows["base-missing"]
+    assert "herdr" in rows["outside-herdr"]
 
 
 # AGENT.md: the bans (AC-013, AC-017).
@@ -208,8 +235,20 @@ def test_apply_writes_no_plugin_file_lasts_only_for_the_session_and_applies_noth
     body = flat(APPLY_MD)
     assert "Write no plugin file" in body
     assert "only for this session" in body and "installed plugin does not change" in body
-    assert "`check-note`" in body and "apply nothing" in body
-    assert "[SKILL.md](SKILL.md)" in body
+    intro = paragraph(APPLY_MD, "You are the main agent.")
+    assert "Apply only a note that `check-note` answered ok" in intro and "step 3 of [SKILL.md](SKILL.md)" in intro
+    assert "from a note that fails the check, apply nothing" in intro
+    assert "[NOTE-FORMAT.md](NOTE-FORMAT.md)" in body
+
+
+def test_apply_applies_each_row_at_once_with_no_question():
+    rows = paragraph(APPLY_MD, "Apply each `changed` row")
+    assert "at once" in rows and "no question to the developer" in rows
+
+
+def test_apply_a_removed_hook_stays_best_effort():
+    removed = paragraph(APPLY_MD, "A `removed` row")
+    assert "CK-1 to CK-3" in removed and "CK-4" in removed and "best effort" in removed
 
 
 def test_apply_tells_the_developer_what_applied_and_how_to_try_it():

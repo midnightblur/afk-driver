@@ -1,6 +1,6 @@
 # Apply a milestone note
 
-You are the main agent. Apply only a note that `check-note` answered ok, by step 3 of [SKILL.md](SKILL.md). A note that fails the check: apply nothing from it.
+You are the main agent. Apply only a note that `check-note` answered ok, by step 3 of [SKILL.md](SKILL.md); from a note that fails the check, apply nothing. The note fields are in [NOTE-FORMAT.md](NOTE-FORMAT.md).
 
 Apply each `changed` row of the note at once, by its change kind, with no question to the developer. Nothing is released, installed or reloaded: the installed plugin does not change, and each apply lasts only for this session. Write no plugin file, in a worktree or in the installed plugin.
 
@@ -11,7 +11,7 @@ Apply each `changed` row of the note at once, by its change kind, with no questi
 3. **CK-3, the core behaviors.** Read the changed text from its worktree path. Follow it as a session instruction, in place of the core behaviors that the session start printed.
 4. **CK-4, a hook or the hook registration.** Hooks run from the installed plugin, so this part is best effort: it may not apply in this session. Tell the developer so, with the `best-effort` line of the note for that path.
 
-A `removed` row: from now on, act as if the file is gone. Do not use the removed skill, script or text, and do not fall back to its installed copy.
+A `removed` row of CK-1 to CK-3: from now on, act as if the file is gone. Do not use the removed skill, script or text, and do not fall back to its installed copy. A removed CK-4 row is best effort, as each CK-4 row: the installed hook can still run.
 
 ## The redo
 
