@@ -18,7 +18,7 @@ The title line `# Design catalog — <frontend name>`, then these sections, each
 
 | Section | Holds |
 |---------|-------|
-| `Scope` | the frontend name, its source folder and the app address used for the screenshots |
+| `Scope` | the frontend name, its source folder, the style entry points of the build with each one that was not on disk, and the app address used for the screenshots |
 | `Cards` | the table below, 1 row per card |
 | `Refresh` | how to run `/afkv2:design-system` again for this frontend |
 

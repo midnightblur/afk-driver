@@ -78,6 +78,8 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
    5. Take the screenshots with the browser driver into `<afkv2 data folder>/shots/<run>/`.
    6. The app does not answer, or the browser driver fails: use the next anchor (`catalog`, else `source`), and record the cause for the Fidelity section.
 
+   With no `live` block, or when the steps above start no app: ask the developer once for the address of a running app that the run may screenshot, such as a dev server they run or a shared test environment, and whether they sign in to it in the browser of the driver. An address the developer gives is their app: start no app and stop none there, and take the screenshots by step 5. With no address, keep the anchor, and record the cause for the Fidelity section.
+
    Also map the neighbours of each screen: the screens a story enters from, and the screens the new screen links to.
 
 3. **Draft.** Write 1 mockup file with every screen into `mockup_dir`, by [MOCKUP.md](MOCKUP.md) and by "Bound to the PRD", with made-up data only: copy the look of the app, and never copy a record from a screenshot, the live screen or its database. A mockup of an earlier run is already in `mockup_dir`: keep it and its edits, and change it instead of a new draft. It has 1 file per screen: merge the screens and their edits into 1 file, and delete the other files. The direction is unclear: give 2 to 3 variants in the file. Run `check` on the mockup, and fix each line it names. Done when `check` answers ok.
