@@ -283,8 +283,10 @@ def test_close_keeps_both_real_git_worktrees_and_their_branches(world):
     _git(source, "branch", "feat/base")
     folder = source.parent / f"{source.name}-worktrees"
     worktrees = []
-    for lane, branch in (("small", "feat/afkv2-df-20261126-1730"), ("medium", "feat/afkv2-x")):
-        path = folder / branch.replace("/", "-")
+    lanes = (("small", "feat/afkv2-df-20261126-1730", "feat-afkv2-df-20261126-1730"),
+             ("medium", "feat/afkv2-x", "feat-afkv2-x"))
+    for lane, branch, name in lanes:
+        path = folder / name
         _git(source, "worktree", "add", "-q", "-b", branch, str(path), "feat/base")
         worktrees.append({"path": str(path), "branch": branch, "lane": lane, "created": "2026-11-26T17:30:00+00:00"})
     wrapped(world, worktrees=worktrees)
