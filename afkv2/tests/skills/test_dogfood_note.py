@@ -77,3 +77,57 @@ def test_valid_wrap_parses_clean(note_module, worktree):
     assert note["kind"] == "wrap"
     assert note["changes"] == [{"url": "https://forge.example/pr/7", "branch": "feat/x", "asks": "ask 1, ask 2", "line": 5}]
     assert note["open_asks"] == "none"
+
+
+CK1 = VALID_ROWS["CK-1"]
+CK4 = VALID_ROWS["CK-4"]
+
+
+def invalid_notes(wt, outside):
+    """{rule code: (note text, line of the failure)}: each note breaks only its own rule."""
+    good = milestone(wt, [CK1])
+    return {
+        "N-HEADER": ("dogfood-note v1\n" + good.partition("\n")[2], 1),
+        "N-KIND": (good.replace("kind: milestone", "kind: release"), 2),
+        "N-NO-PATH": (milestone(wt, []), 5),
+        "N-PATH-OUTSIDE": (good.replace(str(wt / CK1[0]), str(outside / "SKILL.md")), 6),
+        "N-PATH-MISSING": (milestone(wt, [("skills/lane/GONE.md", "CK-1", "added", "a new page")]), 6),
+        "N-CK": (milestone(wt, [(CK1[0], "CK-5", "changed", "the lane asks once")]), 6),
+        "N-NO-USE": (milestone(wt, [CK1], use=()), 2),
+        "N-NO-BEST-EFFORT": (milestone(wt, [CK1, CK4], best_effort=[(CK1[0], "not the hook")]), 7),
+        "N-NO-REDO": (milestone(wt, [CK1], redo=None), 2),
+        "N-NO-CHANGES": (wrap(rows=()), 4),
+    }
+
+
+@pytest.mark.parametrize("code", ["N-HEADER", "N-KIND", "N-NO-PATH", "N-PATH-OUTSIDE", "N-PATH-MISSING", "N-CK",
+                                  "N-NO-USE", "N-NO-BEST-EFFORT", "N-NO-REDO", "N-NO-CHANGES"])
+def test_invalid_note_gives_its_own_code(note_module, worktree, tmp_path, code):
+    outside = tmp_path / "other"
+    outside.mkdir()
+    (outside / "SKILL.md").write_text("x\n", encoding="utf-8")
+    text, line = invalid_notes(worktree, outside)[code]
+    failures = note_module.check(note_module.parse(text), [str(worktree)])
+    assert [failure["code"] for failure in failures] == [code]
+    assert failures[0]["where"] == f"line {line}"
+    assert failures[0]["reason"]
+
+
+def test_invalid_notes_cover_every_code(note_module, worktree, tmp_path):
+    assert set(invalid_notes(worktree, tmp_path)) == set(note_module.CODES)
+
+
+def test_removed_path_need_not_exist(note_module, worktree):
+    text = milestone(worktree, [("skills/lane/OLD.md", "CK-1", "removed", "the old page")])
+    assert note_module.check(note_module.parse(text), [str(worktree)]) == []
+
+
+def test_path_that_climbs_out_is_outside(note_module, worktree):
+    text = milestone(worktree, [("../wt-escape/SKILL.md", "CK-1", "removed", "a page")])
+    assert [f["code"] for f in note_module.check(note_module.parse(text), [str(worktree)])] == ["N-PATH-OUTSIDE"]
+
+
+def test_redo_none_passes(note_module, worktree):
+    note = note_module.parse(milestone(worktree, [CK1], redo="none"))
+    assert note["redo"] == "none"
+    assert note_module.check(note, [str(worktree)]) == []
