@@ -131,7 +131,7 @@ def _app(plan_text, repo, needed):
         problem = app_failure("PLAN.md", app)
         yield f"live build: {problem['reason']}" if problem else None
         return
-    config = afkv2_config.read_config(repo)
+    config = afkv2_config.read_config(repo, with_frontends=False)
     if not config["ok"] or "live" not in config:
         error = config.get("error") or {"code": "live-undefined", "reason": "the repository config has no live block"}
         yield f"live build: {error['code']}: {error['reason']}; prove the live block with /afkv2:propose-verification"
@@ -230,12 +230,18 @@ def _gate_run(rows, path, head, verification, plan_text, repo):
 
 
 def _tests_of(plan, row):
-    """The test files that the test-first records of the row's subtasks name for it."""
+    """The test files that the test-first records of the row's subtasks name for it. When they name none, such as
+    after a send-back that changed only tests and logged `no-test`, the `.py` files that the row's command names."""
     files = []
     for subtask in row["subtasks"]:
         for cycle in walk.tdd_log.record(plan, subtask)["cycles"]:
             if cycle.get("row") == row["id"] and cycle.get("test"):
                 files.append(cycle["test"].split("::", 1)[0])
+    if not files:
+        for word in (row.get("command") or "").split():
+            name = word.strip("\"'").split("::", 1)[0]
+            if name.endswith(".py"):
+                files.append(name)
     return list(dict.fromkeys(files))
 
 

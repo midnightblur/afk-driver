@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Orders</title>
+<script src="https://cdn.example/table.js"></script>
+</head>
+<body>
+<nav><a href="#orders">Orders</a></nav>
+<section id="orders"></section>
+<script>
+fetch('/api/orders').then(function (answer) { return answer.json(); });
+</script>
+</body>
+</html>

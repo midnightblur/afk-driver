@@ -50,6 +50,7 @@ def test_resolves_spec_folder_tracker_ownership_and_data_folder(tmp_path, local_
         "ownership": {"own": ["src/**"], "shared": ["lib/**"]},
         "forge": "github",
         "data_folder": str(local_app_data / "afkv2"),
+        "frontends": [],
     }
 
 
@@ -269,3 +270,119 @@ def test_bad_live_values_are_refused_and_named(tmp_path, block, field):
     assert answer["ok"] is False
     assert answer["error"]["code"] == "bad-value"
     assert field in answer["error"]["reason"]
+
+
+WEB = {"name": "web", "source": "frontend/src", "catalog": "docs/catalog/web"}
+ADMIN = {"name": "admin-2", "source": "admin", "catalog": "docs/catalog/admin"}
+
+
+@pytest.mark.parametrize("config", [FULL, {**FULL, "frontends": None}])
+def test_frontends_answer_an_empty_list_when_absent(tmp_path, config):
+    answer = afkv2_config.read_config(make_repo(tmp_path, config))
+    assert answer["ok"] is True
+    assert answer["frontends"] == []
+
+
+def test_frontends_answer_each_entry_as_written(tmp_path):
+    answer = afkv2_config.read_config(make_repo(tmp_path, {**FULL, "frontends": [WEB, ADMIN]}))
+    assert answer["ok"] is True
+    assert answer["frontends"] == [WEB, ADMIN]
+
+
+@pytest.mark.parametrize(
+    "frontends, field",
+    [
+        ([WEB, {**ADMIN, "name": "web"}], "frontends[1].name"),
+        ([WEB, {**ADMIN, "catalog": "docs/catalog/web"}], "frontends[1].catalog"),
+        ([WEB, {**ADMIN, "catalog": "docs/catalog/web/"}], "frontends[1].catalog"),
+        ([WEB, {**ADMIN, "catalog": "Docs/Catalog/WEB"}], "frontends[1].catalog"),
+        ([{**WEB, "source": "/abs/src"}], "frontends[0].source"),
+        ([{**WEB, "catalog": "/abs/catalog"}], "frontends[0].catalog"),
+        ([{**WEB, "source": "../outside"}], "frontends[0].source"),
+        ([{**WEB, "catalog": "docs/../../x"}], "frontends[0].catalog"),
+        ([{**WEB, "name": "Web"}], "frontends[0].name"),
+        ([{**WEB, "name": "web_app"}], "frontends[0].name"),
+        ([{**WEB, "name": ""}], "frontends[0].name"),
+        ([{**WEB, "name": 3}], "frontends[0].name"),
+        ([{**WEB, "source": ""}], "frontends[0].source"),
+        ([{k: v for k, v in WEB.items() if k != "catalog"}], "frontends[0].catalog"),
+        ([{**WEB, "extra": 1}], "frontends[0].extra"),
+        (["web"], "frontends[0]"),
+        ({"web": WEB}, "frontends"),
+        pytest.param(
+            [{**WEB, "source": "C:/abs"}],
+            "frontends[0].source",
+            marks=pytest.mark.skipif(sys.platform != "win32", reason="a drive letter is absolute only on Windows"),
+        ),
+    ],
+)
+def test_bad_frontends_are_refused_and_named(tmp_path, frontends, field):
+    answer = afkv2_config.read_config(make_repo(tmp_path, {**FULL, "frontends": frontends}))
+    assert answer["ok"] is False
+    assert answer["error"]["code"] == "bad-value"
+    assert field in answer["error"]["reason"]
+
+
+def test_without_frontends_a_bad_list_is_no_refusal_and_no_key(tmp_path):
+    answer = afkv2_config.read_config(make_repo(tmp_path, {**FULL, "frontends": [WEB, WEB]}), with_frontends=False)
+    assert answer["ok"] is True, f"input: frontends [WEB, WEB], with_frontends=False\nexpected: ok\nactual: {answer}"
+    assert "frontends" not in answer, f"input: with_frontends=False\nexpected: no frontends key\nactual: {answer}"
+
+
+def test_check_frontends_answers_an_empty_list_for_none():
+    assert afkv2_config._check_frontends(None) == []
+
+
+def test_read_command_answers_frontends_and_exits_1_on_a_bad_list(tmp_path):
+    code, answer = run_reader("read", cwd=make_repo(tmp_path, {**FULL, "frontends": [WEB]}))
+    assert code == 0
+    assert answer["frontends"] == [WEB]
+    bad = make_repo(tmp_path / "bad", {**FULL, "frontends": [WEB, WEB]})
+    code, answer = run_reader("read", cwd=bad)
+    assert code == 1
+    assert answer["error"]["code"] == "bad-value"
+
+
+PLUGIN = SCRIPTS.parent
+# Each probe runs in a child process in the repository, so its sys.path changes stay out of this test process.
+OPT_OUT_PROBES = {
+    "page_home._spec_pages (direct caller)": (
+        [PLUGIN / "skills" / "use-lavish" / "scripts"],
+        "import page_home; print(json.dumps({'ok': True, 'pages': str(page_home._spec_pages('PROJ-7'))}))"),
+    "tracker settings.read_config (runs `read --no-frontends`)": (
+        [PLUGIN / "ports"],
+        "from tracker import settings; print(json.dumps(settings.read_config() or {'ok': False}))"),
+}
+
+
+def run_probe(paths, code, cwd):
+    script = f"import json, sys; sys.path[:0] = {[str(p) for p in paths]!r}\n{code}"
+    done = subprocess.run([sys.executable, "-c", script], cwd=cwd, capture_output=True, text=True,
+                          stdin=subprocess.DEVNULL, timeout=60)
+    return done.returncode, done.stdout, done.stderr
+
+
+@pytest.mark.parametrize("caller", sorted(OPT_OUT_PROBES))
+def test_a_caller_that_never_reads_frontends_reads_a_config_with_a_bad_list(tmp_path, caller):
+    repo = make_repo(tmp_path, {**FULL, "frontends": [WEB, WEB]})
+    code, out, err = run_probe(*OPT_OUT_PROBES[caller], cwd=repo)
+    given = f"input: {caller}, config frontends [web, web]"
+    assert code == 0, f"{given}\nexpected: exit 0\nactual: exit {code}, stdout {out!r}, stderr {err!r}"
+    answer = json.loads(out)
+    assert answer.get("ok") is True, f"{given}\nexpected: an ok answer\nactual: {answer}"
+
+
+def test_read_command_with_no_frontends_skips_a_bad_list(tmp_path):
+    code, answer = run_reader("read", "--no-frontends", cwd=make_repo(tmp_path, {**FULL, "frontends": [WEB, WEB]}))
+    assert (code, answer.get("ok"), "frontends" in answer) == (0, True, False), \
+        f"input: read --no-frontends, frontends [web, web]\nexpected: exit 0, ok, no frontends key\nactual: exit {code}, {answer}"
+
+
+def test_prototype_files_still_refuses_a_bad_frontends_list(tmp_path):
+    repo = make_repo(tmp_path, {**FULL, "frontends": [WEB, WEB]})
+    code, out, err = run_probe(
+        [PLUGIN / "skills" / "prototype" / "scripts"],
+        "import prototype_files\ntry:\n    prototype_files._config()\n    print(json.dumps({'code': None}))\n"
+        "except prototype_files.Refusal as r:\n    print(json.dumps({'code': r.code}))", cwd=repo)
+    actual = json.loads(out)["code"] if code == 0 else f"exit {code}, stderr {err!r}"
+    assert actual == "bad-value", f"input: prototype_files._config, frontends [web, web]\nexpected: bad-value\nactual: {actual}"

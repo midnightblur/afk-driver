@@ -28,7 +28,7 @@ def _missing(missing, writer):
 
 def read_config():
     try:
-        config = run_command(PLUGIN_ROOT / "scripts" / "afkv2_config.py", ["read"], 60)
+        config = run_command(PLUGIN_ROOT / "scripts" / "afkv2_config.py", ["read", "--no-frontends"], 60)
     except Refusal as refusal:
         if refusal.code == "no-config":
             raise _missing(CONFIG, SETUP) from refusal

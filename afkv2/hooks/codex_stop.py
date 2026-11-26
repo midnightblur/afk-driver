@@ -36,10 +36,28 @@ FALLBACK = "After you send the page, write one chat message; the agent then poll
 NO_PANE = "Not answered: Codex does not run in a herdr pane. Ask it in the Codex chat."
 
 
+def _note_lines(round_prompts: list[dict]) -> str:
+    """1 line per note: its words, then the element it is on (`<tag> selector "text"`) when it has a selector."""
+    def one_line(value) -> str:
+        return " ".join(str(value or "").split())
+
+    lines = []
+    for prompt in round_prompts:
+        line = one_line(prompt.get("prompt"))
+        if prompt.get("selector"):
+            tag, selector, text = (one_line(prompt.get(field)) for field in ("tag", "selector", "text"))
+            line += f' (on <{tag}> {selector} "{text}")'
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def _raw(document: str | None, round_prompts: list[dict]) -> str:
-    """The raw response of the round's prompts, read against the page document; their joined text without one.
+    """The raw response of the round's prompts, read against the page document; their joined text when the document
+    does not resolve them. With no page document, such as a mockup: 1 line per note with its element (ADR-0003).
     A kept send holds no `raw` field, so the joined text comes from the prompts."""
-    if document and round_prompts:
+    if not document:
+        return _note_lines(round_prompts)
+    if round_prompts:
         try:
             return engine.poll_raw(document, round_prompts)
         except (Refusal, KeyError, TypeError, AttributeError, StopIteration):

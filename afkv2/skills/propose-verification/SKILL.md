@@ -16,6 +16,7 @@ Two proposers draft the plan, each critiques the other, and you reconcile one pl
 | `GRILL-LOG.md` and the page documents | written by `/afkv2:grill-requirements` | stop and name them and the writer |
 | `PRD.md` and the requirement ADRs | written by `/afkv2:to-prd` | stop and name them and the writer |
 | `SDD.md` and the design ADRs | written by `/afkv2:propose-solution` | stop and name them and the writer |
+| `PROTOTYPE.md`, optional | written by `/afkv2:prototype` | run as without it: no refusal and no new question |
 
 Read only what is on disk, and the code. A later session continues from the page document and `GRILL-LOG.md` alone. A requirement or a design point that the specs leave out is a gap: name it, and send the developer to its writer.
 
@@ -31,9 +32,9 @@ Run each command from the repository root. `<python>` is the Python in the setup
    <python> "<this skill's folder>/scripts/verification_files.py" start --ticket "<ticket key>" [--target "<target branch>"]
    ```
 
-   Pass `--target` when the feature merges into a branch other than the default branch. `missing-input`: stop and show `missing` and `writer`. The answer holds `spec_dir`, `prd`, `sdd`, `log`, `requirement_adrs`, `design_adrs`, `verification`, `verification_exists`, `doc`, `session`, `resume`, `raw_file` and `live`. `resume` true and no file at `doc`: the session stopped in step 3; go to step 3, and continue by the stage of its state file. `resume` true with a file at `doc`: take the page over by `/afkv2:use-lavish` "Take over a page" ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)), read `doc`, honour every steer in it, and continue at step 4. `verification_exists` true: this session changes a plan; read `verification`, keep every row id, and retire a row in place, never drop it.
+   Pass `--target` when the feature merges into a branch other than the default branch. `missing-input`: stop and show `missing` and `writer`. The answer holds `spec_dir`, `prd`, `sdd`, `log`, `requirement_adrs`, `design_adrs`, `verification`, `verification_exists`, `prototype`, `prototype_exists`, `doc`, `session`, `resume`, `raw_file` and `live`. `resume` true and no file at `doc`: the session stopped in step 3; go to step 3, and continue by the stage of its state file. `resume` true with a file at `doc`: take the page over by `/afkv2:use-lavish` "Take over a page" ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)), read `doc`, honour every steer in it, and continue at step 4. `verification_exists` true: this session changes a plan; read `verification`, keep every row id, and retire a row in place, never drop it.
 
-2. **Read the input and the code.** Read `prd`, `sdd`, both ADR folders, `log` and the page documents in `<spec_dir>/pages/`. Start the code reading in background subagents: the tests that exist per level, the contract tests per service boundary that the change crosses, and how the app starts, where it answers and how it stops. Done when each acceptance criterion and each boundary has the facts its rows need.
+2. **Read the input and the code.** Read `prd`, `sdd`, both ADR folders, `log` and the page documents in `<spec_dir>/pages/`. `prototype_exists` true: read `prototype`, and derive `ui-e2e` and `acceptance` rows from each `reachable` row of its Coverage table; each row traces its screen path by the existing `story` and `criteria` columns, with no new column. Start the code reading in background subagents: the tests that exist per level, the contract tests per service boundary that the change crosses, and how the app starts, where it answers and how it stops. Done when each acceptance criterion and each boundary has the facts its rows need.
 
 3. **Draft by 2 proposers.** Run `plan`. It starts nothing.
 
@@ -45,7 +46,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
    | Step | Do |
    |------|----|
-   | R-1 Same inputs | Write the brief, a Markdown file in a scratch folder: the paths of `prd`, `sdd`, both ADR folders and `log`, the path of [DRAFT.md](DRAFT.md), a digest of the code reading with its citations, and each steer. A file that `HEAD` does not hold goes into the brief in full. Run `start`. |
+   | R-1 Same inputs | Write the brief, a Markdown file in a scratch folder: the paths of `prd`, `sdd`, both ADR folders, `log` and, when `prototype_exists` is true, `prototype`, the path of [DRAFT.md](DRAFT.md), a digest of the code reading with its citations, and each steer. A file that `HEAD` does not hold goes into the brief in full. Run `start`. |
    | R-2 Draft alone | Run `wait`. Each proposer writes a whole plan to `DRAFT.md` in its own worktree. |
    | R-3 Critique | Run `critique`, then `wait` again. Each proposer writes what it would change in the plan of the other, and why, to `CRITIQUE.md`. The second `wait` answers `files`: the 4 paths. |
    | R-4 Reconcile | Read the 4 files, never the pane output. A part that both critiques accept becomes 1 plan. Each other difference becomes 1 fork card (a `debate` item) with both sides, each side naming its tool. Write the round input of step 4 now, outside the worktrees. Then run `cleanup`: it removes the worktrees and their files. |

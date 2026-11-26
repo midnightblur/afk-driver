@@ -40,9 +40,9 @@ HIGH_LEVELS = {"api", "ui-e2e", "acceptance"}
 WORLD_ROWS = (("VR-001", "AC-001", "unit", "active"), ("VR-002", "AC-001", "api", "active"))
 
 
-def verification_md(rows=WORLD_ROWS, internal=()):
+def verification_md(rows=WORLD_ROWS, internal=(), app="config · proven at abc on 2026-01-05"):
     """A VERIFICATION.md in the written format; each row is (id, criteria, level, status)."""
-    lines = ["# Verification plan — PROJ-1", "", "> Parent PRD: PRD.md", "> Parent SDD: SDD.md", "> App: config · proven at abc on 2026-01-05",
+    lines = ["# Verification plan — PROJ-1", "", "> Parent PRD: PRD.md", "> Parent SDD: SDD.md", f"> App: {app}",
              "> Last updated: 2026-01-05", "", "## Plan rows", "",
              "| Id | Criteria | Story | Given | When | Then | Level | Tier | Data | Environment | Status |",
              "|----|----------|-------|-------|------|------|-------|------|------|-------------|--------|"]
@@ -1265,7 +1265,10 @@ def load_by_path(path):
 def test_the_not_applicable_form_is_in_lockstep_with_the_start_gate():
     gate = load_by_path(START_GATE)
     assert gate.NOT_APPLICABLE == cp.NOT_APPLICABLE and set(gate.LIVE_TIERS) == cp.LIVE_TIERS
-    assert gate.APP_MARK == cp.APP_MARK and gate.NO_APP == cp.NO_APP
+    assert gate.APP_MARK == cp.APP_MARK and gate.NO_APP == cp.NO_APP and gate.NO_APP_MARK == cp.NO_APP_MARK
+    for line in ("none", "none · c-1", "NONE ·  c-1 ", "none ·", "config", "http://a.test"):
+        text = f"# Plan\n\n> App: {line}\n"
+        assert gate.no_app_card(text) == cp.no_app_card(text) and gate.plan_app(text) == cp._app_of(text), line
     for cell in ("not applicable: no app", "not applicable:", "n/a", "Not applicable: x"):
         assert gate.is_not_applicable(SimpleNamespace(check=cell)) == cp.is_not_applicable(cell), cell
 
@@ -1391,14 +1394,15 @@ def rules_2_plan(**changes):
     return {**plan, **changes}
 
 
-def rules_2_check(tmp_path, contracts=None, rows=WORLD_ROWS, internal=(), criteria=("AC-001 It works.",), header=RULES_2, verification=True):
+def rules_2_check(tmp_path, contracts=None, rows=WORLD_ROWS, internal=(), criteria=("AC-001 It works.",), header=RULES_2, verification=True,
+                  app="config · proven at abc on 2026-01-05"):
     """The plan check in a repository whose spec folder holds the PRD and VERIFICATION.md."""
     repo = new_repo(tmp_path / "repo")
     spec = repo / "specs" / "PROJ-1"
     spec.mkdir(parents=True)
     (spec / "PRD.md").write_text("# PRD\n\n## Acceptance Criteria\n\n" + "".join(f"- [ ] {item}\n" for item in criteria), "utf-8")
     if verification:
-        (spec / "VERIFICATION.md").write_text(verification_md(rows, internal), "utf-8")
+        (spec / "VERIFICATION.md").write_text(verification_md(rows, internal, app), "utf-8")
     return cp.check_plan(write_plan(repo / "plan", rules_2_plan() if contracts is None else contracts, header))
 
 
@@ -1540,6 +1544,27 @@ def test_a_rules_2_live_row_marked_not_applicable_is_refused(tmp_path):
 
 def test_a_plan_with_no_rules_line_may_still_mark_a_live_row_not_applicable(tmp_path):
     assert rules_2_check(tmp_path, na_plan(), header="> App: none", verification=False)["ok"]
+
+
+# A build with no live app: `> App: none · <card>` copies the line that the developer's accept mark wrote in
+# VERIFICATION.md (spec 185, SDD §6 I-13), and its live tiers then run with no app.
+
+NO_APP = "> Rules: 2\n> App: none · c-none"
+
+
+def test_a_no_app_plan_whose_card_verification_holds_passes_its_live_tiers(tmp_path):
+    answer = rules_2_check(tmp_path, header=NO_APP, app="none · c-none")
+    assert answer["ok"], failures_of(answer)
+
+
+@pytest.mark.parametrize("app", ["config · proven at abc on 2026-01-05", "none · c-other"])
+def test_a_no_app_plan_whose_card_verification_does_not_hold_refuses(tmp_path, app):
+    assert codes_of(rules_2_check(tmp_path, header=NO_APP, app=app)) == ["app-none-unmarked"]
+
+
+def test_a_bare_no_app_line_still_cannot_run_a_live_tier(tmp_path):
+    failures = failures_of(rules_2_check(tmp_path, header="> Rules: 2\n> App: none", app="none · c-none"))
+    assert [(item["code"], item["where"]) for item in failures] == [("gate-cannot-run", "0002-b tier api")]
 
 
 def test_a_rules_2_low_row_marked_not_applicable_passes(tmp_path):

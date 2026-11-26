@@ -1,0 +1,544 @@
+{
+  "schema": "afkv2.page/2",
+  "session": {
+    "step": "Verification plan change",
+    "private": false,
+    "takeovers": [],
+    "id": "s-20261124-220255",
+    "skill": "propose-verification",
+    "feature": "207",
+    "ticket": "207",
+    "started": "2026-11-24T22:04:02Z",
+    "links": {
+      "issue": "https://github.com/midnightblur/afk-driver/issues/{id}",
+      "change": "https://github.com/midnightblur/afk-driver/pull/{id}",
+      "commit": "https://github.com/midnightblur/afk-driver/commit/{id}"
+    },
+    "short_title": "Verification of #207, hands-off"
+  },
+  "maps": [],
+  "notes": [],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "current",
+      "banner": {
+        "settled": [
+          "1 verification proposer: herdr could not start the Claude and Codex proposers (agent_not_ready, third time today)",
+          "Steer: App none, so every check runs hands-off; real-session checks go to an owner checklist"
+        ],
+        "unlocks": [
+          "VERIFICATION.md",
+          "/afkv2:to-subtasks"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "v2-app-none",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "props": {
+              "markdown": true,
+              "text": "You accepted this in the last session, but `write` only reads marks from this session's page, so I ask once more. **Reading:** the plugin has no server to start; the plan keeps `App: none`. Accept to record it."
+            }
+          },
+          "title": "This plugin has no live app (asked again)",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "v2-lower-api",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "v2-lower-api-t",
+            "props": {
+              "columns": [
+                "Row",
+                "Was",
+                "Now",
+                "Criteria",
+                "Then you should see"
+              ],
+              "rows": [
+                [
+                  "VR-007",
+                  "api",
+                  "integration",
+                  "AC-006",
+                  "the first refuses no-frontend with a reason that names catalog_files.py add-frontend; the second refuses pick-frontend and lists both names"
+                ],
+                [
+                  "VR-008",
+                  "api",
+                  "integration",
+                  "AC-009",
+                  "it refuses network-call and names the 2 lines with a call; the #orders link passes"
+                ],
+                [
+                  "VR-009",
+                  "api",
+                  "integration",
+                  "AC-010",
+                  "the first refuses afkv2-runtime; the clean one answers ok"
+                ],
+                [
+                  "VR-010",
+                  "api",
+                  "integration",
+                  "AC-016",
+                  "each refuses no-host with a reason that names the cause, and no file is written beside the mockup"
+                ],
+                [
+                  "VR-011",
+                  "api",
+                  "integration",
+                  "AC-017, AC-019",
+                  "the first refuses bad-prototype naming story 2 and leaves INDEX.md unchanged; the second answers ok and the INDEX Prototype row reads 'chosen <today>'"
+                ],
+                [
+                  "VR-012",
+                  "api",
+                  "integration",
+                  "AC-020",
+                  "it refuses secrets with the file and line, and the INDEX row stays unchanged"
+                ],
+                [
+                  "VR-019",
+                  "api",
+                  "integration",
+                  "AC-022, AC-023",
+                  "it refuses bad-catalog naming the missing card file; with the file added it answers ok with 1 checked and 2 unchecked"
+                ],
+                [
+                  "VR-020",
+                  "api",
+                  "integration",
+                  "AC-023",
+                  "the first writes the entry and the config read answers it in frontends; the second and third refuse bad-value and leave the config unchanged"
+                ],
+                [
+                  "VR-021",
+                  "api",
+                  "integration",
+                  "AC-024",
+                  "it refuses secrets for the first and network-call for the second, each with file and line"
+                ],
+                [
+                  "VR-023",
+                  "api",
+                  "integration",
+                  "AC-027, AC-029",
+                  "the first answers prototype_exists true and the path; the second answers prototype_exists false; neither refuses"
+                ],
+                [
+                  "VR-024",
+                  "api",
+                  "integration",
+                  "AC-028, AC-029",
+                  "both answer ok; prototype_exists is true and false; a missing PROTOTYPE.md is never named in missing"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "v2-lower-api-q",
+                "props": {
+                  "markdown": true,
+                  "text": "With `App: none` the plan check refuses every `api` row. These 11 rows already run each script through its command line in a scratch repository, so the check stays the same; only the level name changes. Accept to lower all 11."
+                }
+              }
+            ]
+          },
+          "title": "Script rows: api becomes integration",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "v2-lower-flow",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "v2-lower-flow-t",
+            "props": {
+              "columns": [
+                "Row",
+                "Was",
+                "Now",
+                "Criteria",
+                "Then you should see"
+              ],
+              "rows": [
+                [
+                  "VR-001",
+                  "ui-e2e",
+                  "integration",
+                  "AC-002, AC-003, AC-004, AC-011, AC-012",
+                  "start answers the frontend, the live block and the catalog anchor; show opens the mockup with --plain and its bytes stay the same; the notes file holds the note with its selector, tag and text"
+                ],
+                [
+                  "VR-002",
+                  "acceptance",
+                  "integration",
+                  "AC-017, AC-018, AC-019",
+                  "it answers ok and the INDEX Prototype row reads 'chosen <today>'; with the screenshot names removed it refuses bad-prototype"
+                ],
+                [
+                  "VR-003",
+                  "acceptance",
+                  "integration",
+                  "AC-005, AC-015",
+                  "start answers no live block and the source anchor; show refuses no-host and its reason holds the file:// path of the mockup; settle answers ok with the source-only mark"
+                ],
+                [
+                  "VR-018",
+                  "ui-e2e",
+                  "integration",
+                  "AC-021, AC-022",
+                  "start answers the frontend and its catalog folder; check answers ok with 3 checked and 0 unchecked"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "v2-lower-flow-q",
+                "props": {
+                  "markdown": true,
+                  "text": "Each row now runs the scripts in order against fixtures and a `.py` lavish stub with a recorded note; the test plays you. What a script cannot see (the agent moving the filter bar, a real browser screenshot) moves to the owner checklist (card v2-owner). Accept to lower these 4."
+                }
+              }
+            ]
+          },
+          "title": "Session flows replayed by a script chain",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "v2-lower-prose",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "v2-lower-prose-t",
+            "props": {
+              "columns": [
+                "Row",
+                "Was",
+                "Now",
+                "Criteria",
+                "Then you should see"
+              ],
+              "rows": [
+                [
+                  "VR-004",
+                  "acceptance",
+                  "static",
+                  "AC-008, AC-020",
+                  "they state that every row is made up, at most 50 rows per screen, and that no record is copied from the live app or its database"
+                ],
+                [
+                  "VR-005",
+                  "acceptance",
+                  "static",
+                  "AC-001",
+                  "it states that a PRD with no screen story stops with no_ui, writes no file and leaves the INDEX Prototype row as it is"
+                ],
+                [
+                  "VR-006",
+                  "ui-e2e",
+                  "static",
+                  "AC-014",
+                  "it states that 'chat only', at any time, ends the lavish session and takes every later note in chat"
+                ],
+                [
+                  "VR-016",
+                  "ui-e2e",
+                  "static",
+                  "AC-007, AC-013",
+                  "they state that the mockup is clickable from the entry screen inside the app shell with stub neighbour pages, and that each note gets an edit or a reply and the mockup is shown again"
+                ],
+                [
+                  "VR-022",
+                  "acceptance",
+                  "static",
+                  "AC-026",
+                  "each states that a hands-off subagent opens no page, writes no file and parks with the reason that a developer must run it"
+                ],
+                [
+                  "VR-025",
+                  "acceptance",
+                  "static",
+                  "AC-027",
+                  "its read step and its proposer brief name the prototype path of start, and it cites each UI decision in the existing SDD section"
+                ],
+                [
+                  "VR-026",
+                  "acceptance",
+                  "static",
+                  "AC-028",
+                  "its read step and its proposer brief name the prototype path of start, and it derives ui-e2e and acceptance rows from the Coverage rows of PROTOTYPE.md"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "v2-lower-prose-q",
+                "props": {
+                  "markdown": true,
+                  "text": "No script surface carries these outcomes (SDD §5: no script can tell a hands-off run). The only hands-off check is a test that the skill files state the rule. **It proves the rule is written, not that the agent follows it**; the owner checklist covers that. VR-016 changes to the criteria AC-007 and AC-013, which only the old session rows covered. Accept to lower these 7."
+                }
+              }
+            ]
+          },
+          "title": "Agent behaviour: the rule is written, not proven followed",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "v2-contract",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "v2-contract-t",
+            "props": {
+              "columns": [
+                "Boundary",
+                "Now",
+                "Rows"
+              ],
+              "rows": [
+                [
+                  "lavish-axi 0.1.86 host",
+                  "contract: VR-013 replays the recorded poll output and checks the fields mockup_show reads",
+                  "VR-013, VR-001, VR-010"
+                ],
+                [
+                  "Codex Stop event",
+                  "contract: VR-015 replays a recorded waiting record and checks the hook output",
+                  "VR-015"
+                ],
+                [
+                  "chrome-devtools-mcp 1.10.1",
+                  "dropped: no script calls it (premise verified in the design log); only the agent uses it in a real session",
+                  "owner checklist"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "v2-contract-q",
+                "props": {
+                  "markdown": true,
+                  "text": "A boundary with no contract test needs a high-level row, and none remains. VR-013 and VR-015 already replay the recorded provider output, so I raise them to `contract`. This replaces the 2 follow-up tickets accepted last session. Agree?"
+                }
+              }
+            ]
+          },
+          "title": "Boundaries: 2 contract rows, 1 boundary dropped",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "v2-owner",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "v2-owner-t",
+            "props": {
+              "columns": [
+                "Moved check",
+                "Was",
+                "When",
+                "Then"
+              ],
+              "rows": [
+                [
+                  "VR-001",
+                  "ui-e2e",
+                  "the developer runs /afkv2:prototype, pins the note 'filter too far right' on the filter bar in lavish and sends it",
+                  "lavish shows the mockup file itself with no grill cards; the agent receives the note with its selector, moves the filter bar and shows the mockup again"
+                ],
+                [
+                  "VR-002",
+                  "acceptance",
+                  "the developer settles the direction",
+                  "PROTOTYPE.md holds a Coverage table with 2 rows, both reachable from the nav entry, the fidelity mark live-verified with the compared screenshots named, and the INDEX Prototype row reads 'chosen <date>'"
+                ],
+                [
+                  "VR-003",
+                  "acceptance",
+                  "the developer runs /afkv2:prototype",
+                  "the agent gives the file:// path of the mockup, takes notes in chat, and PROTOTYPE.md marks the fidelity source-only"
+                ],
+                [
+                  "VR-018",
+                  "ui-e2e",
+                  "the developer runs /afkv2:design-system for it",
+                  "the catalog folder holds tokens.css, 3 card files and a README whose Cards table marks each card checked against a named screenshot"
+                ],
+                [
+                  "VR-004",
+                  "acceptance",
+                  "the developer runs /afkv2:prototype and settles",
+                  "the mockup and PROTOTYPE.md hold none of the live names, only made-up ones, and the settle reports the secret scan of every written file"
+                ],
+                [
+                  "VR-005",
+                  "acceptance",
+                  "the developer runs /afkv2:prototype",
+                  "the run stops with no_ui, no file is written in the spec folder, and the INDEX Prototype row stays '—'"
+                ],
+                [
+                  "VR-006",
+                  "ui-e2e",
+                  "the developer writes 'chat only' in chat",
+                  "the agent ends the lavish session and takes every later note in chat for the rest of the run"
+                ],
+                [
+                  "VR-016",
+                  "ui-e2e",
+                  "the developer runs /afkv2:prototype, pins 1 note and sends it",
+                  "the next Codex prompt holds the note with its tag and selector, and the agent edits that element"
+                ],
+                [
+                  "VR-022",
+                  "acceptance",
+                  "a hands-off subagent is told to run /afkv2:prototype on a ticket",
+                  "the subagent opens no page, writes no file and parks with the reason that a developer must run it"
+                ],
+                [
+                  "VR-025",
+                  "acceptance",
+                  "the developer runs /afkv2:propose-solution",
+                  "the SDD cites the filter-bar decision of PROTOTYPE.md in an existing section, and the design gate passes with no new heading"
+                ],
+                [
+                  "VR-026",
+                  "acceptance",
+                  "the developer runs /afkv2:propose-verification",
+                  "the plan holds ui-e2e or acceptance rows whose story column names stories 1 and 2 of the Coverage table of PROTOTYPE.md"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "v2-owner-q",
+                "props": {
+                  "markdown": true,
+                  "text": "A doc subtask writes these 11 checks to `afkv2/tests/live/PROTOTYPE-LIVE-CHECKS.md`, beside `CODEX-LIVE-CHECKS.md`. You run them by hand before Ready; no subtask waits on you. New static row VR-031 proves the file names each one. Agree?"
+                }
+              }
+            ]
+          },
+          "title": "Owner checklist for real sessions",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-24T22:08:19Z",
+          "raw": "[round R-1]\nv2-app-none accept\nv2-lower-api accept\nv2-lower-flow accept\nv2-lower-prose accept\nv2-contract accept\nv2-owner accept",
+          "signals": [
+            {
+              "target": "v2-app-none",
+              "item": "v2-app-none",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "078124f3ae917aeb"
+            },
+            {
+              "target": "v2-lower-api",
+              "item": "v2-lower-api",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "79313f11b7c6b7b8"
+            },
+            {
+              "target": "v2-lower-flow",
+              "item": "v2-lower-flow",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "7f2d4694d79bfdb1"
+            },
+            {
+              "target": "v2-lower-prose",
+              "item": "v2-lower-prose",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "7cb1d5ac2060a45d"
+            },
+            {
+              "target": "v2-contract",
+              "item": "v2-contract",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "977ef63060344b92"
+            },
+            {
+              "target": "v2-owner",
+              "item": "v2-owner",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "6142bce3872b4679"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

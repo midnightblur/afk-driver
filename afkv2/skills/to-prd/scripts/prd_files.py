@@ -190,6 +190,18 @@ def set_row(index, artifact, where, state):
     write_text(index, "\n".join(lines))
 
 
+def prototype_chosen(spec_dir, prototype):
+    """True when `prototype` exists and the INDEX.md `Prototype` row, which prototype settle writes, says `chosen`.
+    A file without that row is unsettled and counts as absent; a missing INDEX.md is no refusal."""
+    try:
+        lines = (Path(spec_dir) / "INDEX.md").read_text("utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        return False
+    cells = [[cell.strip() for cell in line.split("|")] for line in lines if line.startswith("|")]
+    state = next((row[3] for row in cells if len(row) > 3 and row[1] == "Prototype"), "")
+    return state.startswith("chosen") and Path(prototype).is_file()
+
+
 def _template(ticket):
     found = TEMPLATE.search(FORMAT_FILE.read_text("utf-8"))
     if not found:

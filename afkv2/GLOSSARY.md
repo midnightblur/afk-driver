@@ -175,3 +175,15 @@ The main agent uses the changed files from the plugin worktree in place of the i
 
 **Earliest convenience**:
 The moment a queued milestone note reaches the main agent, after its current turn ends.
+
+**Mockup**:
+A self-contained HTML file that simulates a feature's screens and behaviour with fixture data; no backend
+
+**Design catalog**:
+Per-service record of the real app's look: tokens, component cards, shell and page shapes, each checked against the live app
+
+**Anchor**:
+The evidence a mockup copies its look from: catalog, live screenshots or frontend source
+
+**Capability walk**:
+Clicking every story and acceptance criterion through the mockup from its entry screen

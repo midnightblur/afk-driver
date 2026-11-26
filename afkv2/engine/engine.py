@@ -477,7 +477,7 @@ def _require_home(path: str, doc: dict) -> Path:
                                       f"{data_pages}")
     if document.parent.name != PAGES_FOLDER:
         raise Refusal("bad-location", f"item session, field id: {document} must sit in a {PAGES_FOLDER} folder")
-    config = read_config(document.parent)
+    config = read_config(document.parent, with_frontends=False)
     if not config["ok"]:
         raise Refusal(config["error"]["code"], config["error"]["reason"])
     if not document.is_relative_to(Path(config["spec_folder"]).resolve()):

@@ -151,7 +151,7 @@ def _prove(repo_root: Path, block: dict) -> None:
 
 
 def _block(repo_root, live: dict | None) -> tuple[Path, dict]:
-    config = read_config(repo_root, with_live=live is None)
+    config = read_config(repo_root, with_live=live is None, with_frontends=False)
     if not config["ok"]:
         raise Refusal(config["error"]["code"], config["error"]["reason"])
     if live is not None:

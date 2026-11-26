@@ -1,0 +1,8 @@
+session:
+  file: "C:\\repo\\docs\\PROJ-7\\prototype\\orders.html"
+  status: feedback
+  session_ended: false
+prompts[1]{uid,prompt,selector,tag,text}:
+  "1","Put Open first in the filter bar",#filters > button:nth-of-type(2),button,Open
+next_step: Reply to the user.
+dom_snapshot: ""

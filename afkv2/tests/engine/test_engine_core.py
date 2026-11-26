@@ -1633,7 +1633,8 @@ def test_the_stop_hook_resolves_the_prompts_against_the_document(repo):
         return "feedback", {"raw": "joined", "prompts": [mark("i-new", "accept")]}
 
     assert WAIT_FOR_ANSWER("p.html", poll=poll, document=str(path)) == ("feedback", "[round R-2]\ni-new accept")
-    assert WAIT_FOR_ANSWER("p.html", poll=poll) == ("feedback", mark("i-new", "accept")["prompt"])
+    no_document = 'i-new accept Context data: {"item": "i-new", "mark": "accept"} (on <afkv2-mark> article#i-new "i-new accept")'
+    assert WAIT_FOR_ANSWER("p.html", poll=poll) == ("feedback", no_document)
 
 
 def test_a_kept_send_the_document_cannot_resolve_hands_back_the_prompt_text(repo, monkeypatch):
