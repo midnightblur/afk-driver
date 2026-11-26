@@ -226,8 +226,11 @@ class DogfoodFakeRunner(HerdrRunner):
     # git.
 
     def _git(self, args):
+        cwd = "."
+        while args[:1] == ["-C"]:
+            cwd, args = args[1], args[2:]
         if args[:2] == ["rev-parse", "--path-format=absolute"] and args[2:] == ["--git-dir", "--git-common-dir"]:
-            return self._rev_parse_dirs()
+            return self._rev_parse_dirs(cwd)
         if args[:3] == ["rev-parse", "--verify", "--quiet"]:
             ref = args[3].removeprefix("refs/heads/")
             return (0, "0" * 40 + "\n", "") if ref in self.branches else (1, "", "")
@@ -243,8 +246,7 @@ class DogfoodFakeRunner(HerdrRunner):
             return 0, "", f"Preparing worktree (new branch '{branch}')"
         raise AssertionError(f"the fake git has no command {args}")
 
-    def _rev_parse_dirs(self):
-        cwd = self.calls[-1][2] if self.calls[-1][1:2] == ["-C"] else "."
+    def _rev_parse_dirs(self, cwd):
         if not Path(cwd).is_dir():
             return 128, "", f"fatal: cannot change to '{cwd}': No such file or directory"
         common = Path(cwd) / ".git"

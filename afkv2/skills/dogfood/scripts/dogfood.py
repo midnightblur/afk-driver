@@ -73,6 +73,46 @@ def _herdr_ok(env, runner, *args, timeout=COMMAND_S):
     return _parsed(out) or {}
 
 
+def _herdr_pane(env, runner):
+    """The pane of the caller; refuses outside herdr (herdr playbook H-9)."""
+    if env.get("HERDR_ENV") != "1" or not env.get("HERDR_PANE_ID") or not _herdr_binary(env, runner):
+        raise Refusal("outside-herdr", "this session does not run in a herdr pane, or herdr is not on PATH: start "
+                                       "herdr, then run the skill again from a pane in it")
+    return env["HERDR_PANE_ID"]
+
+
+# The plugin source.
+
+def _source(env, runner):
+    """The source line of the install record, checked again: a main checkout of the afkv2 plugin source."""
+    source = read_install_record(_places(env)).get("source", "").strip()
+    if not source:
+        raise Refusal("no-source", "the install record has no source line: run /afkv2:setup, which records the "
+                                   "main checkout of the plugin source")
+    problem = _source_problem(Path(source), runner)
+    if problem:
+        raise Refusal("source-broken", f"the source line {source} {problem}: run /afkv2:setup to record the main "
+                                       f"checkout of the plugin source again")
+    return source
+
+
+def _source_problem(source, runner):
+    if not source.is_dir():
+        return "names no folder"
+    text = runner.read_text(source / "afkv2" / ".claude-plugin" / "plugin.json")
+    manifest = _parsed(text) if isinstance(text, str) else None
+    if not isinstance(manifest, dict) or manifest.get("name") != "afkv2":
+        return "holds no afkv2 plugin manifest"
+    code, out, err = runner.run(["git", "-C", str(source), "rev-parse", "--path-format=absolute", "--git-dir",
+                                 "--git-common-dir"])
+    dirs = out.splitlines()
+    if code != 0 or len(dirs) < 2:
+        return f"is not a git repository ({(err or out).strip()})"
+    if Path(dirs[0].strip()) != Path(dirs[1].strip()):
+        return "is a linked worktree, not the main checkout"
+    return None
+
+
 # The state file.
 
 def _places(env):
@@ -101,9 +141,9 @@ def _role_prompt(source, ask):
 
 def verb_start(args, env, runner):
     """Open the afkv2 pane beside the main pane, start its agent, write the state, then send the role and the ask."""
-    main_pane = env.get("HERDR_PANE_ID")
+    main_pane = _herdr_pane(env, runner)
     ask = Path(args.ask_file).read_text(encoding="utf-8")
-    source = read_install_record(_places(env)).get("source")
+    source = _source(env, runner)
     name = _agent_name(main_pane)
     split = _herdr_ok(env, runner, "pane", "split", "--pane", main_pane, "--direction", "right", "--cwd", source,
                       "--no-focus")

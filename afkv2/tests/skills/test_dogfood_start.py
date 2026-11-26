@@ -80,3 +80,41 @@ def test_start_opens_a_pane_starts_the_agent_then_writes_the_state_and_sends_the
         "version": 1, "main_pane": MAIN, "agent": name_of(MAIN), "afkv2_pane": answer["pane"], "harness": "claude",
         "source": str(world["source"]), "base": None, "worktrees": [], "notes": [], "wrap_reported": False}
     assert state["started"].endswith("+00:00")
+
+
+def _herdr_calls(runner):
+    return [argv for argv in runner.calls if argv[0] == runner.herdr]
+
+
+def test_start_refuses_outside_herdr_and_without_a_working_source_line(world):
+    for change in ({"HERDR_ENV": "0"}, {"HERDR_PANE_ID": ""}):
+        env = {**world["env"], **change}
+        code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])], env=env)
+        assert (code, answer["error"]["code"]) == (1, "outside-herdr") and not runner.calls
+        assert "start herdr" in answer["error"]["reason"] and "again" in answer["error"]["reason"]
+    runner = DogfoodFakeRunner(world["env"], herdr=None)
+    code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])], runner)
+    assert (code, answer["error"]["code"]) == (1, "outside-herdr") and not runner.calls
+
+    record = world["data"] / "install.txt"
+    record.write_text("installed 2026-11-26T00:00:00+00:00\n", encoding="utf-8")
+    code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])])
+    assert (code, answer["error"]["code"]) == (1, "no-source") and "/afkv2:setup" in answer["error"]["reason"]
+    assert not _herdr_calls(runner)
+
+    def broken(source):
+        record.write_text(f"source {source}\n", encoding="utf-8")
+        code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])])
+        assert (code, answer["error"]["code"]) == (1, "source-broken") and "/afkv2:setup" in answer["error"]["reason"]
+        assert not _herdr_calls(runner) and not state_file(world).exists()
+
+    broken(world["tmp"] / "gone")
+    other = world["tmp"] / "other"
+    (other / "afkv2" / ".claude-plugin").mkdir(parents=True)
+    (other / "afkv2" / ".claude-plugin" / "plugin.json").write_text('{"name": "other"}', encoding="utf-8")
+    broken(other)
+    record.write_text(f"source {world['source']}\n", encoding="utf-8")
+    runner = DogfoodFakeRunner(world["env"])
+    runner.linked.add(str(world["source"]))
+    code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])], runner)
+    assert (code, answer["error"]["code"]) == (1, "source-broken") and not _herdr_calls(runner)
