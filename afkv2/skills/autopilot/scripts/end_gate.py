@@ -131,7 +131,7 @@ def _app(plan_text, repo, needed):
         problem = app_failure("PLAN.md", app)
         yield f"live build: {problem['reason']}" if problem else None
         return
-    config = afkv2_config.read_config(repo)
+    config = afkv2_config.read_config(repo, with_frontends=False)
     if not config["ok"] or "live" not in config:
         error = config.get("error") or {"code": "live-undefined", "reason": "the repository config has no live block"}
         yield f"live build: {error['code']}: {error['reason']}; prove the live block with /afkv2:propose-verification"

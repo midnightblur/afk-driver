@@ -106,7 +106,7 @@ def links_for(ticket_keys: list[str], earlier: dict | None = None, projects: lis
     `projects` are the round input's `ticket_projects`; `titles` are its `ticket_titles`, which replace an
     earlier title of the same key and keep the others."""
     try:
-        config = run_command(CONFIG_READER, ["read"], TIMEOUT_S)
+        config = run_command(CONFIG_READER, ["read", "--no-frontends"], TIMEOUT_S)
     except Refusal:
         return None
     links = {}

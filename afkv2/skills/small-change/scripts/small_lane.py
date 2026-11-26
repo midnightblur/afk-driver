@@ -106,7 +106,7 @@ def _code_changes(repo, since):
 
 def _code_of(repo, names):
     """The code files among `names`: a test file, or a file of the spec folder such as a page round, is no code."""
-    config = afkv2_config.read_config(repo, with_live=False)
+    config = afkv2_config.read_config(repo, with_live=False, with_frontends=False)
     spec = None
     if config.get("ok"):
         spec = Path(config["spec_folder"]).resolve().relative_to(Path(config["repo_root"]).resolve()).as_posix() + "/"
@@ -275,7 +275,7 @@ def before(payload):
 def _live(repo):
     """Yields why the test cannot reach the app, or None. It starts the live block of the repository config when its
     address does not answer, and stops it after; with no live block the test owns its app."""
-    config = afkv2_config.read_config(repo)
+    config = afkv2_config.read_config(repo, with_frontends=False)
     if not config.get("ok") or "live" not in config or live_build._answers(config["live"]["address"]):
         yield None
         return

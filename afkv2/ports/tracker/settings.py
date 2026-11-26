@@ -15,7 +15,7 @@ def read_config():
     if not Path(READER).is_file():
         return {}
     try:
-        done = subprocess.run([sys.executable, str(READER), "read"], capture_output=True,
+        done = subprocess.run([sys.executable, str(READER), "read", "--no-frontends"], capture_output=True,
                               stdin=subprocess.DEVNULL, timeout=60)
         answer = json.loads(done.stdout.decode("utf-8", "replace"))
     except (OSError, ValueError, subprocess.TimeoutExpired):

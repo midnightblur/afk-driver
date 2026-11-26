@@ -54,7 +54,7 @@ def repository_name(start):
 
 def _spec_pages(ticket):
     """The ticket's `pages` folder; a ticket whose folder name holds no letter or digit names no folder of its own."""
-    config = read_config()
+    config = read_config(with_frontends=False)
     if not config["ok"]:
         raise Refusal(config["error"]["code"], config["error"]["reason"])
     slug = ticket_slug(ticket)

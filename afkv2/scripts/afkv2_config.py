@@ -1,6 +1,6 @@
 """Read a repository's `.afkv2/config.json` and answer one JSON object.
 
-Command: `afkv2_config.py read [--start DIR]`. Exit 0 ok, 1 refused, 2 unreadable input.
+Command: `afkv2_config.py read [--start DIR] [--no-frontends]`. `--no-frontends` skips the `frontends` list. Exit 0 ok, 1 refused, 2 unreadable input.
 """
 
 from __future__ import annotations
@@ -218,9 +218,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = _Parser(prog="afkv2_config.py", add_help=False)
     parser.add_argument("verb", choices=["read"])
     parser.add_argument("--start", default=None)
+    parser.add_argument("--no-frontends", action="store_true")
     try:
         args = parser.parse_args(argv)
-        answer = read_config(args.start)
+        answer = read_config(args.start, with_frontends=not args.no_frontends)
     except Refusal as refusal:
         answer = {"ok": False, "error": {"code": refusal.code, "reason": refusal.reason}}
     print(json.dumps(answer))
