@@ -211,7 +211,8 @@ def _gate_failures(plan, state, contract, app):
     so the live build starts once per run, not at each start; a failed proof is not kept."""
     text = read_text(plan_file(plan))
     proved = dict(state.get("live") or {})
-    failures = start_gate.gate_failures(contract, start_gate.plan_app(text, app), rules_of(text), ".", proved)
+    failures = start_gate.gate_failures(contract, start_gate.plan_app(text, app), rules_of(text), ".", proved,
+                                       start_gate.no_app_card(text))
     kept = {key: answer for key, answer in proved.items() if answer.get("ok")}
     if kept != (state.get("live") or {}):
         state["live"] = kept
