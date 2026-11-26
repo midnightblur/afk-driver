@@ -136,3 +136,18 @@ def test_a_failed_split_or_agent_start_writes_no_state_and_closes_the_pane_it_op
         [close] = runner.calls_of("pane", "close")
         assert close[3] == runner.calls_of("agent", "start")[0][runner.calls_of("agent", "start")[0].index("--pane") + 1]
         assert set(runner.panes) == {MAIN} and not runner.prompts
+
+
+def test_an_ask_of_0_or_more_than_8000_characters_or_not_utf8_is_unreadable(world):
+    ask = world["ask"]
+    for content in (b"", ("x" * 8001).encode("utf-8"), b"\xff\xfe bad"):
+        ask.write_bytes(content)
+        code, answer, runner = run(world, ["start", "--ask-file", str(ask)])
+        assert (code, answer["error"]["code"]) == (2, "ask-unreadable") and not _herdr_calls(runner)
+    code, answer, runner = run(world, ["start", "--ask-file", str(world["tmp"] / "absent.txt")])
+    assert (code, answer["error"]["code"]) == (2, "ask-unreadable")
+    for content in ("é", "é" * 8000):
+        state_file(world).unlink(missing_ok=True)
+        ask.write_text(content, encoding="utf-8")
+        code, answer, runner = run(world, ["start", "--ask-file", str(ask)])
+        assert (code, answer["status"]) == (0, "opened") and runner.prompts[0]["text"].endswith(content)

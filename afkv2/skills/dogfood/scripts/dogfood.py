@@ -34,6 +34,7 @@ HARNESS = "claude"
 AGENT_ARGS = ["--model", "opus", "--effort", "max", "--dangerously-skip-permissions"]
 START_MS, PROMPT_MS = "90000", "30000"
 COMMAND_S = 120
+ASK_LIMIT = 8000
 AGENT_FILE = Path("afkv2") / "skills" / "dogfood" / "AGENT.md"
 
 
@@ -79,6 +80,18 @@ def _herdr_pane(env, runner):
         raise Refusal("outside-herdr", "this session does not run in a herdr pane, or herdr is not on PATH: start "
                                        "herdr, then run the skill again from a pane in it")
     return env["HERDR_PANE_ID"]
+
+
+def _read_ask(path):
+    """The ask text: UTF-8, 1 to ASK_LIMIT characters."""
+    try:
+        text = Path(path).read_bytes().decode("utf-8")
+    except (OSError, UnicodeDecodeError) as problem:
+        raise Refusal("ask-unreadable", f"the ask file {path}: {problem}", EXIT_UNREADABLE) from None
+    if not 1 <= len(text) <= ASK_LIMIT:
+        raise Refusal("ask-unreadable", f"the ask file {path} holds {len(text)} characters; an ask holds 1 to "
+                                        f"{ASK_LIMIT}", EXIT_UNREADABLE)
+    return text
 
 
 # The plugin source.
@@ -154,7 +167,7 @@ def _start_agent(env, runner, name, pane):
 def verb_start(args, env, runner):
     """Open the afkv2 pane beside the main pane, start its agent, write the state, then send the role and the ask."""
     main_pane = _herdr_pane(env, runner)
-    ask = Path(args.ask_file).read_text(encoding="utf-8")
+    ask = _read_ask(args.ask_file)
     source = _source(env, runner)
     name = _agent_name(main_pane)
     split = _herdr_ok(env, runner, "pane", "split", "--pane", main_pane, "--direction", "right", "--cwd", source,
