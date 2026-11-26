@@ -291,3 +291,15 @@ def test_a_stalled_first_prompt_gets_1_enter_and_a_refused_one_leaves_the_sessio
     assert (code, answer["status"], answer["submitted"]) == (0, "opened", False)
     assert "agent_blocked" in answer["prompt_error"] and state_file(world).is_file()
     assert answer["pane"] in runner.panes
+
+
+def test_the_state_is_written_through_the_atomic_helper_and_a_bad_command_line_is_unreadable(world, monkeypatch):
+    written = []
+    real = dogfood.write_atomic
+    monkeypatch.setattr(dogfood, "write_atomic", lambda path, data: written.append(path) or real(path, data))
+    code, answer, runner = run(world, ["start", "--ask-file", str(world["ask"])])
+    assert code == 0 and written == [state_file(world)]
+    assert not list(world["data"].glob("*.afkv2-tmp"))
+    for argv in (["start"], ["start", "--ask-file", str(world["ask"]), "--pane", "w1:p2"], ["nosuchverb"]):
+        code, answer, runner = run(world, argv)
+        assert (code, answer["error"]["code"]) == (2, "usage") and not runner.calls
