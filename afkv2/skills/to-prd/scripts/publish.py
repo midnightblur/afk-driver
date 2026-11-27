@@ -576,6 +576,30 @@ def over_jira_limit(nodes):
     return len(_visible_text(nodes)) > JIRA_TEXT_LIMIT
 
 
+def _uploaded_media(run_dir):
+    """The media ids of the pictures that a publish from this run folder uploaded, whatever its receipt."""
+    path = Path(run_dir) / "uploads.json"
+    if not path.is_file():
+        return set()
+    return {str(item.get("media_id")) for item in (read_json(path).get("pictures") or {}).values()
+            if isinstance(item, dict) and item.get("media_id")}
+
+
+def _afkv2_picture(node, uploaded):
+    """True when each picture of the node is afkv2's own: uploaded by a publish of this run folder, or its alt is a PICTURE_NAME."""
+    media = _media_nodes(node)
+    return bool(media) and all(str(attrs.get("id")) in uploaded or PICTURE_NAME.fullmatch(str(attrs.get("alt") or ""))
+                               for attrs in media)
+
+
+def _media_nodes(node):
+    found = [node.get("attrs") or {}] if node.get("type") == "media" else []
+    for child in node.get("content") or []:
+        if isinstance(child, dict):
+            found.extend(_media_nodes(child))
+    return found
+
+
 def _media_in(node):
     found = [node["attrs"]["id"]] if node.get("type") == "media" and (node.get("attrs") or {}).get("id") else []
     for child in node.get("content") or []:
@@ -846,8 +870,9 @@ def build_ticket_preview(ticket, prd, ticket_file, run_dir, projects, tracker=ca
     body, sources = extract_mermaid(markdown, token)
     segments = split_ticket(body)
     kept = _kept_indexes(segments, live, block)
+    ours = _uploaded_media(run_dir)
     dropped_media = [index for index, node in enumerate(live) if index not in kept and index not in block
-                     and _media_in(node)]
+                     and _media_in(node) and not _afkv2_picture(node, ours)]
     if dropped_media:
         raise Refusal("drops-media", f"nodes {dropped_media} hold the owner's pictures: keep each one",
                       nodes=dropped_media)

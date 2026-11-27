@@ -24,6 +24,14 @@ lavish annotates only the file that it opened, and it refuses a load of that fil
 - The mockup is clickable from the entry screen: the developer reaches each new screen by a click from the screen where a story starts, never by a direct open of the new screen.
 - Each neighbour screen that the shell or the new screen links to is a stub inside the app shell: its layout, a static content block, and no link deeper than 1 level. A link past the stubs does nothing.
 
+## Components of the anchor
+
+The standard components of the app change over time, so their look is read at run time from the anchor, never from a rule in this skill.
+
+- Draw each table, list, form field, dialog, button, tab and status mark from the component of the anchor for that shape: its catalog card, else the source component that step 2 read. Copy it with every part of it, such as the filter row and the sticky header of a table, its row style and its footer with paging, and with its sizes, type and colours.
+- Never draw your own variant of a shape that the anchor has a component for. A different part is a decision: the developer asks for it, or the PRD needs it. Record it in the Decisions section, with why.
+- A shape that the anchor has no component for: build it from the tokens of the anchor, and name it in the Decisions section.
+
 ## Behaviour
 
 - Each action of a story works against the in-file data: a row is added, a filter narrows the list, a form shows its errors.

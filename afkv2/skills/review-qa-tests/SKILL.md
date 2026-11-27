@@ -14,7 +14,7 @@ Two terms apply to all steps:
 
 ## Steps
 
-1. **Read the requirements.** Find and read the source of truth of the feature: the product requirements document (PRD), the specification, the acceptance criteria or the rule catalog of the ticket. The test names alone are not enough. Give the reading to subagents. Take back the list of requirement units (each rule, acceptance criterion, boundary, checkpoint and role), not prose. Then make a **coverage map**: each requirement unit against the scenarios on the sheet, marked `covered`, `partial` or `missing`. Done when each requirement unit has a mark, and each existing case links to the units that it tests.
+1. **Read the requirements.** Find and read the source of truth of the feature: the product requirements document (PRD), the specification, the acceptance criteria or the rule catalog of the ticket. The test names alone are not enough. Give the reading to subagents. Take back the list of requirement units (each rule, acceptance criterion, boundary, checkpoint and role), not prose. Then make a **coverage map**: each requirement unit against the scenarios on the sheet, marked `covered`, `partial` or `missing`. Also read the precedent of each concept, by "Precedent" in the core behaviors: the validations of a feature of the same shape are scenarios too. Done when each requirement unit has a mark, and each existing case links to the units that it tests.
 
 2. **Classify each case and each gap.** Use the map. Tag each existing case `ok`, `enhance` or `drop`. Plan 1 new case for each missing unit. [Review lenses](#review-lenses) tells what to look for. The [manual reach](#manual-reach) filter tells which case is `drop`. Done when each case has a tag and each missing unit has a planned case.
 

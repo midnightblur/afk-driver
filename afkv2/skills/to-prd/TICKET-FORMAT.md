@@ -10,7 +10,7 @@ A GitHub issue has no keep lines: `outline` writes its live body to `live-body.m
 - A line `{{keep N}}` or `{{keep N-M}}`, alone on its line, puts the live top-level nodes N to M of `outline.json` at that place, exactly: pictures, tables, cards and marks stay as they are.
 - Everything between keep lines is Markdown, converted to new text. A ` ```mermaid ` fence becomes a picture.
 - Keep each node of the product owner that needs no change. To change words in a node, leave it out and write its new text in its place; keep the change minimal and exact.
-- A node that holds a picture must be kept: the preview refuses `drops-media`. A node of an old block (`in_block` true) cannot be kept: write its content anew, or drop it.
+- A node that holds a picture of the owner must be kept: the preview refuses `drops-media`. A picture that afkv2 uploaded from the same run folder is not the owner's: drop it to redraw its diagram. A node of an old block (`in_block` true) cannot be kept: write its content anew, or drop it.
 - Each node you leave out is listed in the preview answer `dropped`. Check that list before you show the preview.
 
 ## Content

@@ -1,6 +1,6 @@
 # Reviewer brief
 
-You answer one concern about one diff. You read; you change no file. Read the diff and the contract, then whatever code you need to prove a finding. A finding outside your concern belongs to another reviewer.
+You answer one concern about one diff. You read; you change no file. Read the diff and the contract, then whatever code you need to prove a finding. A finding outside your concern belongs to another reviewer. A new model, screen, rule or validation that departs from a repository feature of the same shape, with no stated why, is a finding ("Precedent" in the core behaviors).
 
 Report a defect only with evidence: the line, the input that fails, or the rule text. Run what you need to prove it. For a claim that something is absent, name where you looked. A check you could not run goes in the finding as `unverified: <reason>`.
 

@@ -1490,6 +1490,25 @@ def test_a_dropped_media_node_is_refused(world):
     assert refused["code"] == "drops-media" and refused["nodes"] == [3, 6]
 
 
+def test_a_dropped_afkv2_picture_is_not_the_owners(world):
+    """A picture an earlier publish uploaded (its media id in uploads.json, any receipt) may be dropped and redrawn."""
+    _ticket_world(world, TICKET.replace("{{keep 0-6}}", "{{keep 0-2}}\n\n{{keep 4-5}}"))
+    _outline(world)
+    world.run_dir.mkdir(parents=True, exist_ok=True)
+    (world.run_dir / "uploads.json").write_text(json.dumps({"receipt": "0" * 64, "pictures": {
+        "afkv2-fig-00000000-1.png": {"attachment_id": "9", "media_id": "owner-media-1"}}}), "utf-8")
+    refused = _ticket_preview(world, expect=1)["error"]
+    assert refused["code"] == "drops-media" and refused["nodes"] == [6]
+
+
+def test_a_dropped_picture_with_an_afkv2_alt_is_not_the_owners():
+    node = {"type": "mediaSingle", "content": [{"type": "media", "attrs": {
+        "type": "file", "id": "m-1", "collection": "", "alt": "afkv2-fig-0123abcd-2.png"}}]}
+    assert publish._afkv2_picture(node, set()) is True
+    assert publish._afkv2_picture(_media_single("m-1"), set()) is False
+    assert publish._afkv2_picture(_media_single("m-1"), {"m-1"}) is True
+
+
 def test_dropped_text_is_named_in_the_preview(world):
     _ticket_world(world, TICKET.replace("{{keep 0-6}}", "{{keep 1-6}}"))
     _outline(world)

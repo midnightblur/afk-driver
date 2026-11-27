@@ -68,7 +68,7 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
    |----------|------|
    | `catalog` | the catalog README and its cards in `frontend.catalog`: copy each checked card as it is. A card of `catalog_unchecked` is a lead, not the look: compare it with the live app first, and fix the mockup to the live app |
    | `live` | screenshots of the live app: its shell and the screen type nearest each new screen |
-   | `source` | the tokens, the components and the shell in `frontend.source`; delegate the read to a subagent, and take back a digest with a file citation for each item |
+   | `source` | the tokens, the components and the shell in `frontend.source`; delegate the read to a subagent, and take back a digest with a file citation for each item and the parts of each component |
 
    With a `live` block in the answer, also on the `catalog` anchor, start the app:
    1. Probe the `address` of the block. It already answers before the start: start no app, because another server holds the address. Use the next anchor, and record the cause for the Fidelity section.
@@ -79,6 +79,10 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
    6. The app does not answer, or the browser driver fails: use the next anchor (`catalog`, else `source`), and record the cause for the Fidelity section.
 
    With no `live` block, or when the steps above start no app: ask the developer once for the address of a running app that the run may screenshot, such as a dev server they run or a shared test environment, and whether they sign in to it in the browser of the driver. An address the developer gives is their app: start no app and stop none there, and take the screenshots by step 5. With no address, keep the anchor, and record the cause for the Fidelity section.
+
+   List the parts of each component that the mockup uses, by "Components of the anchor" in [MOCKUP.md](MOCKUP.md), such as the filter row, the header and the footer of a table.
+
+   Find the precedent of each new screen by "Precedent" in the core behaviors: a screen of the app with the same shape, such as a config dialog for the same kind of scope. Copy its fields, its picker filters and its validations; a difference is a Decisions line with why.
 
    Also map the neighbours of each screen: the screens a story enters from, and the screens the new screen links to.
 
@@ -91,9 +95,10 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
 6. **Settle.** Only the developer settles a direction. Then:
    1. Delete the losing variants and the switcher bar from the mockup. Run `check` again.
    2. **Capability walk.** Click every story and acceptance criterion of the PRD through the mockup, from its entry screen. The Coverage table holds 1 row per story: `reachable`, or `gap` when the story or one of its criteria cannot be reached. Name each criterion that is a gap in the Decisions section.
-   3. **Fidelity pass.** With the app running, put each mockup side by side with the live screenshots, and fix each difference in the shell, the spacing, the type and the components. Record what you compared and each difference left. With no app running, mark the fidelity by the anchor: `catalog` when `catalog_unchecked` is empty, else `source-only`.
-   4. Write `PROTOTYPE.md` by [PROTOTYPE-FORMAT.md](PROTOTYPE-FORMAT.md). The fidelity mark comes from the anchor and the fidelity pass.
-   5. Run `settle`. `missing-input`: the spec folder has no `INDEX.md`; stop, and name `/afkv2:to-prd`. On any other refusal, fix each named file or problem, and run `settle` again. Never report done before `settle` answers ok: its secret scan covers every file the run wrote.
+   3. **Component walk.** Compare each region of the mockup with its anchor component. A region that drops a part of its anchor component, or changes its sizes, type or colours, is a difference: fix it, unless a line of the Decisions section names it with why.
+   4. **Fidelity pass.** With the app running, put each mockup side by side with the live screenshots, and fix each difference in the shell, the spacing, the type and the components. Record what you compared and each difference left. With no app running, mark the fidelity by the anchor: `catalog` when `catalog_unchecked` is empty, else `source-only`.
+   5. Write `PROTOTYPE.md` by [PROTOTYPE-FORMAT.md](PROTOTYPE-FORMAT.md). The fidelity mark comes from the anchor and the fidelity pass.
+   6. Run `settle`. `missing-input`: the spec folder has no `INDEX.md`; stop, and name `/afkv2:to-prd`. On any other refusal, fix each named file or problem, and run `settle` again. Never report done before `settle` answers ok: its secret scan covers every file the run wrote.
 
 7. **Close the run.** At the end of each run, also after a stop or a refusal:
    1. Run `end` when lavish shows a mockup.

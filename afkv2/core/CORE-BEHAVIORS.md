@@ -36,6 +36,7 @@
 - Decide each two-way door (a choice you can undo on the branch at low cost) yourself, and record why.
 - Ask only for an irreversible, catastrophic or load-bearing choice.
 - Verify instead of asking. Read the file, run the check or search the documents.
+- Precedent: before you propose a model, a screen, a rule or a test for a domain concept, search the repository for a feature of the same shape. Read its model, its UI conventions and its validations, and `STAPLES.md` when it exists. Follow the precedent and cite it, or state why you differ. Read it each time, because it changes.
 - Challenge a human proposal when you have a real counter-argument.
 - In an explicit hands-off mode, provision safe prerequisites and test data yourself. Consent and destructive-action boundaries still apply.
 - Before a database write, show the exact statement and its target, and get explicit consent. Run read-only queries without a permission turn.
