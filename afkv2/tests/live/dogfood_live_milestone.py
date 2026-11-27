@@ -17,8 +17,8 @@ Rows and their sessions:
       origin of this build, so the afkv2 agent pushes and opens its Draft changes into verify/df-base (plan decision
       D-21); the end closes each change into verify/df-base, deletes its branch and deletes verify/df-base.
 
-The script plays the developer: it answers the base question, takes the agent's own pick at a question, and gives
-the go of a page round in the agent's pane as a round send, since no browser runs here.
+The script plays the developer: it answers the base question, takes the agent's own pick at a question, and sends
+the marks of each shown page round to the page host as the page's own Send does, since no browser runs here.
 """
 
 from __future__ import annotations
@@ -31,6 +31,7 @@ import re
 import secrets
 import sys
 import time
+import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -278,11 +279,21 @@ def tools_after(found, start):
 def harness_up(world, name):
     """A usage limit or a sign-in prompt of the harness: the row did not run."""
     world.harness_up(name)
-    pane = (world.herdr.agent(name) or {}).get("pane_id")
-    hit = CODEX_EMPTY.search(world.herdr.read(pane, 40, "visible") if pane else "")
-    if hit and (world.herdr.agent(name) or {}).get("agent") == "codex":
-        raise Failed("harness-unavailable", f"the {name} harness shows: {hit.group(0).strip()}; run the row again when "
-                                            f"the account can run turns")
+
+
+def quota_hit(world, name):
+    """The line where the harness of `name` says it cannot run turns, or None. A Claude agent says it in its own
+    last texts, so tool output on the screen, such as a failed proposer of another harness, does not count. A Codex
+    agent says it on the screen, or shows 0% left in its status line."""
+    agent = world.herdr.agent(name) or {}
+    if agent.get("agent") == "claude":
+        texts = [event["text"] for event in events(world, name) if event["kind"] == "text"][-3:]
+        hit = next((live.QUOTA.search(text) for text in texts if live.QUOTA.search(text)), None)
+        return hit.group(0).strip() if hit else None
+    pane = agent.get("pane_id")
+    screen = world.herdr.read(pane, 80) if pane else ""
+    hit = live.QUOTA.search(screen) or CODEX_EMPTY.search(world.herdr.read(pane, 40, "visible") if pane else "")
+    return hit.group(0).strip() if hit else None
 
 
 def turn(world, name, text, limit=TURN_LIMIT_S):
@@ -301,58 +312,81 @@ def wait_turn_end(world, name, limit=TURN_LIMIT_S):
     return now
 
 
-def page_docs(world, since):
-    """The page documents written since `since` in the real page folders, newest first."""
-    folder = world.real_data() / "pages"
-    docs = [path for path in folder.glob("*/**/*.json") if path.stat().st_mtime >= since] if folder.is_dir() else []
-    found = []
-    for path in sorted(docs, key=lambda path: path.stat().st_mtime, reverse=True):
+PAGE_URL = re.compile(r'"url":\s*"(http://127\.0\.0\.1:\d+)/session/([0-9A-Za-z_-]+)"')
+PAGE_FILE = re.compile(r'"page":\s*"((?:[^"\\]|\\.)+\.html)"')
+MARKS = {"signoff": "sign", "decided": "accept", "confirm": "accept"}
+
+
+def shown_page(world, name):
+    """(origin, key, page document) of the last page round that the agent showed, from its tool results."""
+    for event in reversed(events(world, name)):
+        if event["kind"] != "result":
+            continue
         try:
-            doc = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            continue
-        if isinstance(doc, dict) and isinstance(doc.get("rounds"), list) and doc["rounds"]:
-            found.append((path, doc))
-    return found
+            text = json.loads(event["text"])
+        except ValueError:
+            text = event["text"]
+        text = text if isinstance(text, str) else json.dumps(text)
+        url, page = PAGE_URL.search(text), PAGE_FILE.search(text)
+        if url and page:
+            return url.group(1), url.group(2), Path(json.loads(f'"{page.group(1)}"')).with_suffix(".json")
+    return None
 
 
-def round_send(doc):
-    """The developer's send for the last round of `doc`: sign each open signoff card, accept each open card that
-    takes accept. None when the round holds no open card that the developer can settle."""
-    last = doc["rounds"][-1]
-    lines = []
-    for item in last.get("items") or []:
-        if item.get("state") in ("settled_by_mark", "settled_by_note"):
-            continue
-        mark = {"signoff": "sign", "decided": "accept", "confirm": "accept"}.get(item.get("kind"))
-        if mark:
-            lines.append(f"{item['id']} {mark}")
-    return f"[round R-{last['n']}]\n" + "\n".join(lines) if any(line.endswith(" sign") for line in lines) else None
+def page_send(world, name, sent):
+    """Send the developer's marks of the current round of the last shown page as the page's own Send does: 1 POST
+    of mark prompts to the page host. Sign each open signoff card and accept each open card that takes accept.
+    Answers whether a send went; each round is sent once."""
+    found = shown_page(world, name)
+    if not found:
+        return False
+    origin, key, path = found
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return False
+    current = next((item for item in doc.get("rounds", []) if item.get("state") == "current"), None)
+    if not current or (key, current["n"]) in sent:
+        return False
+    prompts = [{"prompt": f"{item['id']} {MARKS[item['kind']]}", "tag": "afkv2-mark", "uid": secrets.token_hex(6)}
+               for item in current.get("items") or [] if item.get("kind") in MARKS
+               and item.get("state") not in ("settled_by_mark", "settled_by_note")]
+    if not prompts:
+        return False
+    sent.add((key, current["n"]))
+    request = urllib.request.Request(f"{origin}/api/{key}/prompts", method="POST",
+                                     data=json.dumps({"prompts": prompts, "domSnapshot": ""}).encode("utf-8"),
+                                     headers={"content-type": "application/json", "Origin": origin})
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            status = response.status
+    except (OSError, ValueError) as error:
+        status = str(error)
+    world.seen.setdefault("page_sends", []).append({"agent": name, "page": str(path), "round": current["n"],
+                                                    "marks": [item["prompt"] for item in prompts], "status": status})
+    return status == 200
 
 
-def drive(world, agent, until, limit, since):
-    """Play the developer until `until()` holds: the go of each open page round as a round send in the agent's pane,
-    else the agent's own pick. Answers whether `until()` held."""
+def drive(world, agent, until, limit):
+    """Play the developer until `until()` holds: the marks of each shown page round, sent as the page sends them,
+    else the agent's own pick when it waits. Answers whether `until()` held."""
     name, pane = agent["name"], agent["pane_id"]
     end, nudges, sent = time.monotonic() + limit, 0, set()
     while time.monotonic() < end:
         if until():
             return True
+        if page_send(world, name, sent):
+            pause(POLL_S * 5)
+            continue
         now = world.status(name)
         if now in ("idle", "done", "blocked") and nudges < NUDGES and not world.approved(name):
             harness_up(world, name)
             pause(POLL_S * 2)
             if until() or world.status(name) not in ("idle", "done", "blocked"):
                 continue
-            doc = next(((path, doc) for path, doc in page_docs(world, since)
-                        if (str(path), doc["rounds"][-1]["n"]) not in sent and round_send(doc)), None)
-            if doc:
-                path, body = doc
-                sent.add((str(path), body["rounds"][-1]["n"]))
-                world.reply(name, "I cannot open the page in a browser, so I give my round send here. Stop the wait, "
-                                  "write this text word for word to the raw file of the round, and go on from step 5 "
-                                  f"of /afkv2:use-lavish:\n\n{round_send(body)}")
-            elif live.menu(world.herdr.read(pane, 40, "visible")) and now == "blocked":
+            if page_send(world, name, sent):
+                continue
+            if live.menu(world.herdr.read(pane, 40, "visible")) and now == "blocked":
                 world.herdr.call("pane", "send-keys", pane, "enter")
             else:
                 world.reply(name, "Go on with your own recommendation.")
@@ -401,6 +435,13 @@ class Run(World):
         self.pages_kept = {path.name for path in pages.iterdir()} if pages.is_dir() else set()
         self.remote = None
         self.started = time.time()
+
+    def harness_up(self, name):
+        """Refuse when the harness answers a usage limit or a sign-in prompt instead of the turn."""
+        hit = quota_hit(self, name)
+        if hit:
+            raise Failed("harness-unavailable", f"the {name} harness answers: {hit}; run the row again when the "
+                                                f"account can run turns")
 
     def with_remote(self, source):
         """D-SRC with the origin of this build and verify/df-base pushed from the build head (plan decision D-21)."""
@@ -706,7 +747,6 @@ def we03_row(world, row):
     ask = "Add the line 'Run make test to test.' to README.md, as a small enhancement."
     text = f"/afkv2:small-change {ask}" if harness == "claude" else \
         f"Use the small-change skill in {found['source'] / 'afkv2' / 'skills' / 'small-change' / 'SKILL.md'}: {ask}"
-    since = time.time()
     world.prompt(main, text)
     harness_up(world, main)
     agent = world.herdr.agent(main)
@@ -715,7 +755,7 @@ def we03_row(world, row):
         return any(event["kind"] == "result" and '"go"' in event["text"] and '"ok": true' in event["text"]
                    for event in events(world, main))
 
-    reached = drive(world, agent, at_step6, SESSION_LIMIT_S, since)
+    reached = drive(world, agent, at_step6, SESSION_LIMIT_S)
     holds = [check(seen, "the main agent reached step 6 (the go is on record)", reached, reached)]
     if not reached:
         return False
@@ -911,7 +951,7 @@ def milestone_row(world, row):
         small = small_branch(world, main_pane)
         return small and ahead(source, small["branch"])
 
-    built = drive(world, afkv2, committed, SESSION_LIMIT_S, world.started)
+    built = drive(world, afkv2, committed, SESSION_LIMIT_S)
     small = small_branch(world, main_pane) or {}
     note = wait_for(lambda: note_record(world, main_pane, 1), MILESTONE_LIMIT_S, POLL_S * 2)
     text = note.read_text(encoding="utf-8") if note else ""
@@ -957,7 +997,7 @@ def queue_ask_row(world, row):
     queued = wait_for(lambda: (lambda found_now: (lambda at: at is not None and re.search(
         r"queue", said_after(found_now, at), re.I))(first(found_now, "user", FORWARD_LINE)))(events(world, name)), 300)
     holds.append(check(seen, "the afkv2 pane says ask 2 is queued", queued, None))
-    note1 = drive(world, afkv2, lambda: note_record(world, main_pane, 1), SESSION_LIMIT_S, world.started)
+    note1 = drive(world, afkv2, lambda: note_record(world, main_pane, 1), SESSION_LIMIT_S)
     small = small_branch(world, main_pane) or {}
     state = world.state(world.real_data(), main_pane) or {}
     first_note = next((note for note in state.get("notes", []) if note["id"] == 1), {})
@@ -981,7 +1021,7 @@ def queue_ask_row(world, row):
                         any(pane["pane_id"] == afkv2["pane_id"] for pane in world.herdr.panes(found["tab"])), None)]
         return all(holds)
     if row == "VR-048":
-        note2 = drive(world, afkv2, lambda: note_record(world, main_pane, 2), SESSION_LIMIT_S, world.started)
+        note2 = drive(world, afkv2, lambda: note_record(world, main_pane, 2), SESSION_LIMIT_S)
         changes = [change for change in world.changes("all") if change["headRefName"] == small.get("branch")]
         body = (changes[0]["body"] if changes else "").lower()
         holds += [check(seen, "milestone 2 comes: notes/0002.md exists", note2, None),
@@ -1027,7 +1067,7 @@ def wrap_row(world):
     if not afkv2:
         return check(seen, "the afkv2 pane opens", False, None)
     main_pane = found["main_pane"]
-    drive(world, afkv2, lambda: note_record(world, main_pane, 1), SESSION_LIMIT_S, world.started)
+    drive(world, afkv2, lambda: note_record(world, main_pane, 1), SESSION_LIMIT_S)
     turn(world, found["main"], "The main work is done.", TURN_LIMIT_S * 2)
     closed = wait_for(lambda: not any(pane["pane_id"] == afkv2["pane_id"] for pane in world.herdr.panes(found["tab"])),
                       WRAP_LIMIT_S, POLL_S * 3)
