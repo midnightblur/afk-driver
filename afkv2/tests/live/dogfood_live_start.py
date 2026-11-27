@@ -55,11 +55,16 @@ SETUP_ONLY = ("Run only step 1 of it, and of step 1 only `setup.py status` (not 
               "source. Skip every other step and change nothing else.")
 START_LIMIT_S, EXISTING_LIMIT_S = 120, 35
 AGENT_READY_MS = 120000
-TURN_LIMIT_S, WORK_LIMIT_S = 300, 600
+TURN_LIMIT_S, WORK_LIMIT_S, EDIT_LIMIT_S = 300, 600, 1500
+EDIT_TOOLS, SHELL_TOOLS = {"Write", "Edit", "NotebookEdit"}, {"Bash", "PowerShell"}
 POLL_S = 3
+NUDGES = 6
 COMMAND_LIMIT_S = 180
 SCRATCH_PREFIX = "afkv2-df-live"
 RECORD_BACKUP = "install.txt.dogfood-live-backup"
+APPROVAL = re.compile(r"Do you want to (proceed|make this edit|create|run|allow)|Allow (once|always)|"
+                      r"Would you like to (run|make|allow)|approve this", re.I)
+QUOTA = re.compile(r"[^\n]*(hit your usage limit|usage limit reached|please run /login|invalid api key)[^\n]*", re.I)
 ROWS = ("VR-001", "VR-002", "VR-003", "VR-004", "VR-007", "VR-008", "VR-009", "VR-010", "VR-011", "VR-056", "VR-057",
         "VR-065")
 
@@ -157,6 +162,8 @@ class World:
         self.root.mkdir(parents=True)
         self.tabs, self.main_panes, self.record, self.original = [], [], None, None
         self.seen = {}
+        self.pages = self.real_data() / "pages" / "df-src"  # the page folder of the D-SRC worktrees
+        self.pages_before = self.pages.exists()
         self.python = Path(sys.executable)
 
     # The data folder and the install record.
@@ -184,7 +191,8 @@ class World:
         lines = [line for line in self.original.decode("utf-8").splitlines() if line.partition(" ")[0] != "source"]
         if not any(line.partition(" ")[0] == "python" for line in lines):
             lines.append(f"python {self.python}")
-        record.write_text("\n".join([*lines, f"source {source}"]) + "\n", encoding="utf-8")
+        newline = "\r\n" if b"\r\n" in self.original else "\n"
+        record.write_bytes((newline.join([*lines, f"source {source}"]) + newline).encode("utf-8"))
         self.record = record
 
     def scratch_record(self, source=None):
@@ -242,23 +250,54 @@ class World:
             args = ["--plugin-dir", str(source / "afkv2"), "--permission-mode", "auto"]
         else:
             args = ["--approve-for-me"]
-        code, _, text = self.herdr.call("agent", "start", name, "--kind", harness, "--pane", pane, "--timeout",
-                                        str(AGENT_READY_MS), "--", *args, limit=AGENT_READY_MS // 1000 + 30)
-        if code != 0:
-            for _ in range(2):  # a trust dialog of a new folder: the developer accepts it
-                screen = self.herdr.read(pane, 40, "visible")
-                if "trust" not in screen.lower():
-                    break
-                self.herdr.call("pane", "send-keys", pane, "enter")
-                pause(5)
-            if not self.wait_status(name, ("idle", "done"), 60):
-                raise Failed("main-not-ready", f"the {harness} main agent did not get ready: {text}")
+        self._start(name, harness, pane, args)
         self.seen["main_agent"] = {"name": name, "harness": harness, "args": args}
         return name
 
+    def _start(self, name, harness, pane, args):
+        code, _, text = self.herdr.call("agent", "start", name, "--kind", harness, "--pane", pane, "--timeout",
+                                        str(AGENT_READY_MS), "--", *args, limit=AGENT_READY_MS // 1000 + 30)
+        if code != 0:
+            self.accept_trust(pane)
+            if not self.wait_status(name, ("idle", "done"), 60):
+                raise Failed("agent-not-ready", f"the {harness} agent {name} did not get ready: {text}; the pane "
+                                                f"shows: {self.herdr.read(pane, 30, 'visible')[-600:]}")
+
+    def accept_trust(self, pane):
+        """A trust dialog of a new folder: the developer picks the yes option."""
+        for _ in range(2):
+            screen = self.herdr.read(pane, 40, "visible")
+            if "trust" not in screen.lower():
+                return
+            chosen = next((line for line in screen.splitlines() if line.strip()[:1] in ("❯", "›", ">")), "")
+            keys = ["down", "enter"] if re.search(r"\b(no|exit|quit)\b", chosen, re.I) else ["enter"]
+            self.herdr.call("pane", "send-keys", pane, *keys)
+            pause(5)
+
+    def trust(self, folder):
+        """Trust `folder` for Claude, as the developer did once for the main checkout of the plugin source: the
+        afkv2 pane that start opens there gets no chance to accept a trust dialog. Claude asks per repository."""
+        tab, pane = self.open_tab(folder)
+        try:
+            self._start(f"dftrust-{secrets.token_hex(2)}", "claude", pane, [])
+        finally:
+            self.herdr.call("tab", "close", tab)
+            self.tabs.remove(tab)
+            self.main_panes.remove(pane)
+
     def status(self, name):
+        """The status of the agent; a blocked agent that shows an approval dialog of its harness is recorded."""
         agent = self.herdr.agent(name)
-        return agent.get("agent_status") if agent else None
+        now = agent.get("agent_status") if agent else None
+        if now == "blocked":
+            screen = self.herdr.read(agent["pane_id"], 40, "visible")
+            if approval(screen):
+                self.seen.setdefault("approvals", {}).setdefault(name, screen[-800:])
+        return now
+
+    def approved(self, name):
+        """Whether an approval dialog of the harness showed in the agent's pane."""
+        return name in self.seen.get("approvals", {})
 
     def wait_status(self, name, wanted, limit, watch=None):
         """Poll until the agent shows a wanted status; `watch` collects every status seen."""
@@ -278,11 +317,47 @@ class World:
         self.seen.setdefault("prompts", []).append({"to": name, "text": text, "exit": code, "answer": out[:300]})
         return code
 
-    def turn(self, name, text, limit=TURN_LIMIT_S, watch=None):
+    def reply(self, name, text, pick=None):
+        """The developer's answer: a pick in a question dialog that shows, else a typed prompt. A dialog option
+        that holds `pick` is chosen; with none, its free-text option gets `text`."""
+        agent = self.herdr.agent(name) or {}
+        pane = agent.get("pane_id")
+        options = menu(self.herdr.read(pane, 40, "visible")) if pane and agent.get("agent_status") == "blocked" else []
+        if not options:
+            return self.prompt(name, text)
+        current = next((number for number, marked, _ in options if marked), options[0][0])
+        target = next((number for number, _, label in options if pick and pick in label), None)
+        free = target is None
+        if free:
+            target = next((number for number, _, label in options if re.match(r"type something", label, re.I)), None)
+        if target is None:
+            raise Failed("dialog", f"the dialog of {name} has no option for {pick or text!r}: {options}")
+        moves = ["down"] * (target - current) if target >= current else ["up"] * (current - target)
+        if moves:
+            self.herdr.call("pane", "send-keys", pane, *moves)
+        if free:
+            self.herdr.call("pane", "send-text", pane, text)
+        self.herdr.call("pane", "send-keys", pane, "enter")
+        self.seen.setdefault("prompts", []).append({"to": name, "dialog": options, "picked": target,
+                                                    "text": text if free else None})
+        return 0
+
+    def turn(self, name, text, limit=TURN_LIMIT_S, watch=None, pick=None):
         """Give 1 developer turn and wait until the agent waits for input again."""
-        self.prompt(name, text)
+        self.reply(name, text, pick)
         pause(POLL_S)
-        return self.wait_status(name, ("idle", "done", "blocked"), limit, watch)
+        now = self.wait_status(name, ("idle", "done", "blocked"), limit, watch)
+        self.harness_up(name)
+        return now
+
+    def harness_up(self, name):
+        """Refuse when the harness answers a usage limit or a sign-in prompt instead of the turn."""
+        pane = (self.herdr.agent(name) or {}).get("pane_id")
+        screen = self.herdr.read(pane, 40, "visible") if pane else ""
+        hit = QUOTA.search(screen)
+        if hit:
+            raise Failed("harness-unavailable", f"the {name} harness answers: {hit.group(0)}; run the row again "
+                                                f"when the account can run turns")
 
     def afkv2_agent(self, tab):
         agents = self.herdr.ok("agent", "list").get("agents", [])
@@ -324,6 +399,8 @@ class World:
             for path in (data / f"dogfood-{safe}.json", data / f"dogfood-{safe}"):
                 if path.exists():
                     step("session state", path, lambda path=path: _remove(path))
+        if not self.pages_before and self.pages.exists():
+            step("page folder", self.pages, lambda: _remove(self.pages))
         if self.record is not None:
             step("install record", self.record, lambda: self._restore_record())
         step("scratch folder", self.root, lambda: _remove(self.root))
@@ -424,6 +501,7 @@ def open_session(world, harness, work_parent=None):
     source = world.make_source(world.root / "df-src")
     world.seen.update(work=str(work), source=str(source))
     world.use_real_record(source)
+    world.trust(source)
     tab, main_pane = world.open_tab(work)
     main = world.start_main(harness, main_pane, source)
     if harness == "claude":
@@ -433,6 +511,8 @@ def open_session(world, harness, work_parent=None):
     statuses = []
     started = time.monotonic()
     world.prompt(main, text)
+    pause(POLL_S)
+    world.harness_up(main)
     afkv2 = None
     while time.monotonic() - started < START_LIMIT_S + 60 and afkv2 is None:
         statuses.append(world.status(main))
@@ -454,19 +534,52 @@ def open_session(world, harness, work_parent=None):
     back = world.wait_status(main, ("idle", "done", "blocked"), TURN_LIMIT_S, statuses)
     holds.append(check(seen, "the main agent hands the turn back", back in ("idle", "done"), back))
     if harness == "codex":
-        holds.append(check(seen, "no approval prompt blocks the main agent", "blocked" not in statuses,
+        holds.append(check(seen, "no approval prompt blocks the main agent", not world.approved(main),
                            sorted(set(map(str, statuses)))))
     screen = world.herdr.read(pane, 300)
+    words = flat(screen).lower()
     holds.append(check(seen, "the first prompt holds the role line and the ask",
-                       flat(ROLE_LINE) in flat(screen) and flat(ASK_WE01) in flat(screen), screen[-1500:]))
+                       flat(ROLE_LINE).lower() in words and all(word in words for word in ("step4", "small-change")),
+                       screen[-1500:]))
+    state = world.state(world.real_data(), main_pane)
+    alive = any(item["pane_id"] == pane for item in world.herdr.panes(tab))
+    holds.append(check(seen, "start answered opened: the state names the afkv2 pane, and the pane stays",
+                       state is not None and state.get("afkv2_pane") == pane and alive, {"state": state, "alive": alive}))
     return tab, main_pane, main, afkv2, all(holds)
+
+
+def menu(screen):
+    """The options of a question dialog on the screen: (number, chosen now, label)."""
+    found = []
+    for line in screen.splitlines():
+        hit = re.match(r"^\s*([❯›>])?\s*(\d+)\.\s+(\S.*)$", line)
+        if hit:
+            found.append((int(hit.group(2)), bool(hit.group(1)), hit.group(3).strip()))
+    numbers = [number for number, _, _ in found]
+    return found if numbers and numbers == list(range(1, len(numbers) + 1)) else []
+
+
+def approval(screen):
+    """An approval dialog of a harness, not a question of the agent."""
+    return bool(APPROVAL.search(screen or ""))
+
+
+def go_on(world, afkv2):
+    """The developer takes the agent's own pick: the chosen option of a question dialog, else a typed go-on."""
+    pane = afkv2["pane_id"]
+    if world.status(afkv2["name"]) == "blocked" and menu(world.herdr.read(pane, 40, "visible")):
+        world.herdr.call("pane", "send-keys", pane, "enter")
+        world.seen.setdefault("prompts", []).append({"to": afkv2["name"], "dialog": "took the chosen option"})
+    else:
+        world.prompt(afkv2["name"], "Go on with your own recommendation.")
+    pause(POLL_S)
 
 
 def answer_base(world, afkv2, watch=None):
     """The afkv2 agent asks for the base: the developer gives verify/df-base."""
     asked = world.wait_status(afkv2["name"], ("idle", "done", "blocked"), TURN_LIMIT_S, watch)
     screen = world.herdr.read(afkv2["pane_id"], 200)
-    world.prompt(afkv2["name"], f"Use {BASE} as the integration branch.")
+    world.reply(afkv2["name"], f"Use {BASE} as the integration branch.", pick=BASE)
     return asked, screen
 
 
@@ -481,11 +594,11 @@ def row_live(world, row):
         asked = world.wait_status(afkv2["name"], ("idle", "done", "blocked"), TURN_LIMIT_S)
         screen = world.herdr.read(afkv2["pane_id"], 200)
         before = (world.state(data, main_pane) or {}).get("worktrees")
-        holds = [check(seen, "the afkv2 agent waits for the developer", asked in ("idle", "done"), asked),
+        holds = [check(seen, "the afkv2 agent waits for the developer", asked in ("idle", "done", "blocked"), asked),
                  check(seen, f"it asks which integration branch and suggests {SUGGESTED_BASE}",
                        SUGGESTED_BASE in screen and "?" in screen[-3000:], screen[-1500:]),
                  check(seen, "no worktree before the answer", before == [], before)]
-        world.prompt(afkv2["name"], f"Use {BASE} as the integration branch.")
+        world.reply(afkv2["name"], f"Use {BASE} as the integration branch.", pick=BASE)
         worktrees = wait_worktree(world, data, main_pane, "small")
         holds.append(check(seen, "worktree runs after the answer", worktrees, worktrees))
         return all(holds)
@@ -494,12 +607,12 @@ def row_live(world, row):
     if row == "VR-010":
         worktree = wait_worktree(world, data, main_pane, "small")
         branch = (worktree or {}).get("branch", "")
-        screen = wait_screen(world, afkv2["pane_id"], "small-change")
+        ran = wait_skill(world, afkv2["name"], "small-change", (worktree or {}).get("path", "?"))
         holds = [check(seen, "a small-asks worktree on feat/afkv2-df-<yyyymmdd-hhmm>",
                        worktree and SMALL_BRANCH.fullmatch(branch), worktree),
                  check(seen, f"its branch is cut from {BASE}", worktree and _cut_from(world, branch), branch),
-                 check(seen, "the afkv2 pane shows /afkv2:small-change", screen is not None,
-                       (screen or world.herdr.read(afkv2["pane_id"], 120))[-1500:])]
+                 check(seen, "the afkv2 pane runs /afkv2:small-change in the small-asks worktree",
+                       ran["skill"] and ran["in_worktree"], ran)]
         return all(holds)
     if row == "VR-003":
         world.wait_status(afkv2["name"], ("working",), 60)
@@ -508,8 +621,9 @@ def row_live(world, row):
         counts, shown = [], None
         while time.monotonic() - started < EXISTING_LIMIT_S + 60 and shown is None:
             counts.append(len(world.herdr.panes(tab)))
-            screen = world.herdr.read(afkv2["pane_id"], 200)
-            if flat(FORWARD_LINE) in flat(screen) and flat(ASK_WE02_2) in flat(screen):
+            screen = flat(world.herdr.read(afkv2["pane_id"], 200)).lower()
+            words = flat(FORWARD_LINE).lower() in screen and "gc" in screen and "refusal" in screen
+            if words or prompted(world, afkv2["name"], FORWARD_LINE):
                 shown = round(time.monotonic() - started, 1)
             else:
                 pause(POLL_S)
@@ -522,41 +636,98 @@ def row_live(world, row):
                  check(seen, "start answers existing", "existing" in main_screen.lower(), main_screen[-1500:])]
         return all(holds)
     if row == "VR-004":
-        screen = world.herdr.read(afkv2["pane_id"], 400, "recent")
+        screen = world.herdr.read(afkv2["pane_id"], 400, "recent") + world.herdr.read(afkv2["pane_id"], 40, "visible")
         model = check(seen, "the pane shows Claude Opus at the highest effort",
-                      "opus" in screen.lower() and re.search(r"\bmax\b", screen.lower()), screen[:1500])
-        end, edit, shell = time.monotonic() + WORK_LIMIT_S, False, False
+                      re.search(r"opus[^\n]*(\(max\)|with max effort)", screen, re.I),
+                      [line for line in screen.splitlines() if "opus" in line.lower()][:4])
+        end, edit, shell, nudges = time.monotonic() + EDIT_LIMIT_S, False, False, 0
         while time.monotonic() < end and not (edit and shell):
-            statuses.append(world.status(afkv2["name"]))
-            text = world.herdr.read(afkv2["pane_id"], 400)
-            edit = edit or bool(re.search(r"(Write|Edit|Update|Create)\(", text))
-            shell = shell or bool(re.search(r"(Bash|PowerShell)\(", text))
-            if not (edit and shell):
-                pause(POLL_S)
+            now = world.status(afkv2["name"])
+            statuses.append(now)
+            tools = {block.get("name") for entry in transcript(world, afkv2["name"]) if entry.get("type") == "assistant"
+                     for block in blocks(entry, "tool_use")}
+            edit, shell = bool(tools & EDIT_TOOLS), bool(tools & SHELL_TOOLS)
+            if edit and shell:
+                break
+            if now in ("idle", "done", "blocked") and nudges < NUDGES and not world.approved(afkv2["name"]):
+                go_on(world, afkv2)  # the developer lets the agent go on with its own pick
+                nudges += 1
+            pause(POLL_S)
+        seen["nudges"] = nudges
         holds = [model,
                  check(seen, "a first file edit and a first shell command", edit and shell, {"edit": edit, "shell": shell}),
-                 check(seen, "no approval dialog", "blocked" not in statuses, sorted(set(map(str, statuses))))]
+                 check(seen, "no approval dialog", not world.approved(afkv2["name"]), sorted(set(map(str, statuses))))]
         return all(holds)
     if row == "VR-009":
         world.wait_status(afkv2["name"], ("working",), 60)
-        world.prompt(afkv2["name"], f"Drop the first ask. A feature ask replaces it: {ASK_FEATURE}")
+        world.reply(afkv2["name"], f"Drop the first ask. A feature ask replaces it: {ASK_FEATURE}")
         medium = wait_worktree(world, data, main_pane, "medium", TURN_LIMIT_S)
         if medium is None:  # the afkv2 agent asks for the ticket key
             world.wait_status(afkv2["name"], ("idle", "done", "blocked"), TURN_LIMIT_S)
-            world.prompt(afkv2["name"], f"The ticket key is {TICKET}.")
+            world.reply(afkv2["name"], f"The ticket key is {TICKET}.")
             medium = wait_worktree(world, data, main_pane, "medium", TURN_LIMIT_S)
         branch = (medium or {}).get("branch", "")
         small = [item.get("branch") for item in (world.state(data, main_pane) or {}).get("worktrees", [])
                  if item.get("lane") == "small"]
         branches = git("branch", "--list", "--format=%(refname:short)", cwd=world.seen["source"]).splitlines()
-        screen = wait_screen(world, afkv2["pane_id"], "grill-requirements")
+        ran = wait_skill(world, afkv2["name"], "grill-requirements", (medium or {}).get("path", "?"))
         holds = [check(seen, "the afkv2 agent calls worktree --lane medium --branch <name>", medium, medium),
                  check(seen, "git branch in D-SRC shows a branch apart from the small-asks branch",
                        branch in branches and branch not in small, {"branches": branches, "small": small}),
-                 check(seen, "the afkv2 pane shows /afkv2:grill-requirements", screen is not None,
-                       (screen or world.herdr.read(afkv2["pane_id"], 120))[-1500:])]
+                 check(seen, "the afkv2 pane runs /afkv2:grill-requirements in that worktree",
+                       ran["skill"] and ran["in_worktree"], ran)]
         return all(holds)
     raise Failed("bad-input", f"no live flow for {row}")
+
+
+def transcript(world, name):
+    """The entries of the Claude session in the agent's pane, from its transcript file."""
+    session = (((world.herdr.agent(name) or {}).get("agent_session")) or {}).get("value")
+    for path in (Path.home() / ".claude" / "projects").glob(f"*/{session}.jsonl") if session else []:
+        world.seen.setdefault("transcript", {})[name] = str(path)
+        try:
+            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        for line in lines:
+            try:
+                yield json.loads(line)
+            except ValueError:
+                continue
+
+
+def blocks(entry, kind):
+    content = (entry.get("message") or {}).get("content")
+    if isinstance(content, str):
+        return [{"type": "text", "text": content}] if kind == "text" else []
+    return [block for block in content or [] if isinstance(block, dict) and block.get("type") == kind]
+
+
+def prompted(world, name, text):
+    """Whether a typed prompt of the Claude session in the agent's pane holds `text`. A prompt typed during a turn
+    goes in at the next tool boundary as a new user message, and its pane lines scroll away between 2 reads."""
+    return any(text in block.get("text", "") for entry in transcript(world, name) if entry.get("type") == "user"
+               for block in blocks(entry, "text"))  # a typed prompt, never a tool result
+
+
+def wait_skill(world, name, skill, folder, limit=WORK_LIMIT_S):
+    """{"skill", "in_worktree"}: the agent ran the Skill tool for `skill`, and a later tool call names `folder`. A
+    pane line can show the skill name from a file the agent reads, so the transcript is the proof."""
+    end, where = time.monotonic() + limit, flat(str(folder)).lower().replace("\\", "/")
+    while time.monotonic() < end:
+        ran, inside = False, False
+        for entry in transcript(world, name):
+            for block in blocks(entry, "tool_use") if entry.get("type") == "assistant" else []:
+                text = json.dumps(block.get("input"), ensure_ascii=False)
+                if block.get("name") == "Skill" and skill in text:
+                    ran = True
+                elif ran and where in flat(text).lower().replace("\\\\", "/").replace("\\", "/"):
+                    inside = True
+        if ran and inside:
+            break
+        pause(POLL_S)
+    world.seen.setdefault("skills", {})[skill] = {"ran": ran, "in_worktree": inside}
+    return {"skill": ran, "in_worktree": inside}
 
 
 def wait_worktree(world, data, main_pane, lane, limit=WORK_LIMIT_S):
@@ -567,16 +738,6 @@ def wait_worktree(world, data, main_pane, lane, limit=WORK_LIMIT_S):
         if found:
             world.seen.setdefault("state", {})[lane] = state
             return found
-        pause(POLL_S)
-    return None
-
-
-def wait_screen(world, pane, text, limit=WORK_LIMIT_S):
-    end = time.monotonic() + limit
-    while time.monotonic() < end:
-        screen = world.herdr.read(pane, 300)
-        if text in screen:
-            return screen
         pause(POLL_S)
     return None
 
@@ -636,8 +797,9 @@ def setup_row(world, row):
                        re.search(r"not-plugin-source|not the plugin source", tail3, re.I), tail3[-1500:]),
                  check(seen, "the install record holds no source line", record_lines(record) == [], record_lines(record))]
         return all(holds)
+    answer = after_text(first, "nothing else.")  # the Codex prompt names a path inside D-SRC itself
     holds = [check(seen, "setup suggests the D-SRC path and asks to confirm or type another",
-                   flat(str(source)).lower() in flat(first).lower() and "?" in first, first[-1500:])]
+                   flat(str(source)).lower() in flat(answer).lower() and "?" in answer, answer[-1500:])]
     world.turn(main, "Yes, use that path.", watch=statuses)
     holds.append(check(seen, "the install record holds source <D-SRC>",
                        [line.partition(" ")[2].strip() for line in record_lines(record)] == [str(source)],
@@ -648,7 +810,8 @@ def setup_row(world, row):
         asked = [line for line in tail.splitlines() if "?" in line and re.search(r"source|path|checkout", line, re.I)]
         holds.append(check(seen, "a second setup asks nothing about the source", not asked and len(record_lines(record)) == 1,
                            {"questions": asked, "record": record_lines(record)}))
-    holds.append(check(seen, "no dialog blocked the session", "blocked" not in statuses, sorted(set(map(str, statuses)))))
+    holds.append(check(seen, "no approval dialog blocked the session", not world.approved(main),
+                       sorted(set(map(str, statuses)))))
     return all(holds)
 
 
