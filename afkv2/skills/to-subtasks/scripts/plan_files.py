@@ -29,6 +29,7 @@ import grill_start  # noqa: E402
 import prd_files  # noqa: E402
 import round_document as rd  # noqa: E402
 from grill_common import EXIT_UNREADABLE, Parser, Refusal, page_documents, read_json, serve, write_text  # noqa: E402
+from page_links import links_for  # noqa: E402
 
 TO_PRD = "/afkv2:to-prd"
 PROPOSE = "/afkv2:propose-solution"
@@ -435,7 +436,8 @@ def build_division_round(plan, doc_path, session, ticket, why, replace=False):
     banner = {"settled": [], "unlocks": ["/afkv2:autopilot can start on this plan"], "parked": []}
     spec_root = doc_path.resolve().parents[2]  # the doc is <spec root>/<ticket>/pages/<file> (plan decision D-15)
     card, times = _division_card(plan, subtasks, why, card_id, digest, carries, spec_root)
-    answer = rd.build_round_document(doc_path, session_fields, {"banner": banner, "items": [card]}, replace=replace)
+    answer = rd.build_round_document(doc_path, session_fields, {"banner": banner, "items": [card]}, replace=replace,
+                                     links=links_for([ticket]))
     return {**answer, "card": card_id, "digest": digest, "estimate_notes": times["notes"]}
 
 

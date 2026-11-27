@@ -1335,6 +1335,21 @@ def test_the_division_document_passes_the_real_engine(world, tmp_path):
         assert done.returncode == 0, done.stdout + done.stderr
 
 
+def test_the_division_page_heading_links_the_ticket(world, tmp_path):
+    world.env["JIRA_BASE_URL"] = "https://acme.atlassian.net"
+    started = world.committed_plan()
+    world.division(started)
+    done = subprocess.run([sys.executable, str(ENGINE), "render", started["doc"]], cwd=world.repo, capture_output=True, text=True,
+                          encoding="utf-8", timeout=120, env={**os.environ, "LOCALAPPDATA": str(tmp_path / "local")})
+    assert done.returncode == 0, done.stdout + done.stderr
+    page = (world.repo / json.loads(done.stdout)["page"]).read_text("utf-8")
+    heading = re.search(r'<h1 class="afkv2-title">(.*?)</h1>', page).group(1)
+    if os.environ.get("AFKV2_EVIDENCE"):
+        Path(os.environ["AFKV2_EVIDENCE"], "division-heading.html").write_text(heading, "utf-8")
+    assert re.fullmatch(r'<a class="afkv2-ref" href="https://acme\.atlassian\.net/browse/PROJ-1"[^>]*>PROJ-1</a> · Plan approval',
+                        heading), heading
+
+
 # Rules 2 (design ADR-0003): the `> Rules: 2` header line selects the new rules; a plan with no line keeps today's.
 
 @pytest.mark.parametrize("header, rules", [("", 1), ("> Rules: 2", 2), ("> Rules: 1", 1), ("> Rules: two", None), ("> Rules: 3", None)])
