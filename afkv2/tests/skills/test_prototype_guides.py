@@ -215,3 +215,15 @@ def test_a_note_against_a_settled_point_gets_an_impact_assessment():
 
 def test_a_decision_that_implies_data_or_behaviour_names_it():
     _states(HOME / "PROTOTYPE-FORMAT.md", "## Sections", "`Implies:`")
+
+
+# --- Each region of the mockup takes the component of the anchor, with all its parts, read at run time
+
+def test_each_region_takes_the_anchor_component_with_all_its_parts():
+    rule = "## Components of the anchor"
+    _states(MOCKUP_MD, rule, "read at run time")
+    _states(MOCKUP_MD, rule, "with every part of it")
+    _states(MOCKUP_MD, rule, "never draw your own")
+    _states(SKILL_MD, "## Steps", "the parts of each component")
+    _states(SKILL_MD, "## Steps", "Component walk")
+    _states(SKILL_MD, "## Steps", "drops a part of its anchor component")

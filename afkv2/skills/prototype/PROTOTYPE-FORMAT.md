@@ -33,7 +33,7 @@ The sections come in this order, each a `##` heading with the name in the first 
 |---------|-------|
 | `Screens` | the Screens table |
 | `Coverage` | the Coverage table |
-| `Fidelity` | the anchor used, what was compared, each difference left |
+| `Fidelity` | the anchor used, what was compared, the anchor component of each region, each difference left |
 | `Decisions` | 1 line per screen or interaction decision, with why. A decision that implies data or behaviour, such as an order the user sets, a new state, a rule or a validation, names it after `Implies:` on the same line |
 | `PRD gaps` | each point the PRD cannot answer, or `none` |
 
