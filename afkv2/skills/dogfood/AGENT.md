@@ -23,13 +23,13 @@ Read the session state, with its base and its worktrees, at any time:
    <python> "<this skill's folder>/scripts/dogfood.py" worktree --lane small --base "<base>"
    ```
 
-   Run it once per session. The answer `path` is the small-asks worktree and `branch` its branch. Every small ask of the session goes there. Later, read the path again from `status`.
+   Run it once per session. The answer `path` is the small-asks worktree and `branch` its branch. Every small ask of the session goes there. Later, read the path again from `status`. `worktree` fetches the base from `origin` and starts from `origin/<base>` when the local branch is absent or behind it; a local base with its own commits stays the start.
 
 ## Steps
 
 1. **The first ask.** It comes in your first prompt. Decide its lane.
 
-   A small ask, such as a fix or a small enhancement: run `/afkv2:small-change` in the small-asks worktree through its step 8, the small gate. Then run "Open or update the change" of `/afkv2:create-change-request` in that worktree. Each small ask of the session shares its branch and its 1 Draft change, and gets its own section in the change description. `open` replaces the whole description, so keep each section and its proof lines in scratch, and give all of them at each open. Finish each small ask so before the next small ask starts: a new start of `/afkv2:small-change` deletes the lane record of the earlier ask in this worktree.
+   A small ask, such as a fix or a small enhancement: run `/afkv2:small-change` in the small-asks worktree through its step 8, the small gate. Then run "Open or update the change" of `/afkv2:create-change-request` in that worktree. Each small ask of the session shares its branch and its 1 Draft change, and gets its own section in the change description. `open` replaces the whole description, so keep each section and its proof lines in scratch, and give all of them at each open. Finish each small ask so before the next small ask starts: a new start of `/afkv2:small-change` deletes the lane record of the earlier ask in this worktree. That record is the `afkv2-small` folder in the git folder of the worktree (`git rev-parse --absolute-git-dir`), and it holds the logs and gate records that the proof lines cite. Before the next start, copy that folder to `<scratch>/ask-<n>/`, and cite the copies in the proof lines of that ask.
 
    A feature ask: ask the developer in this pane for its ticket key. Open its medium worktree from the confirmed base, with the branch `feat/afkv2-<ticket key>` in lower case:
 
@@ -37,13 +37,13 @@ Read the session state, with its base and its worktrees, at any time:
    <python> "<this skill's folder>/scripts/dogfood.py" worktree --lane medium --base "<base>" --branch "feat/afkv2-<ticket key>"
    ```
 
-   Run `/afkv2:grill-requirements` with the ticket key in the medium worktree, and follow the steps that it names. After the first commits on the medium branch, and before `/afkv2:autopilot`, run "Open or update the change" with the confirmed base as the target branch. Then record its id for the run by `set-change` of the `walk.py` of `/afkv2:autopilot`, so that each subtask updates that change and opens none.
+   Run `/afkv2:grill-requirements` with the ticket key in the medium worktree, and follow the steps that it names. After `/afkv2:to-subtasks` made the plan, and before `/afkv2:autopilot`, run "Open or update the change" with the confirmed base as the target branch. Then record its id for the run by `set-change` of the `walk.py` of `/afkv2:autopilot`, with the `plan` that `locate` of the same `walk.py` answers, so that each subtask updates that change and opens none. `set-change` refuses before the plan exists.
 
    A grow: `/afkv2:small-change` stops at its grow step, and the developer picks the medium lane. Ask for the ticket key and open the medium worktree as for a feature ask. Then cherry-pick the commits of the grown ask from the small branch onto the medium branch, and revert them on the small branch, so that the small Draft change and the later small asks do not hold them. Then run `/afkv2:grill-requirements` as for a feature ask.
 
    Each run of `/afkv2:create-change-request`, in every lane, gets the confirmed base as its target branch. Without it, the skill falls back to the repository config, which names no base or a wrong one. Run no Ship section of `/afkv2:create-change-request` in this session, in any lane, and skip the ship step of `/afkv2:autopilot`: each change stays Draft, and the developer ships it after the session.
 
-2. **A new ask.** It comes as a prompt that starts `A new ask from the main pane:`, or the developer types it in this pane. Build 1 ask at a time. An earlier ask has not reached its milestone: queue the new ask, and say in this pane that it is queued and starts after the milestone of the earlier ask. Start the queued asks in the order they came, each right after the earlier ask sends its milestone note.
+2. **A new ask.** It comes as a prompt that starts `A new ask from the main pane:`, or the developer types it in this pane. Build 1 ask at a time. An earlier ask is not finished: queue the new ask, and say in this pane that it is queued and starts when the earlier ask is finished. A small ask is finished when it sends its milestone note. A feature ask is finished when its `/afkv2:autopilot` run ends; a milestone note that it sends before then does not finish it. Start the queued asks in the order they came, each right after the earlier ask is finished.
 
 3. **A milestone.** A committed change is usable for 1 named purpose. For a small ask, the milestone comes when the ask is finished by step 1. At once, with no question to the developer, write the note in scratch, outside every repository, by [NOTE-FORMAT.md](NOTE-FORMAT.md). In `redo`, name the delta: the work that the main agent already did under the old text and that comes out differently under the new text. Then send it:
 
@@ -71,7 +71,8 @@ Read the session state, with its base and its worktrees, at any time:
 | `not-afkv2-pane` | the verb ran outside the afkv2 pane of a session | run it from this pane only |
 | `bad-branch` | a branch name is wrong or taken, the small lane got `--branch`, or the medium lane got none | fix the command against its block; a taken medium branch: name another branch for the same ticket, such as `feat/afkv2-<ticket key>-2` |
 | `small-exists` | the session already has its small-asks worktree | read its path from `status`, and work there |
-| `base-missing` | the plugin source has no such local branch, or the session already has another base | another base: use the `base` of `status`; no such branch: ask the developer for the integration branch again |
+| `base-missing` | the plugin source has no such branch, local or on `origin`, or the session already has another base | another base: use the `base` of `status`; no such branch: ask the developer for the integration branch again |
+| `io-failed` | a file read or write failed; `reason` names the file | tell the developer the reason in this pane |
 | `worktree-failed` | git could not make the worktree; `reason` names it | tell the developer the reason in this pane |
 | `note-unreadable` | the note file is absent, not UTF-8 or over 16 KiB | fix the file, then send it again |
 | `note-check-failed` | the note breaks a rule of NOTE-FORMAT.md; `failures` names each | fix each failure, then send it again |
