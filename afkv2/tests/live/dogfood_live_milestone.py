@@ -24,6 +24,7 @@ the marks of each shown page round to the page host as the page's own Send does,
 from __future__ import annotations
 
 import argparse
+import datetime
 import hashlib
 import json
 import os
@@ -449,6 +450,11 @@ def wait_for(predicate, limit, step=POLL_S):
 WATCH_ID = re.compile(r'\\?"id\\?":\s*\\?"(\d+)\\?"')
 
 
+def opened_at(change):
+    """The epoch seconds when the forge opened `change`."""
+    return datetime.datetime.fromisoformat(change["createdAt"].replace("Z", "+00:00")).timestamp()
+
+
 def stop_watches(numbers):
     """Stop each CI watch process, with its children, that watches one of the changes `numbers`: the afkv2 agent
     starts it detached, so it runs on after its pane closes and holds its worktree. Answers the process ids."""
@@ -506,11 +512,12 @@ class Run(World):
         return hit.group(1) if hit else None
 
     def changes(self, state="all"):
+        """The changes into verify/df-base that this run opened. The forge keeps the closed changes of earlier runs."""
         code, out, err = run_command(["gh", "pr", "list", "--repo", self.slug(), "--base", BASE, "--state", state,
-                                      "--json", "number,url,isDraft,state,headRefName,body,mergedAt"])
+                                      "--json", "number,url,isDraft,state,headRefName,body,mergedAt,createdAt"])
         if code != 0:
             raise Failed("gh-failed", f"gh pr list: {err or out}")
-        return json.loads(out or "[]")
+        return [change for change in json.loads(out or "[]") if opened_at(change) >= self.started - 60]
 
     def clear_forge(self):
         """Close each open change into verify/df-base, delete its branch, and delete verify/df-base."""
