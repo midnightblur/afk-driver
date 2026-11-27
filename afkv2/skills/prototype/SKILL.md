@@ -82,6 +82,8 @@ Read the `## User Stories` and `## Acceptance Criteria` of the PRD. When no stor
 
    List the parts of each component that the mockup uses, by "Components of the anchor" in [MOCKUP.md](MOCKUP.md), such as the filter row, the header and the footer of a table.
 
+   Find the precedent of each new screen by "Precedent" in the core behaviors: a screen of the app with the same shape, such as a config dialog for the same kind of scope. Copy its fields, its picker filters and its validations; a difference is a Decisions line with why.
+
    Also map the neighbours of each screen: the screens a story enters from, and the screens the new screen links to.
 
 3. **Draft.** Write 1 mockup file with every screen into `mockup_dir`, by [MOCKUP.md](MOCKUP.md) and by "Bound to the PRD", with made-up data only: copy the look of the app, and never copy a record from a screenshot, the live screen or its database. A mockup of an earlier run is already in `mockup_dir`: keep it and its edits, and change it instead of a new draft. It has 1 file per screen: merge the screens and their edits into 1 file, and delete the other files. The direction is unclear: give 2 to 3 variants in the file. Run `check` on the mockup, and fix each line it names. Done when `check` answers ok.

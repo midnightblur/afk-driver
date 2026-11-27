@@ -586,7 +586,7 @@ def _uploaded_media(run_dir):
 
 
 def _afkv2_picture(node, uploaded):
-    """True when each picture of the node is afkv2's own: uploaded from this run folder, or named afkv2-fig-*."""
+    """True when each picture of the node is afkv2's own: uploaded by a publish of this run folder, or its alt is a PICTURE_NAME."""
     media = _media_nodes(node)
     return bool(media) and all(str(attrs.get("id")) in uploaded or PICTURE_NAME.fullmatch(str(attrs.get("alt") or ""))
                                for attrs in media)

@@ -1,4 +1,4 @@
-afkv2-core-behaviors begin 7390a2abdb71
+afkv2-core-behaviors begin a27c2a1c2a98
 # afkv2 core behaviors
 
 ## Work location
@@ -37,6 +37,7 @@ afkv2-core-behaviors begin 7390a2abdb71
 - Decide each two-way door (a choice you can undo on the branch at low cost) yourself, and record why.
 - Ask only for an irreversible, catastrophic or load-bearing choice.
 - Verify instead of asking. Read the file, run the check or search the documents.
+- Precedent: before you propose a model, a screen, a rule or a test for a domain concept, search the repository for a feature of the same shape. Read its model, its UI conventions and its validations, and `STAPLES.md` when it exists. Follow the precedent and cite it, or state why you differ. Read it each time, because it changes.
 - Challenge a human proposal when you have a real counter-argument.
 - In an explicit hands-off mode, provision safe prerequisites and test data yourself. Consent and destructive-action boundaries still apply.
 - Before a database write, show the exact statement and its target, and get explicit consent. Run read-only queries without a permission turn.
@@ -86,4 +87,4 @@ Endpoint security software (for example CrowdStrike Falcon) blocks these acts, a
 - Never start a shell to sleep or to wait (`cmd /c timeout`, `ping -n`). Sleep in the language, or run `[python, "-c", "import time; time.sleep(N)"]`.
 - Never create a process suspended and resume it later.
 - Start a child process as an argument list, with no shell. Run a command string from a user or a config through one named shell, never a hidden `cmd.exe`.
-afkv2-core-behaviors end 7390a2abdb71
+afkv2-core-behaviors end a27c2a1c2a98

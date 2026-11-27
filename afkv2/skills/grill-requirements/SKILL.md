@@ -46,7 +46,7 @@ Run each command from the repository root. `<python>` is the Python in the setup
 
    Keep `<ticket file>` in a scratch folder. Report `comments_cut` and each `unread_links` entry to the human in round 1; the ticket card shows them. Read the context the ticket points at: a linked document, a named file. Read the repository glossary and `STAPLES.md`, when they exist.
 
-3. **Offer round 0.** Ask once in chat: the human may write their own reading of the ticket, or skip. Start the code reading in background subagents at the same time, so the work overlaps the wait. A human reading is unverified input: every claim in it gets a `Ledger` row. Save the words exactly:
+3. **Offer round 0.** Ask once in chat: the human may write their own reading of the ticket, or skip. Start the code reading in background subagents at the same time, so the work overlaps the wait. The code reading also finds the precedent of each concept of the ticket, by "Precedent" in the core behaviors; a card that proposes a model cites it. A human reading is unverified input: every claim in it gets a `Ledger` row. Save the words exactly:
 
    ```sh step=row
    <python> "<this skill's folder>/scripts/grill_log.py" row --log "<log>" --kind "<kind>" --text "<text>"
