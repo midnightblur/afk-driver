@@ -44,7 +44,7 @@ DOGFOOD_PY = AFKV2.parent / DOGFOOD / "scripts" / "dogfood.py"
 NOTE_LINE = "A note from the afkv2 pane:"
 HEADER = "afkv2-note v1"
 NOTE_PROMPT = re.compile(re.escape(NOTE_LINE) + r" [^<\s]")
-IN_USE = ".in_use"  # the harness marks a plugin version that a session runs; no plugin file
+IN_USE = ".in_use"  # the folder where the harness marks the sessions that run a plugin version; no plugin file
 FORWARD_LINE = "A new ask from the main pane:"
 FEEDBACK_LINE = "Feedback from the main pane:"
 WRAP_LINE = "The wrap-up request from the main pane:"
@@ -420,7 +420,7 @@ def plugin_hashes():
     hashes = {}
     for root in sorted(filter(None, roots)):
         for path in Path(root).rglob("*"):
-            if path.is_file() and "__pycache__" not in path.parts and path.name != IN_USE:
+            if path.is_file() and "__pycache__" not in path.parts and IN_USE not in path.parts:
                 hashes[str(path)] = hashlib.sha256(path.read_bytes()).hexdigest()
     return hashes
 
