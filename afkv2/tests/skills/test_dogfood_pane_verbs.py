@@ -114,6 +114,49 @@ def test_worktree_small_makes_the_df_branch_from_the_base_and_a_repeat_answers_t
     assert _git(repo, "branch", "--list", "feat/afkv2-df-20261126-1731") == ""
 
 
+def origin_ahead(world, repo, *, local_base=True):
+    """A bare origin whose base is 1 commit ahead of the local base, or the only home of the base."""
+    origin = world["tmp"] / "origin.git"
+    _git(world["tmp"], "init", "-q", "--bare", str(origin))
+    _git(repo, "remote", "add", "origin", str(origin))
+    _git(repo, "push", "-q", "origin", f"{BASE}:{BASE}")
+    other = world["tmp"] / "other"
+    _git(world["tmp"], "clone", "-q", "-b", BASE, str(origin), str(other))
+    (other / "NEW.md").write_text("new\n", encoding="utf-8")
+    _git(other, "add", "NEW.md")
+    _git(other, "commit", "-q", "-m", "ahead")
+    _git(other, "push", "-q", "origin", BASE)
+    if not local_base:
+        _git(repo, "branch", "-D", BASE)
+    return _git(other, "rev-parse", "HEAD")
+
+
+@pytest.mark.parametrize("local_base", [True, False])
+def test_worktree_starts_from_the_fetched_origin_base_when_the_local_base_is_behind_or_absent(
+        world, repo, monkeypatch, local_base):
+    tip = origin_ahead(world, repo, local_base=local_base)
+    at(monkeypatch, 30)
+    code, answer, _ = run(world, ["worktree", "--lane", "small", "--base", BASE], HerdrRunner())
+
+    assert code == 0 and answer["ok"]
+    assert _git(answer["path"], "rev-parse", "HEAD") == tip and (Path(answer["path"]) / "NEW.md").is_file()
+    done = subprocess.run(["git", "-C", str(repo), "config", "--get", f"branch.{answer['branch']}.merge"],
+                          capture_output=True, text=True, stdin=subprocess.DEVNULL)
+    assert done.returncode == 1 and done.stdout == ""
+
+
+def test_worktree_keeps_a_local_base_with_its_own_commits(world, repo, monkeypatch):
+    origin_ahead(world, repo)
+    _git(repo, "checkout", "-q", BASE)
+    (repo / "LOCAL.md").write_text("local\n", encoding="utf-8")
+    _git(repo, "add", "LOCAL.md")
+    _git(repo, "commit", "-q", "-m", "local only")
+    _git(repo, "checkout", "-q", "trunk")
+    at(monkeypatch, 30)
+    code, answer, _ = run(world, ["worktree", "--lane", "small", "--base", BASE], HerdrRunner())
+    assert code == 0 and _git(answer["path"], "rev-parse", "HEAD") == _git(repo, "rev-parse", BASE)
+
+
 def test_worktree_medium_refusals_leave_the_state_unchanged_and_a_good_one_is_recorded(world, repo, monkeypatch):
     at(monkeypatch, 30)
     folder = repo.parent / f"{repo.name}-worktrees"

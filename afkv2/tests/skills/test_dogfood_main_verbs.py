@@ -264,6 +264,35 @@ def test_close_with_a_gone_pane_after_the_wrap_and_close_force_on_a_dead_pane_an
     assert not world["state_file"].exists() and not session_folder(world).exists()
 
 
+def test_close_that_cannot_delete_answers_cleanup_failed_keeps_the_state_and_a_second_close_finishes(world,
+                                                                                                    monkeypatch):
+    wrapped(world)
+    real = dogfood.shutil.rmtree
+
+    def locked(path, *args, **kwargs):
+        raise PermissionError(13, "Access is denied", str(path))
+
+    monkeypatch.setattr(dogfood.shutil, "rmtree", locked)
+    code, answer, runner = run(world, ["close"])
+    assert (code, answer["ok"], answer["error"]["code"]) == (1, False, "cleanup-failed")
+    assert str(session_folder(world)) in answer["error"]["reason"] and world["state_file"].exists()
+
+    monkeypatch.setattr(dogfood.shutil, "rmtree", real)
+    code, answer, runner = run(world, ["close"], DogfoodFakeRunner(world["env"], main_pane=MAIN))
+    assert (code, answer["ok"]) == (0, True)
+    assert not world["state_file"].exists() and not session_folder(world).exists()
+
+
+def test_a_file_error_outside_a_refusal_answers_1_json_object_io_failed(world, monkeypatch):
+    def broken(args, env, runner):
+        raise OSError(28, "No space left on device", "state.json")
+
+    monkeypatch.setitem(dogfood.VERBS, "status", broken)
+    code, answer, _ = run(world, ["status"])
+    assert (code, answer["ok"], answer["error"]["code"]) == (1, False, "io-failed")
+    assert "state.json" in answer["error"]["reason"]
+
+
 def _git(cwd, *args):
     done = subprocess.run(["git", "-c", "user.name=afkv2 test", "-c", "user.email=afkv2@example.invalid", "-C",
                            str(cwd), *args], capture_output=True, text=True, check=True, stdin=subprocess.DEVNULL)

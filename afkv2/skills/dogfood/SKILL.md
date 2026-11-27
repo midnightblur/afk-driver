@@ -59,7 +59,7 @@ An ok answer can still hold a prompt that the afkv2 agent did not take: `submitt
    <python> "<this skill's folder>/scripts/dogfood.py" close
    ```
 
-   Tell the developer that the answered `worktrees` and `branches` stay. A dead afkv2 pane after step 5: close with `--force`; nothing is deleted.
+   Tell the developer that the answered `worktrees` and `branches` stay. A dead afkv2 pane after step 5: close with `--force`. Both forms delete the session state and the notes folder; only the worktrees and branches stay.
 
    ```sh step=close-force
    <python> "<this skill's folder>/scripts/dogfood.py" close --force
@@ -89,4 +89,6 @@ A refusal of `start` starts nothing. Tell the developer the reason and the repai
 | `note-unreadable` | the note file is absent, not UTF-8 or over 16 KiB | send feedback: the note did not arrive |
 | `note-check-failed` | the note breaks a rule of [NOTE-FORMAT.md](NOTE-FORMAT.md) | step 3: apply nothing, ask for a complete note |
 | `no-wrap-report` | the afkv2 agent sent no wrap note, or `--force` met a live agent | run the wrap request of step 5; the note arrives as a prompt |
+| `cleanup-failed` | close could not delete the notes folder or the state; the state stays | run `close` again; still failing: tell the developer the path in `reason` |
+| `io-failed` | a file read or write failed; `reason` names the file | tell the developer the reason |
 | `usage` | a command line is wrong | fix the command against its block |

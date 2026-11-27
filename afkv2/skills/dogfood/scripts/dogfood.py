@@ -46,6 +46,7 @@ HARNESS = "claude"
 AGENT_ARGS = ["--model", "opus", "--effort", "max", "--dangerously-skip-permissions"]
 START_MS, PROMPT_MS = "90000", "30000"
 COMMAND_S = 120
+FETCH_S = 60
 ASK_LIMIT = 8000
 NAME_TRIES = 3
 LOOKUP_LIMIT = 10
@@ -385,9 +386,31 @@ def _name_problem(name):
     return None
 
 
-def _has_branch(runner, source, branch):
-    code, _, _ = runner.run(["git", "-C", source, "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"])
+def _has_ref(runner, source, ref):
+    code, _, _ = runner.run(["git", "-C", source, "rev-parse", "--verify", "--quiet", ref])
     return code == 0
+
+
+def _has_branch(runner, source, branch):
+    return _has_ref(runner, source, f"refs/heads/{branch}")
+
+
+def _start_point(runner, source, base):
+    """The newest tip of the base. With an origin: fetch it, and start from origin/<base> when the local branch is
+    absent or behind it. A local branch with its own commits stays the start. None: the base exists nowhere."""
+    local = _has_branch(runner, source, base)
+    remote = f"refs/remotes/origin/{base}"
+    code, _, _ = runner.run(["git", "-C", source, "remote", "get-url", "origin"])
+    if code == 0:
+        runner.run(["git", "-C", source, "fetch", "--quiet", "origin", f"+refs/heads/{base}:{remote}"],
+                   timeout=FETCH_S)
+        if _has_ref(runner, source, remote):
+            if not local:
+                return remote
+            code, _, _ = runner.run(["git", "-C", source, "merge-base", "--is-ancestor", f"refs/heads/{base}", remote])
+            if code == 0:
+                return remote
+    return f"refs/heads/{base}" if local else None
 
 
 def _answer(worktree):
@@ -420,13 +443,14 @@ def verb_worktree(args, env, runner):
     if state["base"] not in (None, args.base):
         raise Refusal("base-missing", f"the base of this session is {state['base']}: every worktree of the session "
                                       f"starts from it")
-    if not _has_branch(runner, source, args.base):
-        raise Refusal("base-missing", f"the plugin source {source} has no branch {args.base}: confirm the integration "
-                                      f"branch with the developer again")
+    start = _start_point(runner, source, args.base)
+    if start is None:
+        raise Refusal("base-missing", f"the plugin source {source} has no branch {args.base}, local or on origin: "
+                                      f"confirm the integration branch with the developer again")
     if _has_branch(runner, source, branch):
         raise Refusal("bad-branch", f"the branch {branch} already exists in the plugin source: name another branch")
     path = Path(source).parent / f"{Path(source).name}-worktrees" / branch.replace("/", "-")
-    code, out, err = runner.run(["git", "-C", source, "worktree", "add", "-b", branch, str(path), args.base])
+    code, out, err = runner.run(["git", "-C", source, "worktree", "add", "--no-track", "-b", branch, str(path), start])
     if code != 0:
         raise Refusal("worktree-failed", f"git worktree add {path}: {(err or out).strip()}")
     worktree = {"path": str(path), "branch": branch, "lane": args.lane, "created": _now()}
@@ -580,8 +604,14 @@ def verb_close(args, env, runner):
         if code != 0 and problem not in GONE:
             raise Refusal("herdr-failed", f"herdr pane close {state['afkv2_pane']}: {problem or (err or out).strip()}")
         closed = code == 0
-    shutil.rmtree(notes_folder(env, pane).parent, ignore_errors=True)
-    state_path(env, pane).unlink(missing_ok=True)
+    folder = notes_folder(env, pane).parent
+    try:
+        if folder.exists():
+            shutil.rmtree(folder)
+        state_path(env, pane).unlink(missing_ok=True)
+    except OSError as problem:
+        raise Refusal("cleanup-failed", f"close could not delete {problem.filename or folder}: "
+                                        f"{problem.strerror or problem}; the state stays, so run close again") from problem
     return {"ok": True, "pane_closed": closed, "worktrees": [worktree["path"] for worktree in state["worktrees"]],
             "branches": [worktree["branch"] for worktree in state["worktrees"]]}
 
@@ -617,6 +647,10 @@ def main(argv, env, runner, out=print):
     except Refusal as refusal:
         answer = {"ok": False, "error": {"code": refusal.code, "reason": refusal.reason}, **refusal.extra}
         code = refusal.exit_code
+    except OSError as problem:
+        answer = {"ok": False, "error": {"code": "io-failed", "reason": f"{problem.filename or 'a file'}: "
+                                                                       f"{problem.strerror or problem}"}}
+        code = 1
     out(json.dumps(answer))
     return code
 

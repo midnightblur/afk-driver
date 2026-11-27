@@ -234,8 +234,10 @@ class DogfoodFakeRunner(HerdrRunner):
         if args[:3] == ["rev-parse", "--verify", "--quiet"]:
             ref = args[3].removeprefix("refs/heads/")
             return (0, "0" * 40 + "\n", "") if ref in self.branches else (1, "", "")
-        if args[:3] == ["worktree", "add", "-b"]:
-            branch, path, base = args[3], args[4], args[5]
+        if args[:3] == ["remote", "get-url", "origin"]:
+            return 2, "", "error: No such remote 'origin'"
+        if args[:4] == ["worktree", "add", "--no-track", "-b"]:
+            branch, path, base = args[4], args[5], args[6].removeprefix("refs/heads/")
             if base not in self.branches:
                 return 128, "", f"fatal: invalid reference: {base}"
             if branch in self.branches:
