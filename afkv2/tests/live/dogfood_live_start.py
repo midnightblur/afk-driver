@@ -353,7 +353,7 @@ class World:
     def harness_up(self, name):
         """Refuse when the harness answers a usage limit or a sign-in prompt instead of the turn."""
         pane = (self.herdr.agent(name) or {}).get("pane_id")
-        screen = self.herdr.read(pane, 40, "visible") if pane else ""
+        screen = self.herdr.read(pane, 80) if pane else ""
         hit = QUOTA.search(screen)
         if hit:
             raise Failed("harness-unavailable", f"the {name} harness answers: {hit.group(0)}; run the row again "
@@ -518,6 +518,7 @@ def open_session(world, harness, work_parent=None):
         statuses.append(world.status(main))
         afkv2 = world.afkv2_agent(tab)
         if afkv2 is None:
+            world.harness_up(main)
             pause(POLL_S)
     opened_s = round(time.monotonic() - started, 1)
     seen = world.seen
@@ -833,6 +834,9 @@ def run_start_row(row, env=None, stamp=None):
                 passed = setup_row(world, row)
             else:
                 passed = row_live(world, row)
+            main = world.seen.get("main_agent", {}).get("name")
+            if not passed and main:  # a usage limit that showed after the last turn check: the row did not run
+                world.harness_up(main)
             answer = {"ok": True, "row": row, "passed": bool(passed)}
         except Failed as failure:
             answer = {"ok": False, "row": row, "error": {"code": failure.code, "reason": failure.reason}}
