@@ -1,0 +1,4993 @@
+{
+  "schema": "afkv2.page/2",
+  "session": {
+    "step": "Solution design",
+    "private": false,
+    "takeovers": [],
+    "id": "s-20261125-211334",
+    "skill": "propose-solution",
+    "feature": "211",
+    "ticket": "211",
+    "started": "2026-11-25T21:20:14Z",
+    "links": {
+      "issue": "https://github.com/midnightblur/afk-driver/issues/{id}",
+      "change": "https://github.com/midnightblur/afk-driver/pull/{id}",
+      "commit": "https://github.com/midnightblur/afk-driver/commit/{id}"
+    },
+    "short_title": "afkv2 dogfood"
+  },
+  "maps": [
+    {
+      "type": "map",
+      "id": "m-aspects",
+      "props": {
+        "title": "Critical aspects",
+        "nodes": [
+          {
+            "id": "aspect-entities",
+            "label": "Entities",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-relations",
+            "label": "Relations",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-keys",
+            "label": "Keys",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-constraints",
+            "label": "Constraints",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-cascade",
+            "label": "Cascade",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-api",
+            "label": "API contract and compatibility",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-migration",
+            "label": "Data migration",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-authorization",
+            "label": "Authorization",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-lifecycle",
+            "label": "Entity life cycle and states",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-other-teams",
+            "label": "Other teams' modules",
+            "state": "settled",
+            "round": 2
+          },
+          {
+            "id": "aspect-large-data",
+            "label": "Large data",
+            "state": "settled",
+            "round": 2
+          }
+        ],
+        "edges": [
+          {
+            "from": "aspect-entities",
+            "to": "aspect-relations"
+          },
+          {
+            "from": "aspect-relations",
+            "to": "aspect-keys"
+          },
+          {
+            "from": "aspect-keys",
+            "to": "aspect-constraints"
+          },
+          {
+            "from": "aspect-constraints",
+            "to": "aspect-cascade"
+          },
+          {
+            "from": "aspect-cascade",
+            "to": "aspect-api"
+          },
+          {
+            "from": "aspect-api",
+            "to": "aspect-migration"
+          },
+          {
+            "from": "aspect-migration",
+            "to": "aspect-authorization"
+          },
+          {
+            "from": "aspect-authorization",
+            "to": "aspect-lifecycle"
+          },
+          {
+            "from": "aspect-lifecycle",
+            "to": "aspect-other-teams"
+          },
+          {
+            "from": "aspect-other-teams",
+            "to": "aspect-large-data"
+          }
+        ]
+      }
+    },
+    {
+      "type": "map",
+      "id": "m-layers",
+      "props": {
+        "title": "Design layers",
+        "nodes": [
+          {
+            "id": "layer-l1",
+            "label": "System Topology",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l2",
+            "label": "Service Boundaries & Integration",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l3",
+            "label": "Data Architecture",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l4",
+            "label": "Cross-Cutting & Quality Attributes",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l5",
+            "label": "Domain Model",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l6",
+            "label": "Process & Coordination",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l7",
+            "label": "Module Decomposition",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l8",
+            "label": "Tactical Patterns",
+            "state": "settled",
+            "round": 3
+          },
+          {
+            "id": "layer-l9",
+            "label": "Implementation Seams & Change Impact",
+            "state": "settled",
+            "round": 3
+          }
+        ],
+        "edges": [
+          {
+            "from": "layer-l1",
+            "to": "layer-l2"
+          },
+          {
+            "from": "layer-l2",
+            "to": "layer-l3"
+          },
+          {
+            "from": "layer-l3",
+            "to": "layer-l4"
+          },
+          {
+            "from": "layer-l4",
+            "to": "layer-l5"
+          },
+          {
+            "from": "layer-l5",
+            "to": "layer-l6"
+          },
+          {
+            "from": "layer-l6",
+            "to": "layer-l7"
+          },
+          {
+            "from": "layer-l7",
+            "to": "layer-l8"
+          },
+          {
+            "from": "layer-l8",
+            "to": "layer-l9"
+          }
+        ]
+      }
+    },
+    {
+      "type": "map",
+      "id": "m-locked",
+      "props": {
+        "title": "Human-locked aspects",
+        "nodes": [
+          {
+            "id": "locked-hl-1",
+            "label": "Persistence and entity design",
+            "state": "focus",
+            "round": 3
+          },
+          {
+            "id": "locked-hl-2",
+            "label": "API surface",
+            "state": "focus",
+            "round": 3
+          },
+          {
+            "id": "locked-hl-3",
+            "label": "Authorization and data scoping",
+            "state": "focus",
+            "round": 3
+          },
+          {
+            "id": "locked-hl-4",
+            "label": "Life cycle and invariants",
+            "state": "focus",
+            "round": 3
+          },
+          {
+            "id": "locked-hl-5",
+            "label": "Irreversible and outward side effects",
+            "state": "focus",
+            "round": 3
+          },
+          {
+            "id": "locked-hl-6",
+            "label": "Change to existing behaviour",
+            "state": "focus",
+            "round": 3
+          }
+        ]
+      }
+    }
+  ],
+  "notes": [],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "settled",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "the solution proposers",
+          "the draft rounds"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-ticket",
+          "kind": "info",
+          "title": "What the ticket says",
+          "state": "open",
+          "body": {
+            "type": "text",
+            "id": "i-ticket-title",
+            "props": {
+              "text": "#211: "
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-ticket-description",
+                "props": {
+                  "text": "(no description)",
+                  "markdown": true
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "i-a-entities",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "i-a-entities-t",
+            "props": {
+              "columns": [
+                "Thing",
+                "Where",
+                "Fields",
+                "State"
+              ],
+              "rows": [
+                [
+                  "install record",
+                  "%LOCALAPPDATA%\\afkv2\\install.txt",
+                  "installed, python, python_version, rg, browser_driver, judge_<provider>, + `source`",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "1 new line",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "dogfood state file",
+                  "%LOCALAPPDATA%\\afkv2\\dogfood-<main pane id>.json",
+                  "main pane id, afkv2 agent name, afkv2 pane id, harness, source, worktrees [{path, branch, lane}], started",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "milestone note",
+                  "a herdr prompt into the main pane",
+                  "header, changed paths, use, kind per path, best-effort parts, redo delta",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new, not stored",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "queue of asks",
+                  "the afkv2 agent's own conversation",
+                  "ask text, state",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new, not stored",
+                      "tone": "new"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-a-entities-see",
+                "props": {
+                  "text": "Only the record line and the state file are files; the note and the queue live in the agents' sessions.",
+                  "markdown": true,
+                  "label": "What to see"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-a-entities-q",
+                "props": {
+                  "text": "I propose these 4. The state file exists so that a second ask finds the open pane (AC-004) and the note goes only to the main pane (AC-017), also after the main agent's context was compacted. The queue stays in the afkv2 agent's conversation: it is short, and the developer sees it in that pane. Does this match what you expect to be kept?",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "2 new stored things: 1 record line and 1 state file per main pane",
+          "node": "aspect-entities",
+          "section": "sec-system",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-a-relations",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "graph",
+            "id": "i-a-relations-g",
+            "props": {
+              "direction": "right",
+              "nodes": [
+                {
+                  "id": "r-main",
+                  "label": "main pane"
+                },
+                {
+                  "id": "r-state",
+                  "label": "state file"
+                },
+                {
+                  "id": "r-agent",
+                  "label": "afkv2 pane"
+                },
+                {
+                  "id": "r-small",
+                  "label": "small-asks worktree (1 branch)"
+                },
+                {
+                  "id": "r-med",
+                  "label": "medium-lane worktree (own branch)"
+                },
+                {
+                  "id": "r-src",
+                  "label": "plugin main checkout"
+                },
+                {
+                  "id": "r-rec",
+                  "label": "install record"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "r-main",
+                  "to": "r-state",
+                  "label": "1 : 0..1, main agent owns"
+                },
+                {
+                  "from": "r-state",
+                  "to": "r-agent",
+                  "label": "1 : 1"
+                },
+                {
+                  "from": "r-agent",
+                  "to": "r-small",
+                  "label": "1 : 1"
+                },
+                {
+                  "from": "r-agent",
+                  "to": "r-med",
+                  "label": "1 : 0..n"
+                },
+                {
+                  "from": "r-rec",
+                  "to": "r-src",
+                  "label": "1 : 1 per machine"
+                },
+                {
+                  "from": "r-small",
+                  "to": "r-src",
+                  "label": "worktree of"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-a-relations-see",
+                "props": {
+                  "text": "The state file is the one link from a main pane to its afkv2 pane and worktrees.",
+                  "markdown": true,
+                  "label": "What to see"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-a-relations-q",
+                "props": {
+                  "text": "Git allows 1 checked-out branch per worktree, so a medium-lane ask, which gets its own branch (AC-011), gets its own worktree. The afkv2 agent adds it to the state file, so the notes name the right paths. Agreed?",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "1 main pane has at most 1 afkv2 pane; each branch has its own worktree",
+          "node": "aspect-relations",
+          "section": "sec-system",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-a-keys",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "i-a-keys-t",
+            "props": {
+              "columns": [
+                "Thing",
+                "Key",
+                "Unique where",
+                "Today"
+              ],
+              "rows": [
+                [
+                  "state file",
+                  "main pane `HERDR_PANE_ID`",
+                  "1 file per main pane",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "afkv2 agent",
+                  "herdr name `dogfood-<4 hex of the main pane id>`",
+                  "herdr names, rule `[a-z][a-z0-9_-]{0,31}` (playbook:62)",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "small-asks branch",
+                  "`feat/afkv2-df-<yyyymmdd-hhmm>`",
+                  "the plugin repository",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "medium-lane branch",
+                  "`feat/afkv2-<ticket>-<slug>`, the lane's own name",
+                  "the plugin repository",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "worktree",
+                  "`<source>-worktrees/<branch tail>`",
+                  "the folder",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept rule",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-a-keys-see",
+                "props": {
+                  "text": "Every key is a name herdr or git already makes unique; no new id scheme.",
+                  "markdown": true,
+                  "label": "What to see"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-a-keys-q",
+                "props": {
+                  "text": "herdr may give a pane id again after a restart. So a found state file counts only when its afkv2 pane is still alive and holds the agent of that name; else the start treats it as stale. Agreed?",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "Keys: the main pane id, the agent name, the branch names",
+          "node": "aspect-keys",
+          "section": "sec-system",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-a-constraints",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "i-a-constraints-t",
+            "props": {
+              "columns": [
+                "Rule",
+                "Guardian",
+                "Sample that fails"
+              ],
+              "rows": [
+                [
+                  "source is a main checkout of the plugin repository (AC-007, AC-008)",
+                  "[script] setup source check",
+                  "`C:/x/plugin-worktrees/foo` (a linked worktree)"
+                ],
+                [
+                  "at most 1 afkv2 pane per main pane (AC-004)",
+                  "[script] dogfood start",
+                  "a second start with a live state file"
+                ],
+                [
+                  "a note names >= 1 worktree path, a use, and flags each hook part (AC-015, AC-023)",
+                  "[script] note check, on send and on receipt",
+                  "a note with no `use:` line"
+                ],
+                [
+                  "the note goes only to the main pane (AC-017)",
+                  "[script] the send verb takes no target; it reads it from the state file",
+                  "—"
+                ],
+                [
+                  "the afkv2 agent writes nothing in the work repository and never merges (AC-013)",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "instruction",
+                      "tone": "proposed"
+                    }
+                  },
+                  "—"
+                ],
+                [
+                  "the main agent writes no plugin file (AC-022)",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "instruction",
+                      "tone": "proposed"
+                    }
+                  },
+                  "—"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-a-constraints-see",
+                "props": {
+                  "text": "Each rule a script can check is a script; the write bans stay instructions.",
+                  "markdown": true,
+                  "label": "What to see"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-a-constraints-q",
+                "props": {
+                  "text": "The 2 write bans have no cheap deterministic guard: the guard hook of v1 is frozen, and a new hook would not load in the main session (hooks come from the installed plugin). I propose instructions for them. Agreed?",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "6 rules; 3 in scripts, 3 as instructions",
+          "node": "aspect-constraints",
+          "section": "sec-system",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-a-cascade",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "i-a-cascade-t",
+            "props": {
+              "columns": [
+                "Event",
+                "State file",
+                "afkv2 pane",
+                "Worktrees, branches",
+                "Draft changes"
+              ],
+              "rows": [
+                [
+                  "wrap-up (AC-027)",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "deleted",
+                      "tone": "removed"
+                    }
+                  },
+                  "closed",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  },
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "afkv2 pane died",
+                  "stale; next start replaces it",
+                  "gone",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  },
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "main session closed without wrap-up",
+                  "left behind",
+                  "keeps running",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  },
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ],
+                [
+                  "after a merge",
+                  "—",
+                  "—",
+                  "removed by `/afkv2:gc`",
+                  "merged by the developer"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-a-cascade-see",
+                "props": {
+                  "text": "No event deletes work; only the state file goes.",
+                  "markdown": true,
+                  "label": "What to see"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-a-cascade-q",
+                "props": {
+                  "text": "A start that finds a stale state file starts a new pane on a new small-asks branch. It does not reuse the old branch: that branch may have a half ask the developer wants to read first. Agreed?",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "A close removes the state file only; worktrees, branches and changes stay",
+          "node": "aspect-cascade",
+          "section": "sec-system",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-a-api",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "i-a-api-t",
+            "props": {
+              "columns": [
+                "Surface",
+                "Caller",
+                "Answer",
+                "Existing callers"
+              ],
+              "rows": [
+                [
+                  "`dogfood.py start --ask-file F`",
+                  "main agent",
+                  "`opened` or `existing`, agent name, pane id, worktree",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "`dogfood.py note --note-file F`",
+                  "afkv2 agent",
+                  "checks the note, prompts the main pane, `sent`",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "`dogfood.py check-note --note-file F`",
+                  "main agent",
+                  "`ok`, or each failure",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "`dogfood.py close`",
+                  "main agent",
+                  "pane closed, state removed, worktrees listed",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "`setup.py source [--path P]`",
+                  "setup skill",
+                  "`suggested`, `written` or a refusal",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "new",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "install record readers (setup, other_provider, end_gate)",
+                  "6 skills",
+                  "ignore the new key",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-a-api-see",
+                "props": {
+                  "text": "All new surfaces are verbs of 2 scripts; the record readers already skip unknown keys (setup.py:91-98).",
+                  "markdown": true,
+                  "label": "What to see"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-a-api-q",
+                "props": {
+                  "text": "The note format is the one contract between the 2 agents; it comes in the draft rounds, at L2. Do you expect another surface, such as a verb for the main agent to forward feedback?",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "5 new callable surfaces; no existing caller changes",
+          "node": "aspect-api",
+          "section": "sec-system",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-a-migration",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "i-a-migration-t",
+            "props": {
+              "columns": [
+                "Existing state",
+                "After the change"
+              ],
+              "rows": [
+                [
+                  "install record without `source`",
+                  "dogfood refuses and names `/afkv2:setup` (AC-003)"
+                ],
+                [
+                  "setup run again",
+                  "asks for the source only when the line is missing or no longer a main checkout"
+                ],
+                [
+                  "every other line",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "kept",
+                      "tone": "kept"
+                    }
+                  }
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-a-migration-see",
+                "props": {
+                  "text": "The rollback is to delete 1 line.",
+                  "markdown": true,
+                  "label": "What to see"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-a-migration-q",
+                "props": {
+                  "text": "Agreed that setup asks again only when the line is missing or broken, and stays silent otherwise?",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "No existing data changes; an old record just lacks the line",
+          "node": "aspect-migration",
+          "section": "sec-system",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-a-auth",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "i-a-auth-t",
+            "props": {
+              "columns": [
+                "Action",
+                "Main agent",
+                "afkv2 agent",
+                "Guard"
+              ],
+              "rows": [
+                [
+                  "start, close the pane",
+                  "yes",
+                  "no",
+                  "script: `start`/`close` refuse inside the afkv2 pane"
+                ],
+                [
+                  "send a milestone note",
+                  "no",
+                  "yes, only to the main pane",
+                  "script: `note` refuses outside the afkv2 pane and has no target argument"
+                ],
+                [
+                  "apply a note",
+                  "yes, read only",
+                  "no",
+                  "instruction + `check-note`"
+                ],
+                [
+                  "write a plugin file",
+                  "no",
+                  "yes, in its worktree",
+                  "instruction"
+                ],
+                [
+                  "write the work repository",
+                  "yes",
+                  "no",
+                  "instruction"
+                ],
+                [
+                  "merge",
+                  "no",
+                  "no",
+                  "core behavior: a human merges"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-a-auth-see",
+                "props": {
+                  "text": "The script guards use `HERDR_PANE_ID` against the 2 pane ids in the state file.",
+                  "markdown": true,
+                  "label": "What to see"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-a-auth-q",
+                "props": {
+                  "text": "This is the access table of the PRD with the guard of each row. Any row you want guarded harder?",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "Who may do what, and where the guard is",
+          "node": "aspect-authorization",
+          "section": "sec-system",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-a-lifecycle",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "graph",
+            "id": "i-a-lifecycle-g",
+            "props": {
+              "direction": "right",
+              "nodes": [
+                {
+                  "id": "l-none",
+                  "label": "no pane",
+                  "group": "pane"
+                },
+                {
+                  "id": "l-run",
+                  "label": "running",
+                  "group": "pane"
+                },
+                {
+                  "id": "l-wrap",
+                  "label": "wrapping up",
+                  "group": "pane"
+                },
+                {
+                  "id": "l-closed",
+                  "label": "closed",
+                  "group": "pane"
+                },
+                {
+                  "id": "l-q",
+                  "label": "queued",
+                  "group": "ask"
+                },
+                {
+                  "id": "l-b",
+                  "label": "building",
+                  "group": "ask"
+                },
+                {
+                  "id": "l-m",
+                  "label": "milestone sent",
+                  "group": "ask"
+                },
+                {
+                  "id": "l-o",
+                  "label": "open at wrap-up",
+                  "group": "ask"
+                }
+              ],
+              "edges": [
+                {
+                  "from": "l-none",
+                  "to": "l-run",
+                  "label": "start (main)"
+                },
+                {
+                  "from": "l-run",
+                  "to": "l-wrap",
+                  "label": "main work done (developer)"
+                },
+                {
+                  "from": "l-wrap",
+                  "to": "l-closed",
+                  "label": "close (main)"
+                },
+                {
+                  "from": "l-q",
+                  "to": "l-b",
+                  "label": "earlier ask at milestone"
+                },
+                {
+                  "from": "l-b",
+                  "to": "l-m",
+                  "label": "usable (afkv2 agent)"
+                },
+                {
+                  "from": "l-m",
+                  "to": "l-b",
+                  "label": "feedback"
+                },
+                {
+                  "from": "l-b",
+                  "to": "l-o",
+                  "label": "wrap-up"
+                }
+              ],
+              "groups": [
+                {
+                  "id": "pane",
+                  "label": "pane session"
+                },
+                {
+                  "id": "ask",
+                  "label": "1 ask"
+                }
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-a-lifecycle-see",
+                "props": {
+                  "text": "Only the pane states are in the state file; the ask states live in the afkv2 agent's session.",
+                  "markdown": true,
+                  "label": "What to see"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-a-lifecycle-q",
+                "props": {
+                  "text": "An ask in `milestone sent` stays there until feedback or wrap-up; it needs no `done` state, because the developer ends it by merging. Agreed?",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "The pane session and each ask move through states",
+          "node": "aspect-lifecycle",
+          "section": "sec-system",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-a-teams",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "i-a-teams-t",
+            "props": {
+              "columns": [
+                "Area",
+                "Owner",
+                "Touched"
+              ],
+              "rows": [
+                [
+                  "afkv2/** (skills, scripts, tests)",
+                  "own (.afkv2/config.json)",
+                  {
+                    "type": "chip",
+                    "props": {
+                      "text": "yes",
+                      "tone": "new"
+                    }
+                  }
+                ],
+                [
+                  "docs/afk/**",
+                  "own",
+                  "the spec folder only"
+                ],
+                [
+                  "the work repository",
+                  "the developer's other team",
+                  "read by the main agent as today; dogfood writes nothing there"
+                ],
+                [
+                  "herdr, Claude, Codex",
+                  "external tools",
+                  "used through their documented commands"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-a-teams-see",
+                "props": {
+                  "text": "Every changed file is in the plugin's own area.",
+                  "markdown": true,
+                  "label": "What to see"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-a-teams-q",
+                "props": {
+                  "text": "Agreed that no other team's module is touched?",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "No module of another team",
+          "node": "aspect-other-teams",
+          "section": "sec-system",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-a-large",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "i-a-large-t",
+            "props": {
+              "columns": [
+                "List",
+                "Bound",
+                "Detail"
+              ],
+              "rows": [
+                [
+                  "state files",
+                  "1 per open main pane",
+                  "see the Performance section"
+                ],
+                [
+                  "worktrees in 1 state file",
+                  "1 + the medium-lane asks of 1 session",
+                  "see the Performance section"
+                ],
+                [
+                  "milestone note",
+                  "1 prompt",
+                  "see the Performance section"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-a-large-see",
+                "props": {
+                  "text": "Each list is bounded by what 1 developer opens in 1 session.",
+                  "markdown": true,
+                  "label": "What to see"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-a-large-q",
+                "props": {
+                  "text": "Agreed that nothing here needs paging or limits?",
+                  "markdown": true
+                }
+              }
+            ]
+          },
+          "title": "No table or list grows large",
+          "node": "aspect-large-data",
+          "section": "sec-system",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-target",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "i-target-t",
+            "props": {
+              "columns": [
+                "Source today",
+                "Holds the integration branch"
+              ],
+              "rows": [
+                [
+                  ".afkv2/config.json of the plugin repository",
+                  "no"
+                ],
+                [
+                  "install record",
+                  "no"
+                ],
+                [
+                  "create-change-request",
+                  "takes it from the invocation (SKILL.md:14)"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "i-target-see",
+                "props": {
+                  "text": "Nothing on disk names the integration branch today.",
+                  "markdown": true,
+                  "label": "What to see"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-target-question",
+                "props": {
+                  "text": "Where does the afkv2 agent learn the plugin's integration branch (today feat/afkv2), the base of its branches and the target of its Draft changes?"
+                }
+              },
+              {
+                "type": "table",
+                "id": "i-target-options",
+                "props": {
+                  "columns": [
+                    "A — In the dogfood skill text",
+                    "B — A second install record line",
+                    "C — The afkv2 agent asks at start"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-target-opt-a",
+                        "props": {
+                          "text": "1 line in the skill names it. Costs: the line changes in the commit that moves afkv2 to main; nothing on the machine goes stale."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-target-opt-b",
+                        "props": {
+                          "text": "setup asks for it with the source line. Costs: 1 more setup question, and the line goes stale on this machine when the branch changes."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-target-opt-c",
+                        "props": {
+                          "text": "it suggests the branch and the developer confirms in the pane. Costs: 1 question every pane session."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-target-recommend",
+                "props": {
+                  "text": "No config holds it: the repository config has no base branch key (afkv2_config.py reads spec_folder, tracker, ownership, forge, live), and create-change-request takes the target from the invocation. Each option moves where a future change must happen, a judgment call.",
+                  "label": "Recommended: A"
+                }
+              }
+            ]
+          },
+          "title": "Where the afkv2 work branches from and lands",
+          "section": "sec-system",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "c"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-26T15:47:16Z",
+          "raw": "[round R-1]\ni-target c\ni-a-entities accept\ni-a-relations accept\ni-a-keys accept\ni-a-constraints accept\ni-a-cascade accept\ni-a-api accept\ni-a-migration accept\ni-a-auth accept\ni-a-lifecycle accept\ni-a-teams accept\ni-a-large accept",
+          "signals": [
+            {
+              "target": "i-target",
+              "item": "i-target",
+              "mark": "c",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "144202a3a1ff0d2d"
+            },
+            {
+              "target": "i-a-entities",
+              "item": "i-a-entities",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "e24885c71571f9e7"
+            },
+            {
+              "target": "i-a-relations",
+              "item": "i-a-relations",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "3d89237df4f88030"
+            },
+            {
+              "target": "i-a-keys",
+              "item": "i-a-keys",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "f713cfb93ada9488"
+            },
+            {
+              "target": "i-a-constraints",
+              "item": "i-a-constraints",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "2172d8e1fc71c659"
+            },
+            {
+              "target": "i-a-cascade",
+              "item": "i-a-cascade",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "e1145c67f0eac6e7"
+            },
+            {
+              "target": "i-a-api",
+              "item": "i-a-api",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "f2bf09505774ddb9"
+            },
+            {
+              "target": "i-a-migration",
+              "item": "i-a-migration",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "739cab356e95eb7e"
+            },
+            {
+              "target": "i-a-auth",
+              "item": "i-a-auth",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "5e62f74c41712c85"
+            },
+            {
+              "target": "i-a-lifecycle",
+              "item": "i-a-lifecycle",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "57f5fd7847e96acc"
+            },
+            {
+              "target": "i-a-teams",
+              "item": "i-a-teams",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "475d279e14da0c73"
+            },
+            {
+              "target": "i-a-large",
+              "item": "i-a-large",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "7489d1874b517e44"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "state": "settled",
+      "banner": {
+        "settled": [
+          "1 solution proposer drafted the design alone (Claude): a solution proposer failed before the drafts and critiques were done.",
+          "Each solution proposer ran with full auto-approval in a throwaway worktree. The worktree fences only the working folder; it is not a sandbox.",
+          "the 11 critical aspects",
+          "the afkv2 agent asks for the integration branch at start"
+        ],
+        "unlocks": [
+          "the sign-off of 6 locked aspects"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-l1",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-l1-decision",
+            "props": {
+              "text": "The feature runs as 2 interactive agent sessions in herdr panes, joined only by herdr prompts and 1 script; no server or daemon.",
+              "label": "Decision"
+            },
+            "style": "font-weight: 600",
+            "children": [
+              {
+                "type": "text",
+                "id": "i-l1-driven-by",
+                "props": {
+                  "text": "AC-001, AC-026, AC-029",
+                  "label": "Driven by"
+                },
+                "tip": "AC-001: The developer runs `/afkv2:dogfood` with an ask in a main session inside herdr, with the source line in the install record → a new pane opens beside the main pane, and an afkv2 agent starts in it on a plugin worktree with the ask.\nAC-026: The developer gives feedback in the afkv2 pane → the…"
+              },
+              {
+                "type": "text",
+                "id": "i-l1-why",
+                "props": {
+                  "text": "Only peer panes give the developer a direct conversation with the afkv2 agent while the main work goes on.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-l1-alternatives",
+                "props": {
+                  "text": "- a background subagent of the main session — the developer gets no pane to talk to (AC-026) and it dies with the main turn\n- load the plugin from the worktree — refused by requirement record 0001",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-l1-evidence",
+                "props": {
+                  "text": "herdr playbook pane verbs (herdr-playbook SKILL.md:34,65,81)",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-l1-reverse",
+                "props": {
+                  "text": "drop the skill folder; nothing else depends on it",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-l1-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Two peer panes in herdr; no server",
+          "node": "layer-l1",
+          "section": "sec-l1",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-f3",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-f3-question",
+            "props": {
+              "text": "Round 1 settled 5 surfaces. The draft adds tell (feedback and wrap to the afkv2 agent), worktree (create a branch's worktree after the base is confirmed) and status (read the state after a compaction). Take them?"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-f3-options",
+                "props": {
+                  "columns": [
+                    "A — Add the 3 verbs",
+                    "B — Keep the 5"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-f3-opt-a",
+                        "props": {
+                          "text": "Every cross-pane step and every state write goes through dogfood.py, so the target-free rule of AC-017 and the 1-writer rule hold. Costs: 3 more verbs to test."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-f3-opt-b",
+                        "props": {
+                          "text": "The main agent prompts the afkv2 agent with the playbook directly, and the afkv2 agent runs git worktree add itself and edits the state file by instruction. Costs: the state file gets 2 writers with no guard, and the start cannot make the worktree, because the base branch is known only after the afkv2 agent asks you."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-f3-recommend",
+                "props": {
+                  "text": "It changes a card you accepted in round 1 (the 5 surfaces), so only you can widen it.",
+                  "label": "Recommended: A"
+                }
+              }
+            ]
+          },
+          "title": "3 more script verbs than round 1 listed",
+          "node": "layer-l2",
+          "section": "sec-l2",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "a"
+          }
+        },
+        {
+          "id": "i-l2-send",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-l2-send-q",
+            "props": {
+              "text": "The draft feared that `herdr agent prompt` needs an agent name the main pane does not have. I checked: herdr detects the agent in a pane it did not start, and `herdr agent get <pane id>` answered this very session (herdr 0.9.5). So `note` sends `herdr agent prompt <main pane id> \"<1 line>\"` and keeps the playbook's stall rule: at most 1 Enter, never a resend. The prompt stays 1 line, so a line break can never submit half a note. Inferred, not yet run: that `prompt` takes the pane id as `get` does; the build's first live test proves it.",
+              "markdown": true
+            }
+          },
+          "title": "The note reaches the main pane by herdr agent prompt on its pane id",
+          "node": "layer-l2",
+          "section": "sec-l2",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-l2-note",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-l2-note-q",
+            "props": {
+              "text": "Header `afkv2-note v1`, kind milestone or wrap, the ask, the 1 named purpose, 1 row per changed path with its catalog kind (CK-1 to CK-4), how to use it, a best-effort line per hook row, and a redo line (`none` is valid). A wrap note lists each Draft change and the open asks. 10 rule codes, 1 parser on both sides (`dogfood_note.py`). The format is in the L2 section, folded. Agreed?",
+              "markdown": true
+            }
+          },
+          "title": "The note format is the contract between the 2 agents",
+          "node": "layer-l2",
+          "section": "sec-l2",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-f1",
+          "kind": "debate",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-f1-question",
+            "props": {
+              "text": "Round 1 said the note is not stored. The draft proposes that `note` stores it as a file and the prompt carries only a 1-line pointer. Which way?"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-f1-options",
+                "props": {
+                  "columns": [
+                    "A — The whole note in the prompt",
+                    "B — A note file and a 1-line pointer",
+                    "C — Pull: the main agent waits on the notes folder"
+                  ],
+                  "rows": [
+                    [
+                      {
+                        "type": "text",
+                        "id": "i-f1-opt-a",
+                        "props": {
+                          "text": "Keeps the round 1 card. Costs: a 40-line note becomes 1 long line; the main agent must save the prompt to a file before the check; the note is lost when the main session compacts."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-f1-opt-b",
+                        "props": {
+                          "text": "The prompt reads `afkv2 milestone note 0003: apply <path> by the dogfood skill`. Both sides check the same file; the main agent can read it again after a compaction; the state file lists what was applied. Costs: 1 more stored thing, deleted at close."
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "id": "i-f1-opt-c",
+                        "props": {
+                          "text": "No typing into a working session. Costs: Codex wakes only through its page-wait Stop hook, so a Codex main agent would need a new hook kind; the main agent keeps a job running all session; it breaks the PRD decision of a plain prompt."
+                        }
+                      }
+                    ]
+                  ]
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-f1-recommend",
+                "props": {
+                  "text": "It changes a stored thing you accepted in round 1, which only you can do.",
+                  "label": "Recommended: B"
+                }
+              }
+            ]
+          },
+          "title": "The note travels as a file, the prompt carries its path",
+          "node": "layer-l3",
+          "section": "sec-l3",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "b"
+          }
+        },
+        {
+          "id": "i-l3",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-l3-q",
+            "props": {
+              "text": "The record line (`setup.py source`), the state file and, if the note-file fork goes to option b, the notes folder (both `dogfood.py`). Field by field in the L3 section. The state file copies `source` at start, so a later setup run does not move a running session. You sign the exact fields next round, after the 2 forks settle.",
+              "markdown": true
+            }
+          },
+          "title": "3 pieces of state, each with 1 writer",
+          "node": "layer-l3",
+          "section": "sec-l3",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-l4",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-l4-q",
+            "props": {
+              "text": "Each action that a script can check has 2 guards: the script compares `HERDR_PANE_ID` with the 2 pane ids of the state file, and the skill text states the rule. Repeats are safe: `start` answers `existing`, `note` refuses a note it already sent, `close` of a gone pane is ok. No prompt is ever sent twice. The table is in the L4 section. Agreed?",
+              "markdown": true
+            }
+          },
+          "title": "Guards, idempotency and retry",
+          "node": "layer-l4",
+          "section": "sec-l4",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-l5",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-l5-q",
+            "props": {
+              "text": "New against round 1: `close` refuses until the afkv2 agent sent a wrap note, so the wrap-up of AC-027 cannot be skipped by mistake; `close --force` is for a dead pane only. Agreed?",
+              "markdown": true
+            }
+          },
+          "title": "7 invariants with 1 guardian each; 1 life cycle",
+          "node": "layer-l5",
+          "section": "sec-l5",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-l6",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-l6-q",
+            "props": {
+              "text": "The state is written only after each outside step succeeds, so a crash leaves at worst an orphan pane or worktree, never a state that points at nothing. A note to a closed main pane fails with `main-pane-gone`, and the work stays committed. Agreed?",
+              "markdown": true
+            }
+          },
+          "title": "10 flows; a failure never deletes work",
+          "node": "layer-l6",
+          "section": "sec-l6",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-l7",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-l7-decision",
+            "props": {
+              "text": "skills/dogfood holds SKILL.md (main agent), APPLY.md (the catalog steps), AGENT.md (the afkv2 agent's role), NOTE-FORMAT.md (the contract), dogfood.py (the verbs) and dogfood_note.py (parse and check).",
+              "label": "Decision"
+            },
+            "style": "font-weight: 600",
+            "children": [
+              {
+                "type": "text",
+                "id": "i-l7-driven-by",
+                "props": {
+                  "text": "AC-015, AC-023, CK-1",
+                  "label": "Driven by"
+                },
+                "tip": "AC-015: Every milestone note names at least 1 changed file by its worktree path, how to use the change, and each part of the change that is of kind CK-4.\nAC-023: A received note names no worktree path or no way to use the change → the main agent applies nothing from it and asks the afkv2 agent for …"
+              },
+              {
+                "type": "text",
+                "id": "i-l7-why",
+                "props": {
+                  "text": "The note parser has no herdr dependency, so it tests alone, and each text has 1 reader.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-l7-alternatives",
+                "props": {
+                  "text": "- 1 script with the parser inside — the parser is the unit-tested contract (PRD Testing Decisions) and needs no herdr\n- everything in SKILL.md — the afkv2 agent reads AGENT.md from its worktree and the main agent reads APPLY.md only on a note; lazy load",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-l7-evidence",
+                "props": {
+                  "text": "checker pattern skills/to-subtasks/scripts/check_plan.py:1-5; module names unique (plugin_check.py:122)",
+                  "label": "Evidence",
+                  "badge": "pattern"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-l7-reverse",
+                "props": {
+                  "text": "merge the files",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-l7-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "1 skill folder: 2 scripts and 4 texts",
+          "node": "layer-l7",
+          "section": "sec-l7",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-l8",
+          "kind": "decided",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-l8-decision",
+            "props": {
+              "text": "dogfood.py imports HerdrRunner from the proposer engine and wraps the few herdr calls it needs in its own private helpers.",
+              "label": "Decision"
+            },
+            "style": "font-weight: 600",
+            "children": [
+              {
+                "type": "text",
+                "id": "i-l8-driven-by",
+                "props": {
+                  "text": "AC-001, AC-017",
+                  "label": "Driven by"
+                },
+                "tip": "AC-001: The developer runs `/afkv2:dogfood` with an ask in a main session inside herdr, with the source line in the install record → a new pane opens beside the main pane, and an afkv2 agent starts in it on a plugin worktree with the ask.\nAC-017: The afkv2 agent sends prompts only to the main agent…"
+              },
+              {
+                "type": "text",
+                "id": "i-l8-why",
+                "props": {
+                  "text": "The engine's helpers are private and tied to 2 proposers; the runner is the public, test-replaceable part.",
+                  "label": "Why this one"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-l8-alternatives",
+                "props": {
+                  "text": "- extract a shared herdr module from the engine — moves code that 3 skills use, for 1 new caller\n- a fake herdr executable for tests — endpoint security bans copied executables",
+                  "label": "Other options considered (rejected)",
+                  "markdown": true
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-l8-evidence",
+                "props": {
+                  "text": "proposer_engine.py:110-143 HerdrRunner; private helpers :259-289",
+                  "label": "Evidence",
+                  "badge": "repo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-l8-reverse",
+                "props": {
+                  "text": "replace the import with an extracted module",
+                  "label": "To undo"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-l8-scope",
+                "props": {
+                  "text": "no other card",
+                  "label": "Depends on"
+                }
+              }
+            ]
+          },
+          "title": "Import the public HerdrRunner; do not extract the engine",
+          "node": "layer-l8",
+          "section": "sec-l8",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        },
+        {
+          "id": "i-l9",
+          "kind": "confirm",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-l9-q",
+            "props": {
+              "text": "Setup gains a `source` verb, a `source` field in `status`, and 1 step that asks only when the line is missing or broken. A test proves that `prepare` keeps the line. You sign this as a change to existing behaviour next round. Agreed?",
+              "markdown": true
+            }
+          },
+          "title": "Only setup changes; 12 other seams are used as they are",
+          "node": "layer-l9",
+          "section": "sec-l9",
+          "settled": {
+            "by": "mark",
+            "round": 2,
+            "signal": "accept"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-26T16:26:33Z",
+          "raw": "[round R-2]\ni-f3 a\ni-f1 b\ni-l2-send accept\ni-l2-note accept\ni-l3 accept\ni-l4 accept\ni-l5 accept\ni-l6 accept\ni-l9 accept\ni-l1 accept\ni-l7 accept\ni-l8 accept",
+          "signals": [
+            {
+              "target": "i-f3",
+              "item": "i-f3",
+              "mark": "a",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "d5c8a8c02034309b"
+            },
+            {
+              "target": "i-f1",
+              "item": "i-f1",
+              "mark": "b",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "ec231d68a036479e"
+            },
+            {
+              "target": "i-l2-send",
+              "item": "i-l2-send",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "1a17bf7f5e6d6333"
+            },
+            {
+              "target": "i-l2-note",
+              "item": "i-l2-note",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "0258076dfdcb76c8"
+            },
+            {
+              "target": "i-l3",
+              "item": "i-l3",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "c2e3bfba29e5353c"
+            },
+            {
+              "target": "i-l4",
+              "item": "i-l4",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "79098322b45f8638"
+            },
+            {
+              "target": "i-l5",
+              "item": "i-l5",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "7f47799c619dc011"
+            },
+            {
+              "target": "i-l6",
+              "item": "i-l6",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "60c7358104e76324"
+            },
+            {
+              "target": "i-l9",
+              "item": "i-l9",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "bc58255927d14a17"
+            },
+            {
+              "target": "i-l1",
+              "item": "i-l1",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "81f13b502cb2c6b8"
+            },
+            {
+              "target": "i-l7",
+              "item": "i-l7",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "2c722afa383a4a56"
+            },
+            {
+              "target": "i-l8",
+              "item": "i-l8",
+              "mark": "accept",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "3fb3a38cad7380f0"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "n": 3,
+      "state": "current",
+      "banner": {
+        "settled": [
+          "all 9 layers",
+          "8 script verbs",
+          "the note travels as a file"
+        ],
+        "unlocks": [
+          "the SDD"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "i-hl1",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-hl1-q",
+            "props": {
+              "text": "Persistence. Options weighed: a JSON file per main pane (chosen), herdr pane labels, git config keys (L3 section). Records changed: the install record gains 1 line; 2 new stores.\n\nSign with the `sign` mark; a note returns the card.",
+              "markdown": true
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-hl1-rec",
+                "props": {
+                  "columns": [
+                    "Field",
+                    "Type",
+                    "Null rule",
+                    "Default",
+                    "Unit",
+                    "Identity",
+                    "Retention",
+                    "Migration"
+                  ],
+                  "rows": [
+                    [
+                      "source",
+                      "absolute path, rest of the line",
+                      "absent = not set",
+                      "absent",
+                      "—",
+                      "1 per machine",
+                      "until setup changes it",
+                      "none; rollback deletes the line"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "i-hl1-rec-see",
+                    "props": {
+                      "text": "Install record: 1 new line; readers ignore unknown keys.",
+                      "markdown": true,
+                      "label": "What to see"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "table",
+                "id": "i-hl1-state",
+                "props": {
+                  "columns": [
+                    "Field",
+                    "Type",
+                    "Null rule",
+                    "Default",
+                    "Unit"
+                  ],
+                  "rows": [
+                    [
+                      "version",
+                      "int",
+                      "not null",
+                      "1",
+                      "—"
+                    ],
+                    [
+                      "main_pane",
+                      "text",
+                      "not null",
+                      "HERDR_PANE_ID at start",
+                      "—"
+                    ],
+                    [
+                      "agent",
+                      "text dogfood-<4 hex>",
+                      "not null",
+                      "—",
+                      "—"
+                    ],
+                    [
+                      "afkv2_pane",
+                      "text",
+                      "not null",
+                      "from pane split",
+                      "—"
+                    ],
+                    [
+                      "harness",
+                      "text",
+                      "not null",
+                      "claude",
+                      "—"
+                    ],
+                    [
+                      "source",
+                      "path",
+                      "not null",
+                      "copied from the record",
+                      "—"
+                    ],
+                    [
+                      "base",
+                      "branch name",
+                      "null until worktree",
+                      "null",
+                      "—"
+                    ],
+                    [
+                      "worktrees",
+                      "list {path, branch, lane small|medium, created}",
+                      "not null",
+                      "[]",
+                      "created ISO 8601 UTC"
+                    ],
+                    [
+                      "notes",
+                      "list {id, sha256, path, kind, sent_at, paths}",
+                      "not null",
+                      "[]",
+                      "id int; sent_at ISO 8601 UTC"
+                    ],
+                    [
+                      "wrap_reported",
+                      "bool",
+                      "not null",
+                      "false",
+                      "—"
+                    ],
+                    [
+                      "started",
+                      "ISO 8601 UTC",
+                      "not null",
+                      "now",
+                      "—"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "i-hl1-state-see",
+                    "props": {
+                      "text": "State file %LOCALAPPDATA%\\afkv2\\dogfood-<main pane>.json, field by field.",
+                      "markdown": true,
+                      "label": "What to see"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "table",
+                "id": "i-hl1-rel",
+                "props": {
+                  "columns": [
+                    "Relation",
+                    "Number",
+                    "Owning side",
+                    "On delete",
+                    "Identity, index",
+                    "Retention"
+                  ],
+                  "rows": [
+                    [
+                      "main pane to state file",
+                      "1 : 0..1",
+                      "dogfood.py",
+                      "close deletes it; stale replaced at start",
+                      "file name = main pane id, sanitised to [A-Za-z0-9_-]",
+                      "until close"
+                    ],
+                    [
+                      "state to worktrees",
+                      "1 : 1 small + 0..n medium",
+                      "dogfood.py",
+                      "worktrees kept",
+                      "path",
+                      "worktrees until /afkv2:gc"
+                    ],
+                    [
+                      "state to notes",
+                      "1 : 0..n",
+                      "dogfood.py",
+                      "notes folder deleted at close",
+                      "4-digit id; sha256 unique per session",
+                      "until close"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "i-hl1-rel-see",
+                    "props": {
+                      "text": "Relations, keys and delete behaviour; notes are files of at most 16 KiB.",
+                      "markdown": true,
+                      "label": "What to see"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "id": "i-hl1-risk",
+                "props": {
+                  "text": "A session closed without a wrap-up leaves its state file until the next start from that pane id. Notes are deleted at close, so the change history lives only in git and the Draft change.",
+                  "markdown": true,
+                  "label": "Risks you accept"
+                }
+              }
+            ]
+          },
+          "title": "Sign: 3 pieces of stored state",
+          "node": "locked-hl-1",
+          "section": "sec-l3",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "i-hl2",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-hl2-q",
+            "props": {
+              "text": "API surface. Each verb answers 1 JSON object, exit 0 ok, 1 refused, 2 unreadable input. Options weighed: 5 verbs or 8 (you chose 8 in round 2). Existing callers: the install record readers, unchanged.\n\nSign with the `sign` mark; a note returns the card.",
+              "markdown": true
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-hl2-t",
+                "props": {
+                  "columns": [
+                    "Surface",
+                    "Role",
+                    "Request and validation",
+                    "Success",
+                    "Errors",
+                    "Idempotency"
+                  ],
+                  "rows": [
+                    [
+                      "start --ask-file F",
+                      "main pane",
+                      "F UTF-8, 1-8000 chars",
+                      "{status: opened|existing, agent, pane, state}",
+                      "outside-herdr, no-source, source-broken, in-afkv2-pane, ask-unreadable, herdr-failed, agent-not-ready, auto-approval-banned",
+                      "live state: existing, ask forwarded"
+                    ],
+                    [
+                      "tell --kind feedback|wrap --text-file F",
+                      "main pane",
+                      "F 1-8000 chars",
+                      "{sent, kind}",
+                      "no-pane, in-afkv2-pane, prompt-blocked, herdr-failed",
+                      "no resend; a stall gets 1 Enter"
+                    ],
+                    [
+                      "worktree --lane small|medium --base B [--branch N]",
+                      "afkv2 pane",
+                      "B exists; N required for medium; names match [A-Za-z0-9._/-]+",
+                      "{path, branch, lane}",
+                      "not-afkv2-pane, small-exists, bad-branch, base-missing, worktree-failed",
+                      "same lane and branch: the recorded one"
+                    ],
+                    [
+                      "note --note-file N",
+                      "afkv2 pane",
+                      "N by the note format, <= 16 KiB",
+                      "{sent: true|unconfirmed, id, path}",
+                      "not-afkv2-pane, note-check-failed + failures, main-pane-gone, already-sent",
+                      "a repeated sha256 refuses"
+                    ],
+                    [
+                      "check-note --note-file N",
+                      "main pane",
+                      "N",
+                      "{note}",
+                      "note-check-failed + failures {code, where, reason}",
+                      "pure"
+                    ],
+                    [
+                      "status",
+                      "either",
+                      "—",
+                      "{state} or {state: null}",
+                      "—",
+                      "pure"
+                    ],
+                    [
+                      "close [--force]",
+                      "main pane",
+                      "--force only for a dead pane",
+                      "{pane_closed, worktrees, branches}",
+                      "in-afkv2-pane, no-wrap-report",
+                      "gone pane or absent state: ok"
+                    ],
+                    [
+                      "setup.py source [--path P]",
+                      "setup skill",
+                      "P absolute",
+                      "{status: suggested|none|written, path}",
+                      "not-main-checkout, not-plugin-source, not-a-repo",
+                      "same path: written, no change"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "i-hl2-t-see",
+                    "props": {
+                      "text": "Each surface at contract grade; no paging, every list is small.",
+                      "markdown": true,
+                      "label": "What to see"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "id": "i-hl2-note",
+                "props": {
+                  "text": "Note format `afkv2-note v1`: kind, ask, purpose, changed rows `<path> | CK-n | added|changed|removed | <what>`, use, best-effort per CK-4 row, redo (`none` valid); wrap: changes rows and open-asks. Rule codes: N-HEADER, N-KIND, N-NO-PATH, N-PATH-OUTSIDE, N-PATH-MISSING, N-CK, N-NO-USE, N-NO-BEST-EFFORT, N-NO-REDO, N-NO-CHANGES.",
+                  "markdown": true,
+                  "label": "The note contract"
+                }
+              },
+              {
+                "type": "text",
+                "id": "i-hl2-risk",
+                "props": {
+                  "text": "The note format is versioned v1; a later change to it changes both agents at once, because both read it from the same text. The prompt targets the pane id, proven live in the build.",
+                  "markdown": true,
+                  "label": "Risks you accept"
+                }
+              }
+            ]
+          },
+          "title": "Sign: 8 callable surfaces and the note format",
+          "node": "locked-hl-2",
+          "section": "sec-l2",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "i-hl3",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-hl3-q",
+            "props": {
+              "text": "Authorization. There is no UI: the guard below is the script check, the guard above is the skill text. Data scope: each state file is its main pane's.\n\nSign with the `sign` mark; a note returns the card.",
+              "markdown": true
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-hl3-t",
+                "props": {
+                  "columns": [
+                    "Surface",
+                    "Permitted",
+                    "Denied",
+                    "Guard in the script",
+                    "Guard in the text",
+                    "Scope"
+                  ],
+                  "rows": [
+                    [
+                      "start, tell, close",
+                      "main agent",
+                      "afkv2 agent",
+                      "refuse when HERDR_PANE_ID is an afkv2_pane of a state",
+                      "SKILL.md",
+                      "its own state file"
+                    ],
+                    [
+                      "worktree, note",
+                      "afkv2 agent",
+                      "main agent",
+                      "refuse unless HERDR_PANE_ID is the afkv2_pane",
+                      "AGENT.md",
+                      "its state's worktrees"
+                    ],
+                    [
+                      "note target",
+                      "the main pane only",
+                      "every other pane",
+                      "no target argument",
+                      "AGENT.md bans other prompts",
+                      "main_pane of the state"
+                    ],
+                    [
+                      "write plugin files",
+                      "afkv2 agent, in its worktrees",
+                      "main agent",
+                      "—",
+                      "APPLY.md",
+                      "its worktrees"
+                    ],
+                    [
+                      "write the work repository",
+                      "main agent",
+                      "afkv2 agent",
+                      "—",
+                      "AGENT.md",
+                      "—"
+                    ],
+                    [
+                      "merge",
+                      "the developer",
+                      "both agents",
+                      "—",
+                      "core behavior",
+                      "—"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "i-hl3-t-see",
+                    "props": {
+                      "text": "Script guards where the script can check; the 2 write bans are instructions, as round 1 settled.",
+                      "markdown": true,
+                      "label": "What to see"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "id": "i-hl3-risk",
+                "props": {
+                  "text": "An agent that ignores its text can still write where it may not: no hook guards the 2 write bans.",
+                  "markdown": true,
+                  "label": "Risks you accept"
+                }
+              }
+            ]
+          },
+          "title": "Sign: who may run each verb",
+          "node": "locked-hl-3",
+          "section": "sec-l4",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "i-hl4",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-hl4-q",
+            "props": {
+              "text": "Life cycle and invariants. The asks keep their states in the afkv2 agent's conversation (round 1).\n\nSign with the `sign` mark; a note returns the card.",
+              "markdown": true
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-hl4-moves",
+                "props": {
+                  "columns": [
+                    "From",
+                    "To",
+                    "Trigger",
+                    "Who"
+                  ],
+                  "rows": [
+                    [
+                      "none",
+                      "running",
+                      "start",
+                      "main agent"
+                    ],
+                    [
+                      "running",
+                      "stale",
+                      "the afkv2 pane is gone",
+                      "herdr"
+                    ],
+                    [
+                      "stale",
+                      "running",
+                      "start: new pane, new small branch",
+                      "main agent"
+                    ],
+                    [
+                      "running",
+                      "wrapping",
+                      "tell --kind wrap",
+                      "main agent, on the developer's word"
+                    ],
+                    [
+                      "wrapping",
+                      "wrapped",
+                      "a wrap note",
+                      "afkv2 agent"
+                    ],
+                    [
+                      "wrapped",
+                      "closed",
+                      "close",
+                      "main agent"
+                    ],
+                    [
+                      "wrapping",
+                      "closed",
+                      "close --force, dead pane only",
+                      "main agent"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "i-hl4-moves-see",
+                    "props": {
+                      "text": "Every legal move; any other refuses.",
+                      "markdown": true,
+                      "label": "What to see"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "table",
+                "id": "i-hl4-inv",
+                "props": {
+                  "columns": [
+                    "Invariant",
+                    "Guardian",
+                    "Answer to a violation"
+                  ],
+                  "rows": [
+                    [
+                      "source is a main checkout of the plugin repository",
+                      "setup.py source, start",
+                      "not-main-checkout, not-plugin-source, source-broken"
+                    ],
+                    [
+                      "<= 1 live afkv2 pane per main pane",
+                      "start",
+                      "existing"
+                    ],
+                    [
+                      "<= 1 small worktree per session",
+                      "worktree",
+                      "small-exists"
+                    ],
+                    [
+                      "every sent note passed the check",
+                      "note, check-note",
+                      "note-check-failed"
+                    ],
+                    [
+                      "notes only to the main pane",
+                      "note",
+                      "no target argument"
+                    ],
+                    [
+                      "close only after a wrap note, unless forced",
+                      "close",
+                      "no-wrap-report"
+                    ],
+                    [
+                      "no plugin write by main; no work write or merge by afkv2",
+                      "instructions",
+                      "—"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "i-hl4-inv-see",
+                    "props": {
+                      "text": "1 guardian per invariant.",
+                      "markdown": true,
+                      "label": "What to see"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "id": "i-hl4-risk",
+                "props": {
+                  "text": "`close --force` on a live pane would skip the wrap-up; the text allows it only for a dead pane.",
+                  "markdown": true,
+                  "label": "Risks you accept"
+                }
+              }
+            ]
+          },
+          "title": "Sign: the pane session life cycle and 7 invariants",
+          "node": "locked-hl-4",
+          "section": "sec-l5",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "i-hl5",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-hl5-q",
+            "props": {
+              "text": "Outward side effects. There is no local transaction; the state is written after each outside step succeeds.\n\nSign with the `sign` mark; a note returns the card.",
+              "markdown": true
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-hl5-t",
+                "props": {
+                  "columns": [
+                    "Effect",
+                    "Trigger",
+                    "Order",
+                    "Idempotency key",
+                    "Partial failure leaves",
+                    "Recovery"
+                  ],
+                  "rows": [
+                    [
+                      "prompt into the main pane",
+                      "note",
+                      "check, write note file, prompt, record in state",
+                      "sha256 of the note",
+                      "note file without a record, or sent: unconfirmed",
+                      "no resend; the developer sees the pane"
+                    ],
+                    [
+                      "prompt into the afkv2 pane",
+                      "start, tell",
+                      "after the state is written",
+                      "none; 0 resends",
+                      "a stall",
+                      "1 Enter (playbook H-6)"
+                    ],
+                    [
+                      "git worktree + branch, push, Draft change",
+                      "worktree; the lanes",
+                      "worktree add, then state",
+                      "branch name",
+                      "a worktree not in the state",
+                      "listed by close; /afkv2:gc"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "i-hl5-t-see",
+                    "props": {
+                      "text": "3 effects, each with its order and recovery; nothing is ever deleted outside the data folder.",
+                      "markdown": true,
+                      "label": "What to see"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "id": "i-hl5-risk",
+                "props": {
+                  "text": "A note marked unconfirmed may or may not have reached the main agent; the developer checks the main pane.",
+                  "markdown": true,
+                  "label": "Risks you accept"
+                }
+              }
+            ]
+          },
+          "title": "Sign: 3 effects outside the feature's own state",
+          "node": "locked-hl-5",
+          "section": "sec-l6",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "sign"
+          }
+        },
+        {
+          "id": "i-hl6",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "text",
+            "id": "i-hl6-q",
+            "props": {
+              "text": "Change to existing behaviour (verdict extends). Callers of setup see 1 new verb, 1 new status field and 1 step that asks only when the line is missing or broken.\n\nSign with the `sign` mark; a note returns the card.",
+              "markdown": true
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "i-hl6-t",
+                "props": {
+                  "columns": [
+                    "Seam",
+                    "Now",
+                    "After",
+                    "Compatibility",
+                    "Rollback"
+                  ],
+                  "rows": [
+                    [
+                      "setup.py main",
+                      "no source verb",
+                      "source verb, needs no repository",
+                      "new verb only",
+                      "revert"
+                    ],
+                    [
+                      "setup.py status",
+                      "no source field",
+                      "source: ok|missing|broken",
+                      "callers read named fields (inferred from SKILL.md step 1)",
+                      "revert"
+                    ],
+                    [
+                      "setup SKILL.md",
+                      "no source step",
+                      "detect, suggest, ask, check, write",
+                      "silent when the line is ok",
+                      "revert; the line is ignored"
+                    ],
+                    [
+                      "write_install_record (prepare)",
+                      "keeps unknown keys",
+                      "unchanged; a test proves it keeps source",
+                      "—",
+                      "—"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "i-hl6-t-see",
+                    "props": {
+                      "text": "Setup only grows; nothing it writes today changes.",
+                      "markdown": true,
+                      "label": "What to see"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "id": "i-hl6-risk",
+                "props": {
+                  "text": "Not every caller of `status` was enumerated; the build checks each one reads fields by name.",
+                  "markdown": true,
+                  "label": "Risks you accept"
+                }
+              }
+            ]
+          },
+          "title": "Sign: setup changes in 3 places",
+          "node": "locked-hl-6",
+          "section": "sec-crit-setup",
+          "settled": {
+            "by": "mark",
+            "round": 3,
+            "signal": "sign"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-26T19:11:58Z",
+          "raw": "[round R-3]\ni-hl1 sign\ni-hl2 sign\ni-hl3 sign\ni-hl4 sign\ni-hl5 sign\ni-hl6 sign",
+          "signals": [
+            {
+              "target": "i-hl1",
+              "item": "i-hl1",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "47a22aae0e2dedd0"
+            },
+            {
+              "target": "i-hl2",
+              "item": "i-hl2",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "cb3d51d170e843af"
+            },
+            {
+              "target": "i-hl3",
+              "item": "i-hl3",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "47bea21d1a0e8dda"
+            },
+            {
+              "target": "i-hl4",
+              "item": "i-hl4",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "ca7a1e38fa2885f7"
+            },
+            {
+              "target": "i-hl5",
+              "item": "i-hl5",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "3280b2cb26685d39"
+            },
+            {
+              "target": "i-hl6",
+              "item": "i-hl6",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "ff4465a963bd8705"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "id": "sec-system",
+      "title": "Whole system",
+      "state": "current",
+      "body": {
+        "type": "graph",
+        "id": "sec-system-g",
+        "props": {
+          "direction": "right",
+          "nodes": [
+            {
+              "id": "sy-dev",
+              "label": "developer",
+              "you": true
+            },
+            {
+              "id": "sy-main",
+              "label": "main agent (work repository)",
+              "group": "work"
+            },
+            {
+              "id": "sy-state",
+              "label": "dogfood state file (new)",
+              "group": "machine"
+            },
+            {
+              "id": "sy-rec",
+              "label": "install record + source line (new)",
+              "group": "machine"
+            },
+            {
+              "id": "sy-agent",
+              "label": "afkv2 agent (side pane, new)",
+              "group": "plugin"
+            },
+            {
+              "id": "sy-wt",
+              "label": "plugin worktree",
+              "group": "plugin"
+            },
+            {
+              "id": "sy-pr",
+              "label": "Draft change into the integration branch",
+              "group": "forge"
+            }
+          ],
+          "edges": [
+            {
+              "from": "sy-dev",
+              "to": "sy-main",
+              "label": "ask, feedback"
+            },
+            {
+              "from": "sy-main",
+              "to": "sy-rec",
+              "label": "read source"
+            },
+            {
+              "from": "sy-main",
+              "to": "sy-state",
+              "label": "write panes"
+            },
+            {
+              "from": "sy-main",
+              "to": "sy-agent",
+              "label": "open pane, ask"
+            },
+            {
+              "from": "sy-agent",
+              "to": "sy-wt",
+              "label": "build, commit"
+            },
+            {
+              "from": "sy-agent",
+              "to": "sy-main",
+              "label": "milestone note"
+            },
+            {
+              "from": "sy-main",
+              "to": "sy-wt",
+              "label": "read changed files"
+            },
+            {
+              "from": "sy-agent",
+              "to": "sy-pr",
+              "label": "push"
+            }
+          ],
+          "groups": [
+            {
+              "id": "work",
+              "label": "main pane"
+            },
+            {
+              "id": "machine",
+              "label": "this machine"
+            },
+            {
+              "id": "plugin",
+              "label": "side pane"
+            },
+            {
+              "id": "forge",
+              "label": "GitHub"
+            }
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-system-see",
+            "props": {
+              "text": "The main agent and the afkv2 agent talk only through herdr prompts; the main agent only reads the worktree.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 1,
+          "cause": "finding",
+          "text": "Built from the PRD and the code reading."
+        }
+      ]
+    },
+    {
+      "id": "sec-crit-setup",
+      "title": "Setup writes the source line",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "sec-crit-setup-t",
+        "props": {
+          "columns": [
+            "Step of setup",
+            "Now",
+            "Proposed"
+          ],
+          "rows": [
+            [
+              "install record lines",
+              "installed, python, python_version, rg, browser_driver, judge_<provider>",
+              "+ source <main checkout path>"
+            ],
+            [
+              "plugin source checkout",
+              "not asked",
+              "detect, suggest, ask, check, write"
+            ],
+            [
+              "existing lines",
+              "rewritten, unknown keys kept",
+              "kept"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-crit-setup-see",
+            "props": {
+              "text": "Setup gains 1 step and 1 line; nothing it writes today changes.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          },
+          {
+            "type": "chip",
+            "id": "sec-crit-setup-c",
+            "props": {
+              "text": "critical: changes setup",
+              "tone": "proposed"
+            }
+          }
+        ]
+      },
+      "links": [
+        "sec-l9"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Setup today writes no path to the plugin source (setup.py:101-110)."
+        }
+      ]
+    },
+    {
+      "id": "sec-crit-pane-life",
+      "title": "The pane outlives each result",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "sec-crit-pane-life-t",
+        "props": {
+          "columns": [
+            "Rule",
+            "Now",
+            "Proposed for dogfood"
+          ],
+          "rows": [
+            [
+              "H-8 close a pane once its result is read",
+              "every skill",
+              "dogfood closes only after the wrap-up"
+            ],
+            [
+              "never close the developer's pane",
+              "every skill",
+              "kept"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-crit-pane-life-see",
+            "props": {
+              "text": "1 stated exception to H-8, in the dogfood skill, not in the playbook.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          },
+          {
+            "type": "chip",
+            "id": "sec-crit-pane-life-c",
+            "props": {
+              "text": "critical: changes a playbook rule for 1 skill",
+              "tone": "proposed"
+            }
+          }
+        ]
+      },
+      "links": [
+        "sec-l6"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Playbook rule H-8 closes each pane once its result is read (herdr-playbook SKILL.md:118)."
+        }
+      ]
+    },
+    {
+      "id": "sec-l1",
+      "title": "L1 System Topology: 2 peer panes, no server",
+      "state": "current",
+      "body": {
+        "type": "graph",
+        "id": "sec-l1-g",
+        "props": {
+          "direction": "right",
+          "nodes": [
+            {
+              "id": "l1-main",
+              "label": "main pane: main agent",
+              "group": "herdr"
+            },
+            {
+              "id": "l1-agent",
+              "label": "afkv2 pane: afkv2 agent",
+              "group": "herdr"
+            },
+            {
+              "id": "l1-data",
+              "label": "data folder: install record, state file, notes",
+              "group": "disk"
+            },
+            {
+              "id": "l1-wt",
+              "label": "plugin worktrees",
+              "group": "disk"
+            },
+            {
+              "id": "l1-work",
+              "label": "work repository",
+              "group": "disk"
+            },
+            {
+              "id": "l1-forge",
+              "label": "Draft changes",
+              "group": "forge"
+            }
+          ],
+          "edges": [
+            {
+              "from": "l1-main",
+              "to": "l1-data",
+              "label": "dogfood.py start, tell, close"
+            },
+            {
+              "from": "l1-main",
+              "to": "l1-agent",
+              "label": "herdr prompt: ask, feedback, wrap"
+            },
+            {
+              "from": "l1-agent",
+              "to": "l1-main",
+              "label": "herdr prompt: 1-line note pointer"
+            },
+            {
+              "from": "l1-agent",
+              "to": "l1-wt",
+              "label": "build, commit"
+            },
+            {
+              "from": "l1-wt",
+              "to": "l1-forge",
+              "label": "push"
+            },
+            {
+              "from": "l1-main",
+              "to": "l1-wt",
+              "label": "read only"
+            },
+            {
+              "from": "l1-main",
+              "to": "l1-work",
+              "label": "writes"
+            }
+          ],
+          "groups": [
+            {
+              "id": "herdr",
+              "label": "herdr tab"
+            },
+            {
+              "id": "disk",
+              "label": "this machine"
+            },
+            {
+              "id": "forge",
+              "label": "GitHub"
+            }
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-l1-see",
+            "props": {
+              "text": "2 interactive sessions talk only through herdr prompts and 1 script; nothing runs in the background.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          },
+          {
+            "type": "text",
+            "id": "sec-l1-sum",
+            "props": {
+              "text": "No server and no daemon: herdr, local files and git.\nThe main agent runs the installed dogfood skill, so the first dogfood version ships through a normal release.",
+              "markdown": true,
+              "label": "Summary"
+            }
+          },
+          {
+            "type": "table",
+            "id": "sec-l1-opts",
+            "props": {
+              "columns": [
+                "Option",
+                "Gives",
+                "Costs"
+              ],
+              "rows": [
+                [
+                  "Peer panes in herdr (chosen)",
+                  "the developer talks to each agent (AC-026); the main work never waits",
+                  "needs herdr (AC-002 refuses outside)"
+                ],
+                [
+                  "Background subagent of the main session",
+                  "no herdr",
+                  "no pane for the developer; dies with the main turn"
+                ],
+                [
+                  "Load the plugin from the worktree",
+                  "hooks apply too",
+                  "refused by requirement record 0001"
+                ]
+              ]
+            },
+            "fold": "Options weighed",
+            "children": [
+              {
+                "type": "text",
+                "id": "sec-l1-opts-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "Options weighed."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "links": [
+        "sec-l2"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted by the Claude proposer and checked against the code."
+        }
+      ]
+    },
+    {
+      "id": "sec-l2",
+      "title": "L2 Service Boundaries: 8 script verbs and 1 note format",
+      "state": "current",
+      "body": {
+        "type": "sequence",
+        "id": "sec-l2-seq",
+        "props": {
+          "actors": [
+            {
+              "id": "d",
+              "label": "developer"
+            },
+            {
+              "id": "m",
+              "label": "main agent"
+            },
+            {
+              "id": "s",
+              "label": "dogfood.py"
+            },
+            {
+              "id": "a",
+              "label": "afkv2 agent"
+            }
+          ],
+          "messages": [
+            {
+              "from": "d",
+              "to": "m",
+              "text": "/afkv2:dogfood <ask>"
+            },
+            {
+              "from": "m",
+              "to": "s",
+              "text": "start --ask-file"
+            },
+            {
+              "from": "s",
+              "to": "a",
+              "text": "pane split, agent start, first prompt"
+            },
+            {
+              "from": "a",
+              "to": "d",
+              "text": "confirm the integration branch"
+            },
+            {
+              "from": "a",
+              "to": "s",
+              "text": "worktree --lane small --base B"
+            },
+            {
+              "from": "a",
+              "to": "a",
+              "text": "/afkv2:small-change, commit"
+            },
+            {
+              "from": "a",
+              "to": "s",
+              "text": "note --note-file"
+            },
+            {
+              "from": "s",
+              "to": "m",
+              "text": "1-line prompt: note NNNN at <path>"
+            },
+            {
+              "from": "m",
+              "to": "s",
+              "text": "check-note"
+            },
+            {
+              "from": "m",
+              "to": "d",
+              "text": "applied X, try it by Y, redid Z"
+            }
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-l2-see",
+            "props": {
+              "text": "One ask from the developer to the applied change; every cross-pane step goes through dogfood.py.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          },
+          {
+            "type": "text",
+            "id": "sec-l2-sum",
+            "props": {
+              "text": "dogfood.py holds both pane ids; no agent names the other pane by an argument.\nThe note is a file in a fixed format; the prompt carries only its path.",
+              "markdown": true,
+              "label": "Summary"
+            }
+          },
+          {
+            "type": "table",
+            "id": "sec-l2-verbs",
+            "props": {
+              "columns": [
+                "Verb",
+                "Caller",
+                "Answer",
+                "Main errors"
+              ],
+              "rows": [
+                [
+                  "start --ask-file F",
+                  "main",
+                  "opened or existing, agent, pane",
+                  "outside-herdr, no-source, source-broken, in-afkv2-pane, agent-not-ready"
+                ],
+                [
+                  "tell --kind feedback|wrap --text-file F",
+                  "main",
+                  "sent",
+                  "no-pane, in-afkv2-pane, prompt-blocked"
+                ],
+                [
+                  "worktree --lane small|medium --base B [--branch N]",
+                  "afkv2",
+                  "path, branch, lane",
+                  "not-afkv2-pane, small-exists, bad-branch, base-missing"
+                ],
+                [
+                  "note --note-file N",
+                  "afkv2",
+                  "sent, id, path",
+                  "not-afkv2-pane, note-check-failed, main-pane-gone, already-sent"
+                ],
+                [
+                  "check-note --note-file N",
+                  "main",
+                  "the parsed note",
+                  "note-check-failed with each failure"
+                ],
+                [
+                  "status",
+                  "either",
+                  "the state, or null",
+                  "—"
+                ],
+                [
+                  "close [--force]",
+                  "main",
+                  "pane closed, worktrees and branches kept",
+                  "in-afkv2-pane, no-wrap-report"
+                ],
+                [
+                  "setup.py source [--path P]",
+                  "setup skill",
+                  "suggested, none or written",
+                  "not-main-checkout, not-plugin-source, not-a-repo"
+                ]
+              ]
+            },
+            "fold": "Each callable surface",
+            "children": [
+              {
+                "type": "text",
+                "id": "sec-l2-verbs-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "Each callable surface."
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "id": "sec-l2-note",
+            "props": {
+              "text": "```\nafkv2-note v1\nkind: milestone | wrap\nask: <title>\npurpose: <1 named purpose>\nchanged:\n- <worktree path> | CK-1..CK-4 | added|changed|removed | <what>\nuse: <how to try it>\nbest-effort: <path> - <what may not apply>   (each CK-4 row)\nredo: none | <delta of earlier work>\nchanges: (wrap) - <change url> | <branch> | <asks>\nopen-asks: none | <list>   (wrap)\n```",
+              "markdown": true
+            },
+            "fold": "The note format"
+          }
+        ]
+      },
+      "links": [
+        "sec-l3"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted by the Claude proposer and checked against the code."
+        }
+      ]
+    },
+    {
+      "id": "sec-l3",
+      "title": "L3 Data Architecture: 1 record line, 1 state file, 1 notes folder",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "sec-l3-t",
+        "props": {
+          "columns": [
+            "State",
+            "Where",
+            "Writer",
+            "Retention"
+          ],
+          "rows": [
+            [
+              "install record line `source`",
+              "%LOCALAPPDATA%\\afkv2\\install.txt",
+              "setup.py source",
+              "until setup changes it"
+            ],
+            [
+              "dogfood state file",
+              "%LOCALAPPDATA%\\afkv2\\dogfood-<main pane>.json",
+              "dogfood.py only",
+              "deleted at close; stale replaced at start"
+            ],
+            [
+              "notes folder",
+              "%LOCALAPPDATA%\\afkv2\\dogfood-<main pane>\\notes\\NNNN.md",
+              "dogfood.py note",
+              "deleted at close"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-l3-see",
+            "props": {
+              "text": "3 pieces of state, all on this machine, each with 1 writer; nothing in the work repository.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          },
+          {
+            "type": "text",
+            "id": "sec-l3-sum",
+            "props": {
+              "text": "The state file is versioned JSON written atomically.\nThe notes folder holds if the note-file fork is option b.",
+              "markdown": true,
+              "label": "Summary"
+            }
+          },
+          {
+            "type": "table",
+            "id": "sec-l3-state",
+            "props": {
+              "columns": [
+                "Field",
+                "Type",
+                "Null",
+                "Note"
+              ],
+              "rows": [
+                [
+                  "version",
+                  "int",
+                  "no",
+                  "1; an unknown version refuses"
+                ],
+                [
+                  "main_pane",
+                  "text",
+                  "no",
+                  "key"
+                ],
+                [
+                  "agent",
+                  "text dogfood-<4 hex>",
+                  "no",
+                  "herdr name rule"
+                ],
+                [
+                  "afkv2_pane",
+                  "text",
+                  "no",
+                  "from pane split"
+                ],
+                [
+                  "harness",
+                  "claude",
+                  "no",
+                  "AC-005"
+                ],
+                [
+                  "source",
+                  "path",
+                  "no",
+                  "copied at start"
+                ],
+                [
+                  "base",
+                  "branch",
+                  "yes",
+                  "set by worktree"
+                ],
+                [
+                  "worktrees",
+                  "list {path, branch, lane, created}",
+                  "no",
+                  "at most 1 small"
+                ],
+                [
+                  "notes",
+                  "list {id, sha256, path, kind, sent_at, paths}",
+                  "no",
+                  "the applied list after a compaction"
+                ],
+                [
+                  "wrap_reported",
+                  "bool",
+                  "no",
+                  "set by a wrap note"
+                ],
+                [
+                  "started",
+                  "ISO 8601 UTC",
+                  "no",
+                  "—"
+                ]
+              ]
+            },
+            "fold": "State file, field by field",
+            "children": [
+              {
+                "type": "text",
+                "id": "sec-l3-state-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "State file, field by field."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "links": [
+        "sec-l4"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted by the Claude proposer and checked against the code."
+        }
+      ]
+    },
+    {
+      "id": "sec-l4",
+      "title": "L4 Cross-cutting: 2 guards per action where a script can check",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "sec-l4-t",
+        "props": {
+          "columns": [
+            "Concern",
+            "Posture"
+          ],
+          "rows": [
+            [
+              "Authorization",
+              "HERDR_PANE_ID against the 2 pane ids of the state file, plus the instruction"
+            ],
+            [
+              "Idempotency",
+              "start answers existing; note refuses a repeated SHA-256; worktree returns the recorded one; close of a gone pane is ok"
+            ],
+            [
+              "Retry",
+              "0 resends of a prompt, at most 1 Enter on a stall (playbook H-6); git and push: 0 automatic retries"
+            ],
+            [
+              "Concurrency",
+              "1 writer per state file; re-read before each write"
+            ],
+            [
+              "Secrets",
+              "none new"
+            ],
+            [
+              "Performance",
+              "see the Performance section"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-l4-see",
+            "props": {
+              "text": "Every concern has a number or a rule; performance stands in its own section.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          },
+          {
+            "type": "text",
+            "id": "sec-l4-sum",
+            "props": {
+              "text": "A developer who never runs dogfood sees no change.\nNo executable is copied; every process starts as an argument list.",
+              "markdown": true,
+              "label": "Summary"
+            }
+          },
+          {
+            "type": "table",
+            "id": "sec-l4-auth",
+            "props": {
+              "columns": [
+                "Action",
+                "Main",
+                "afkv2",
+                "Script guard",
+                "Instruction"
+              ],
+              "rows": [
+                [
+                  "start, tell, close",
+                  "yes",
+                  "no",
+                  "refuse in an afkv2 pane",
+                  "SKILL.md"
+                ],
+                [
+                  "worktree, note",
+                  "no",
+                  "yes",
+                  "refuse outside the afkv2 pane",
+                  "AGENT.md"
+                ],
+                [
+                  "note target",
+                  "—",
+                  "main pane only",
+                  "no target argument",
+                  "AGENT.md bans other prompts"
+                ],
+                [
+                  "write a plugin file",
+                  "no",
+                  "in its worktrees",
+                  "—",
+                  "APPLY.md"
+                ],
+                [
+                  "write the work repository",
+                  "yes",
+                  "no",
+                  "—",
+                  "AGENT.md"
+                ],
+                [
+                  "merge",
+                  "no",
+                  "no",
+                  "core behavior",
+                  "—"
+                ]
+              ]
+            },
+            "fold": "Who may do what",
+            "children": [
+              {
+                "type": "text",
+                "id": "sec-l4-auth-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "Who may do what."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "links": [
+        "sec-l5"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted by the Claude proposer and checked against the code."
+        }
+      ]
+    },
+    {
+      "id": "sec-l5",
+      "title": "L5 Domain Model: 7 invariants, 1 pane life cycle",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "sec-l5-t",
+        "props": {
+          "columns": [
+            "Invariant",
+            "Guardian",
+            "Answer to a violation"
+          ],
+          "rows": [
+            [
+              "source is a main checkout of the plugin repository",
+              "setup.py source; start checks again",
+              "not-main-checkout, not-plugin-source; start: source-broken"
+            ],
+            [
+              "at most 1 live afkv2 pane per main pane",
+              "start",
+              "existing; the ask is forwarded"
+            ],
+            [
+              "at most 1 small-asks worktree per session",
+              "worktree",
+              "small-exists"
+            ],
+            [
+              "every sent note passed the check",
+              "note and check-note, 1 parser",
+              "note-check-failed; the main agent asks for a complete note"
+            ],
+            [
+              "notes go only to the main pane",
+              "note has no target",
+              "—"
+            ],
+            [
+              "close only after a wrap note, unless forced",
+              "close",
+              "no-wrap-report"
+            ],
+            [
+              "no plugin write by main; no work-repository write or merge by afkv2",
+              "instructions",
+              "—"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-l5-see",
+            "props": {
+              "text": "Each rule has 1 guardian; 6 of 7 are scripts.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          },
+          {
+            "type": "text",
+            "id": "sec-l5-sum",
+            "props": {
+              "text": "Pane session: running, stale, wrapping, wrapped, closed.\nThe asks keep their states in the afkv2 agent's conversation, as round 1 settled.",
+              "markdown": true,
+              "label": "Summary"
+            }
+          },
+          {
+            "type": "diagram",
+            "id": "sec-l5-life",
+            "fold": "Pane session life cycle",
+            "props": {
+              "text": "stateDiagram-v2\n  [*] --> running: start\n  running --> stale: afkv2 pane gone\n  stale --> running: start (new pane, new branch)\n  running --> wrapping: tell wrap\n  wrapping --> wrapped: wrap note\n  wrapped --> [*]: close\n  wrapping --> [*]: close --force",
+              "caption": "Only a wrap note or a forced close ends a session."
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "sec-l5-life-see",
+                "props": {
+                  "text": "Only a wrap note or a forced close ends a session.",
+                  "markdown": true,
+                  "label": "What to see"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "links": [
+        "sec-l6"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted by the Claude proposer and checked against the code."
+        }
+      ]
+    },
+    {
+      "id": "sec-l6",
+      "title": "L6 Process: 10 flows, each failure leaves work committed",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "sec-l6-t",
+        "props": {
+          "columns": [
+            "Flow",
+            "Failure",
+            "Recovery"
+          ],
+          "rows": [
+            [
+              "start",
+              "split or agent start fails",
+              "nothing written; pane closed; answer names it"
+            ],
+            [
+              "base + worktree",
+              "base branch missing",
+              "base-missing; the afkv2 agent asks again"
+            ],
+            [
+              "milestone note",
+              "check fails / main pane gone / not seen",
+              "agent fixes it / tells the developer, work stays committed / sent: unconfirmed, no resend"
+            ],
+            [
+              "apply",
+              "check-note fails",
+              "apply nothing; tell feedback: send a complete note (AC-023)"
+            ],
+            [
+              "feedback",
+              "afkv2 pane shows a dialog",
+              "the main agent tells the developer"
+            ],
+            [
+              "wrap",
+              "push fails / afkv2 pane dead",
+              "listed under open asks / close --force; nothing deleted"
+            ],
+            [
+              "main session ends without wrap",
+              "state left",
+              "next start: liveness decides existing or stale"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-l6-see",
+            "props": {
+              "text": "No flow deletes work; the state is written only after each outside step succeeds.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          },
+          {
+            "type": "text",
+            "id": "sec-l6-sum",
+            "props": {
+              "text": "The harness queues each prompt until the receiver's turn ends (the developer's fact, proven live in the build).\nThe pane outlives each result: dogfood states its exception to playbook rule H-8.",
+              "markdown": true,
+              "label": "Summary"
+            }
+          },
+          {
+            "type": "text",
+            "id": "sec-l6-apply",
+            "props": {
+              "text": "CK-1: read the worktree SKILL.md, follow it for the rest of the session. CK-2: run the script from the worktree through that text. CK-3: follow the changed text as a session instruction. CK-4: tell the developer best effort. A skill running now switches at once (AC-019). `redo` names a delta: redo it at once (record 0002).",
+              "markdown": true
+            },
+            "fold": "Apply by kind"
+          }
+        ]
+      },
+      "links": [
+        "sec-l7",
+        "sec-crit-pane-life"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted by the Claude proposer and checked against the code."
+        }
+      ]
+    },
+    {
+      "id": "sec-l7",
+      "title": "L7 Modules: 1 new skill folder, 2 scripts, 4 texts",
+      "state": "current",
+      "body": {
+        "type": "graph",
+        "id": "sec-l7-g",
+        "props": {
+          "direction": "down",
+          "nodes": [
+            {
+              "id": "m-sk",
+              "label": "SKILL.md (main agent)",
+              "group": "new"
+            },
+            {
+              "id": "m-ap",
+              "label": "APPLY.md",
+              "group": "new"
+            },
+            {
+              "id": "m-ag",
+              "label": "AGENT.md (afkv2 agent)",
+              "group": "new"
+            },
+            {
+              "id": "m-nf",
+              "label": "NOTE-FORMAT.md",
+              "group": "new"
+            },
+            {
+              "id": "m-dp",
+              "label": "dogfood.py",
+              "group": "new"
+            },
+            {
+              "id": "m-dn",
+              "label": "dogfood_note.py",
+              "group": "new"
+            },
+            {
+              "id": "m-eng",
+              "label": "HerdrRunner (proposer engine)",
+              "group": "old"
+            },
+            {
+              "id": "m-set",
+              "label": "setup.py, places.py",
+              "group": "old"
+            },
+            {
+              "id": "m-lanes",
+              "label": "small-change, grill-requirements, create-change-request",
+              "group": "old"
+            }
+          ],
+          "edges": [
+            {
+              "from": "m-sk",
+              "to": "m-dp"
+            },
+            {
+              "from": "m-sk",
+              "to": "m-ap"
+            },
+            {
+              "from": "m-ag",
+              "to": "m-dp"
+            },
+            {
+              "from": "m-ag",
+              "to": "m-lanes"
+            },
+            {
+              "from": "m-dp",
+              "to": "m-dn"
+            },
+            {
+              "from": "m-dp",
+              "to": "m-eng"
+            },
+            {
+              "from": "m-dp",
+              "to": "m-set"
+            },
+            {
+              "from": "m-dn",
+              "to": "m-nf",
+              "label": "grammar"
+            }
+          ],
+          "groups": [
+            {
+              "id": "new",
+              "label": "skills/dogfood (new)"
+            },
+            {
+              "id": "old",
+              "label": "existing"
+            }
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-l7-see",
+            "props": {
+              "text": "Dependencies point from the new folder to existing modules only; no cycle.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          },
+          {
+            "type": "text",
+            "id": "sec-l7-sum",
+            "props": {
+              "text": "dogfood_note.py parses and checks; dogfood.py runs the verbs.\nNo existing module imports dogfood.",
+              "markdown": true,
+              "label": "Summary"
+            }
+          },
+          {
+            "type": "table",
+            "id": "sec-l7-t",
+            "props": {
+              "columns": [
+                "Module",
+                "Public interface",
+                "Depends on"
+              ],
+              "rows": [
+                [
+                  "dogfood.py",
+                  "the verbs of L2; main(argv, env, runner)",
+                  "dogfood_note, HerdrRunner, write_atomic, read_install_record"
+                ],
+                [
+                  "dogfood_note.py",
+                  "parse(text); check(note, worktrees)",
+                  "none"
+                ],
+                [
+                  "setup.py",
+                  "new verb source; status gains source: ok|missing|broken",
+                  "own 6-line main-checkout test"
+                ]
+              ]
+            },
+            "fold": "Public interfaces",
+            "children": [
+              {
+                "type": "text",
+                "id": "sec-l7-t-see",
+                "props": {
+                  "label": "What to see",
+                  "text": "Public interfaces."
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "links": [
+        "sec-logic"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted by the Claude proposer and checked against the code."
+        }
+      ]
+    },
+    {
+      "id": "sec-logic",
+      "title": "Key logic: the start decision, 7 rows",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "sec-logic-t",
+        "props": {
+          "columns": [
+            "herdr ok",
+            "source",
+            "state",
+            "pane alive",
+            "Result"
+          ],
+          "rows": [
+            [
+              "no",
+              "—",
+              "—",
+              "—",
+              "outside-herdr"
+            ],
+            [
+              "yes",
+              "missing",
+              "—",
+              "—",
+              "no-source"
+            ],
+            [
+              "yes",
+              "broken",
+              "—",
+              "—",
+              "source-broken"
+            ],
+            [
+              "yes",
+              "ok",
+              "none",
+              "—",
+              "open a pane"
+            ],
+            [
+              "yes",
+              "ok",
+              "present",
+              "yes",
+              "existing, forward the ask"
+            ],
+            [
+              "yes",
+              "ok",
+              "present",
+              "no",
+              "replace the state, open on a new branch"
+            ],
+            [
+              "caller is an afkv2 pane",
+              "",
+              "",
+              "",
+              "in-afkv2-pane"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-logic-see",
+            "props": {
+              "text": "The first failing column decides the answer.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          },
+          {
+            "type": "text",
+            "id": "sec-logic-sum",
+            "props": {
+              "text": "Liveness: the pane exists and herdr answers the agent name of the state.\nA stale state never reuses its branch.",
+              "markdown": true,
+              "label": "Summary"
+            }
+          }
+        ]
+      },
+      "links": [
+        "sec-l8"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted by the Claude proposer and checked against the code."
+        }
+      ]
+    },
+    {
+      "id": "sec-l8",
+      "title": "L8 Patterns: 6 choices, each against a simpler one",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "sec-l8-t",
+        "props": {
+          "columns": [
+            "Concern",
+            "Chosen",
+            "Beat"
+          ],
+          "rows": [
+            [
+              "herdr calls",
+              "import HerdrRunner; a small private wrapper",
+              "extract a shared herdr module"
+            ],
+            [
+              "note check",
+              "1 parser on send and on receipt",
+              "prose rules in each agent"
+            ],
+            [
+              "guard",
+              "HERDR_PANE_ID against the state",
+              "a token in each prompt"
+            ],
+            [
+              "apply",
+              "instructions in APPLY.md",
+              "a script that links worktree skills into the install"
+            ],
+            [
+              "state",
+              "versioned JSON, atomic replace",
+              "an append-only log"
+            ],
+            [
+              "test double",
+              "in-process fake runner",
+              "a fake herdr executable"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-l8-see",
+            "props": {
+              "text": "Each pattern beat a simpler option on 1 stated criterion.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          },
+          {
+            "type": "text",
+            "id": "sec-l8-sum",
+            "props": {
+              "text": "The engine helpers are private and tied to 2 proposers, so dogfood imports only the public runner.\nA fake executable is banned by the endpoint security rules.",
+              "markdown": true,
+              "label": "Summary"
+            }
+          }
+        ]
+      },
+      "links": [
+        "sec-l9"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted by the Claude proposer and checked against the code."
+        }
+      ]
+    },
+    {
+      "id": "sec-l9",
+      "title": "L9 Seams: 16 seams, 4 extend setup, the rest unchanged",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "sec-l9-t",
+        "props": {
+          "columns": [
+            "Seam",
+            "Now",
+            "Proposed",
+            "Verdict"
+          ],
+          "rows": [
+            [
+              "setup.py:91-98 read_install_record",
+              "partition at the first space",
+              "dogfood reads source through it",
+              "uses"
+            ],
+            [
+              "setup.py:101-116 write record",
+              "keeps extra keys, sorts them after 4",
+              "unchanged; prepare keeps source",
+              "uses"
+            ],
+            [
+              "setup.py:905-945 main",
+              "no source verb",
+              "add source; it needs no repository",
+              "extends"
+            ],
+            [
+              "setup.py:694 status",
+              "no source field",
+              "add source: ok|missing|broken",
+              "extends"
+            ],
+            [
+              "setup SKILL.md:26-48",
+              "no source step",
+              "ask only when missing or broken",
+              "extends"
+            ],
+            [
+              "other_provider.py:202-210, end_gate.py:107",
+              "read by key",
+              "ignore source",
+              "unaffected"
+            ],
+            [
+              "gc cleanup.py:134-139",
+              "main-checkout test",
+              "pattern copied into setup",
+              "pattern"
+            ],
+            [
+              "proposer_engine.py:110-143 HerdrRunner",
+              "1 consumer family",
+              "imported by dogfood.py",
+              "uses"
+            ],
+            [
+              "herdr-playbook SKILL.md:118-127 H-8",
+              "close once the result is read",
+              "unchanged; dogfood states its exception",
+              "unaffected"
+            ],
+            [
+              "small-change SKILL.md:12,47",
+              "runs in the branch's worktree; grow names the medium lane",
+              "AGENT.md routes a grow to a medium worktree",
+              "uses"
+            ],
+            [
+              "create-change-request SKILL.md:14",
+              "target from the invocation",
+              "AGENT.md passes the confirmed base",
+              "uses"
+            ],
+            [
+              "hooks.json, CORE-BEHAVIORS.md",
+              "—",
+              "no change",
+              "unaffected"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-l9-see",
+            "props": {
+              "text": "Only setup changes behaviour; every other seam is used as it is.",
+              "markdown": true,
+              "label": "What to see"
+            }
+          },
+          {
+            "type": "text",
+            "id": "sec-l9-sum",
+            "props": {
+              "text": "Setup gains 1 verb, 1 status field and 1 step.\nRollback: revert the commit; the extra record line is ignored.",
+              "markdown": true,
+              "label": "Summary"
+            }
+          }
+        ]
+      },
+      "links": [
+        "sec-crit-setup"
+      ],
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted by the Claude proposer and checked against the code."
+        }
+      ]
+    },
+    {
+      "id": "sec-patterns",
+      "title": "Design patterns: Mediator and guard check",
+      "state": "current",
+      "body": {
+        "type": "table",
+        "id": "sec-patterns-t",
+        "props": {
+          "columns": [
+            "Name",
+            "What it is",
+            "Where",
+            "Why here",
+            "Quality goal",
+            "Beat"
+          ],
+          "rows": [
+            [
+              "Mediator",
+              "1 object holds both ends and passes messages; the ends never address each other",
+              "dogfood.py with the 2 pane ids",
+              "AC-017 has 1 place to hold",
+              "safety: a note cannot reach another pane",
+              "each agent prompts the other by name"
+            ],
+            [
+              "Guard check",
+              "each verb first checks who calls it",
+              "every dogfood.py verb",
+              "the env var is set by herdr, not typed by an agent",
+              "safety",
+              "trust the instruction alone"
+            ]
+          ]
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-patterns-t-see",
+            "props": {
+              "label": "What to see",
+              "text": "Table."
+            }
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted by the Claude proposer."
+        }
+      ]
+    },
+    {
+      "id": "sec-performance",
+      "title": "Performance: every list is small; 4 budgets",
+      "state": "current",
+      "body": {
+        "type": "text",
+        "id": "sec-perf-root",
+        "props": {
+          "text": "Estimated budgets, no hot path.",
+          "markdown": true
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "sec-pf1",
+            "props": {
+              "text": "Setup's search for a checkout must never scan a drive; state lookups scan at most about 10 files.",
+              "markdown": true,
+              "label": "PF-1 Anticipated problems"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "sec-pf1-t",
+                "props": {
+                  "columns": [
+                    "Problem",
+                    "Where",
+                    "Cause",
+                    "Size"
+                  ],
+                  "rows": [
+                    [
+                      "drive scan",
+                      "setup source",
+                      "a recursive search",
+                      "banned"
+                    ],
+                    [
+                      "state scan",
+                      "note, worktree",
+                      "glob dogfood-*.json",
+                      "<= 10 files"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "sec-pf1-see",
+                    "props": {
+                      "text": "2 problems, both bounded.",
+                      "markdown": true,
+                      "label": "What to see"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "id": "sec-pf2",
+            "props": {
+              "text": "State files: now 0, worst 10. Worktrees per state: worst 5. Notes per session: worst 50 of at most 16 KiB.",
+              "markdown": true,
+              "label": "PF-2 Large data"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "sec-pf2-t",
+                "props": {
+                  "columns": [
+                    "List",
+                    "Now",
+                    "In 1 year",
+                    "Worst"
+                  ],
+                  "rows": [
+                    [
+                      "state files",
+                      "0",
+                      "1-3",
+                      "10"
+                    ],
+                    [
+                      "notes per session",
+                      "0",
+                      "10",
+                      "50 x 16 KiB"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "sec-pf2-see",
+                    "props": {
+                      "text": "All lists stay under 1 MB.",
+                      "markdown": true,
+                      "label": "What to see"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "id": "sec-pf3",
+            "props": {
+              "text": "Caps: note 16 KiB, ask 8000 characters; setup looks only at the current repository, its main checkout, and the children of its parent and of the home folder, 2 levels deep.",
+              "markdown": true,
+              "label": "PF-3 Solutions"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "sec-pf3-t",
+                "props": {
+                  "columns": [
+                    "Problem",
+                    "Fix"
+                  ],
+                  "rows": [
+                    [
+                      "drive scan",
+                      "fixed candidate folders, depth 2"
+                    ],
+                    [
+                      "big note",
+                      "16 KiB cap"
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "sec-pf3-see",
+                    "props": {
+                      "text": "Each fix is a hard cap.",
+                      "markdown": true,
+                      "label": "What to see"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "id": "sec-pf4",
+            "props": {
+              "text": "Budgets, all estimated.",
+              "markdown": true,
+              "label": "PF-4 Budgets"
+            },
+            "children": [
+              {
+                "type": "table",
+                "id": "sec-pf4-t",
+                "props": {
+                  "columns": [
+                    "Flow",
+                    "Target",
+                    "Grade"
+                  ],
+                  "rows": [
+                    [
+                      "start, new pane",
+                      "<= 120 s",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "estimated",
+                          "tone": "estimated"
+                        }
+                      }
+                    ],
+                    [
+                      "start, existing",
+                      "<= 35 s",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "estimated",
+                          "tone": "estimated"
+                        }
+                      }
+                    ],
+                    [
+                      "note",
+                      "<= 10 s",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "estimated",
+                          "tone": "estimated"
+                        }
+                      }
+                    ],
+                    [
+                      "setup suggest",
+                      "<= 5 s",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "estimated",
+                          "tone": "estimated"
+                        }
+                      }
+                    ],
+                    [
+                      "note delivery",
+                      "end of the main agent's turn",
+                      {
+                        "type": "chip",
+                        "props": {
+                          "text": "inferred",
+                          "tone": "inferred"
+                        }
+                      }
+                    ]
+                  ]
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "sec-pf4-see",
+                    "props": {
+                      "text": "The slowest step is the agent start, 90 s.",
+                      "markdown": true,
+                      "label": "What to see"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "changes": [
+        {
+          "round": 2,
+          "cause": "finding",
+          "text": "Drafted by the Claude proposer; all numbers estimated."
+        }
+      ]
+    }
+  ]
+}

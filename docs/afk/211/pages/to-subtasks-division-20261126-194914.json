@@ -1,0 +1,184 @@
+{
+  "schema": "afkv2.page/2",
+  "session": {
+    "step": "Plan approval",
+    "private": false,
+    "takeovers": [],
+    "id": "division-20261126-194914",
+    "skill": "to-subtasks",
+    "feature": "211",
+    "ticket": "211",
+    "started": "2026-11-26T20:49:40Z"
+  },
+  "maps": [],
+  "notes": [],
+  "rounds": [
+    {
+      "n": 1,
+      "state": "current",
+      "banner": {
+        "settled": [],
+        "unlocks": [
+          "/afkv2:autopilot can start on this plan"
+        ],
+        "parked": []
+      },
+      "items": [
+        {
+          "id": "division-c18ce58c-1",
+          "kind": "signoff",
+          "state": "settled_by_mark",
+          "body": {
+            "type": "table",
+            "id": "division-c18ce58c-1-subtasks",
+            "props": {
+              "columns": [
+                "Subtask",
+                "Goal",
+                "Why the cut is here",
+                "Waits on",
+                "Gates",
+                "Low days",
+                "Likely days",
+                "High days"
+              ],
+              "rows": [
+                [
+                  "0001-note-format",
+                  "The `afkv2-note v1` format text `NOTE-FORMAT.md` and its parser `dogfood_note.py`: `parse(text)` reads a note, and `check(note, worktrees)` returns each failure with its rule code, its place and its reason, for the 10 rule codes.",
+                  "The note format and its parser are 1 contract between the 2 agents, so the text and the code that checks it are cut together and come first.",
+                  "—",
+                  "static, unit, static",
+                  "0.01",
+                  "0.02",
+                  "0.03"
+                ],
+                [
+                  "0002-start-and-status",
+                  "The core of `dogfood.py`: `main(argv, env, runner)`, the JSON answer and exit codes, the versioned state file, the caller guard on `HERDR_PANE_ID`, and the verbs `start` and `status`. `start` opens 1 pane, starts the afkv2 agent with its model, effort and auto-approval, and sends the role and the ask; a live state forwards the ask instead. It also writes the in-process fake runner that later subtasks reuse.",
+                  "Every verb needs the state file, the caller guard and the JSON answer; start builds them, so it comes before the other verbs.",
+                  "—",
+                  "static, unit",
+                  "0.02",
+                  "0.04",
+                  "0.06"
+                ],
+                [
+                  "0003-afkv2-pane-verbs",
+                  "The 2 verbs only the afkv2 pane may call: `worktree` makes the small-asks worktree or a medium worktree from the confirmed base; `note` checks a note, stores it in the notes folder, types a 1-line pointer into the main pane and records it.",
+                  "worktree and note are the 2 verbs only the afkv2 pane calls; note needs the parser of 0001.",
+                  "0001-note-format, 0002-start-and-status",
+                  "static, unit, integration",
+                  "0.01",
+                  "0.02",
+                  "0.03"
+                ],
+                [
+                  "0004-main-pane-verbs",
+                  "The verbs only the main pane may call: `tell` sends feedback or the wrap request to the afkv2 agent; `check-note` parses a received note and writes nothing; `close` ends the session after the wrap report and keeps every worktree and branch. It closes the guard check across all 7 verbs.",
+                  "tell, check-note and close are the main-pane verbs; with them all 7 verbs exist, so the guard test across every verb lives here.",
+                  "0003-afkv2-pane-verbs",
+                  "static, unit, integration",
+                  "0.01",
+                  "0.02",
+                  "0.03"
+                ],
+                [
+                  "0005-setup-source",
+                  "`setup.py source [--path P]` suggests a likely plugin source checkout, or writes the `source <path>` line of the install record after its checks; `status` gains the field `source`; setup SKILL.md gains the step that asks only when the line is missing or broken.",
+                  "The setup change is its own module in an existing skill and needs nothing of dogfood, so it can build in any order.",
+                  "—",
+                  "static, integration, unit, contract, static",
+                  "0.01",
+                  "0.02",
+                  "0.03"
+                ],
+                [
+                  "0006-main-skill",
+                  "`SKILL.md` of `/afkv2:dogfood`, read by the main agent: the refusals and their repairs, the start, the 1 exception to playbook rule H-8, the pointer to APPLY.md, feedback, and the wrap-up.",
+                  "The main agent's skill text runs its command blocks against the finished dogfood.py, so it waits for every verb.",
+                  "0004-main-pane-verbs",
+                  "static, static",
+                  "0.01",
+                  "0.02",
+                  "0.03"
+                ],
+                [
+                  "0007-agent-and-apply",
+                  "`AGENT.md`, the role the afkv2 agent reads from its worktree: the branch question, the lanes, the queue, the note and the wrap. `APPLY.md`, how the main agent applies each change kind CK-1 to CK-4 and redoes a named delta.",
+                  "AGENT.md and APPLY.md share 1 static check and point at the note format and the worktree verb.",
+                  "0001-note-format, 0003-afkv2-pane-verbs",
+                  "static, static",
+                  "0.01",
+                  "0.02",
+                  "0.03"
+                ],
+                [
+                  "0008-start-journeys",
+                  "The high-level tests of the start and the setup step: the command-line refusals as child processes, and a live script that drives real herdr panes with real Claude and Codex main agents, 1 row per run, with a recorded result.",
+                  "High-level tests of the start, the refusals and setup, in real herdr panes; a test subtask owns no low-level row.",
+                  "0005-setup-source, 0006-main-skill, 0007-agent-and-apply",
+                  "static, api, api, api, api, ui-e2e, ui-e2e, ui-e2e, ui-e2e, ui-e2e, ui-e2e, ui-e2e, ui-e2e, ui-e2e, ui-e2e",
+                  "0.02",
+                  "0.04",
+                  "0.06"
+                ],
+                [
+                  "0009-milestone-journeys",
+                  "The high-level tests of a milestone note, its apply in the main session, feedback in either pane, a second ask and the wrap-up: a live script that drives real herdr panes with real Claude and Codex main agents, 1 row per run.",
+                  "High-level tests of the milestone, apply, feedback and wrap-up journeys; they need a working start, so they run last.",
+                  "0006-main-skill, 0007-agent-and-apply, 0008-start-journeys",
+                  "static, api, api, api, ui-e2e, ui-e2e, ui-e2e, ui-e2e, ui-e2e, ui-e2e, ui-e2e, ui-e2e, ui-e2e, ui-e2e, ui-e2e, ui-e2e, acceptance, acceptance, acceptance, acceptance, acceptance, acceptance",
+                  "0.02",
+                  "0.04",
+                  "0.06"
+                ]
+              ]
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "division-c18ce58c-1-ask",
+                "props": {
+                  "text": "Sign to approve this division: 9 subtasks, plan digest c18ce58c, app: none. Ask for changes to get another division."
+                }
+              },
+              {
+                "type": "text",
+                "id": "division-c18ce58c-1-estimate",
+                "props": {
+                  "text": "Agent run time in days, in total: low 0.12, likely 0.24, high 0.36. Basis: past run times from 2 earlier runs."
+                }
+              }
+            ]
+          },
+          "title": "Approve the division into 9 subtasks",
+          "settled": {
+            "by": "mark",
+            "round": 1,
+            "signal": "sign"
+          }
+        }
+      ],
+      "responses": [
+        {
+          "received": "2026-11-26T20:50:07Z",
+          "raw": "[round R-1]\ndivision-c18ce58c-1 sign",
+          "signals": [
+            {
+              "target": "division-c18ce58c-1",
+              "item": "division-c18ce58c-1",
+              "mark": "sign",
+              "note": null,
+              "text": null,
+              "conflict": false,
+              "state": "settled_by_mark",
+              "reopened": false,
+              "stamp": "a120b2679c548485"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

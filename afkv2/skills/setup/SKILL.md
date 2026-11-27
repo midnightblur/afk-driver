@@ -47,7 +47,15 @@ you ask in this session; the Jira token never passes through you.
    `--model <name>` picks another. Report `model` and the `which` answer. A refusal
    `no-provider` or `proof-failed`: report its `reason`.
    `status` field `gh` with `ok` false: tell the developer its `fix`.
-3. **herdr.** `herdr` is `present` or `declined`: ask nothing. `herdr` is
+3. **Plugin source.** `source` is `ok`: ask nothing. `source` is `missing` or `broken`: run
+   ```sh step=source
+   setup.py source
+   ```
+   It answers `suggested` with a `path`: ask the developer once to confirm that path or type another absolute
+   path. It answers `none`: ask for the absolute path of the main checkout of the afkv2 plugin source. Then
+   `setup.py source --path "<path>"`. A refusal `not-main-checkout`, `not-plugin-source` or `not-a-repo`
+   writes nothing: report its `reason`, and ask again.
+4. **herdr.** `herdr` is `present` or `declined`: ask nothing. `herdr` is
    `installed`: ask nothing; tell the developer to open a new terminal and
    harness, so that herdr is on the path. `herdr` is `ask`:
    ask the developer once in this session whether to install herdr through its
@@ -55,7 +63,7 @@ you ask in this session; the Jira token never passes through you.
    `setup.py herdr --answer yes` or `setup.py herdr --answer no`. A no is recorded
    and never asked again, also after `switch-back`. A refusal `install-failed`: report its `reason`; the
    developer can install herdr by hand.
-4. **Fable advisor.** For the Claude advisor only; this step runs in either harness
+5. **Fable advisor.** For the Claude advisor only; this step runs in either harness
    and writes nothing for Codex. `advisor` is `not-used`, `declined` or `done`: ask
    nothing. `advisor` is `ask`: ask the developer once in this session whether
    Claude should consult Fable as its advisor; on some plans Fable bills to usage
@@ -70,12 +78,12 @@ you ask in this session; the Jira token never passes through you.
    `reason`, and run it again after they act; `no-advisor`: run `--answer yes` first. Tell the developer that a new Claude
    session shows `Advisor Tool (experimental) is on`; a notice that points to
    `/model fable` means the consent step is still open.
-5. **Jira values.** `jira.complete` false: ask the developer to run
+6. **Jira values.** `jira.complete` false: ask the developer to run
    `python <this skill's folder>/scripts/setup.py secrets` in their own terminal
    (it asks for `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN` and stores them
    where v1 keeps them), then run `status` again. Report each key's source, never
    a value.
-6. **Repository config.** `config_file` false: setup writes `.afkv2/config.json`
+7. **Repository config.** `config_file` false: setup writes `.afkv2/config.json`
    once, and it needs a spec folder. `spec_folder.value` set: use it, and pass no
    flag. `spec_folder.value` null: ask the developer in this session for a folder
    path relative to the repository root, then pass `--spec-folder <path>`.
@@ -83,14 +91,14 @@ you ask in this session; the Jira token never passes through you.
    copy. On yes, `setup.py copy-config`; on no, `setup.py copy-config --no-v1-values`.
    No v1 config: `setup.py copy-config`. The v1 file stays as it is. A refusal
    `no-spec-folder` or `bad-spec-folder` writes nothing: report its `reason`, and ask again.
-7. **Ownership.** `ownership` is `missing`: ask once which paths the developer's
+8. **Ownership.** `ownership` is `missing`: ask once which paths the developer's
    team owns and which it shares. Answer given: `setup.py ownership --own <globs>
    --shared <globs>`. Skipped: `setup.py ownership --skip`.
-8. **Codex hook trust review.** The developer uses Codex (a `codex_plugins` entry,
+9. **Codex hook trust review.** The developer uses Codex (a `codex_plugins` entry,
    or a block in `v1_blocks.codex`): ask them to start a new Codex session in this
    repository, trust the afkv2 hooks in Codex's hook review, and end that session.
    Codex skips an untrusted hook without a message.
-9. **Proof and takeover.** Find the line `afkv2-core-behaviors end <sha12>` in
+10. **Proof and takeover.** Find the line `afkv2-core-behaviors end <sha12>` in
    your own context — the session-start hook put it there. Run
    `setup.py takeover --provider <claude|codex> --end-marker "<that full line>"`
    (`--end-marker ""` when the line is absent). The script proves the hook, then
@@ -108,7 +116,7 @@ you ask in this session; the Jira token never passes through you.
      developer each line of `proof.reasons`, then to start a new session and run
      `/afkv2:setup` again.
    - Another step failed: report its `error`; a re-run continues where it stopped.
-10. **Report.** One line per step: done, already done, or why not.
+11. **Report.** One line per step: done, already done, or why not.
 
 ## Return to afkv2 after a switch-back
 

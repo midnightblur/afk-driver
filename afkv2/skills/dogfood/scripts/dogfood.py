@@ -1,0 +1,659 @@
+"""The dogfood session between the main pane and the afkv2 pane: `dogfood.py <verb> [options]`.
+
+Verbs:
+  start --ask-file F   main pane: open the afkv2 pane and start its agent with the ask, or send the ask to the live one
+  status               either pane: the state of the session, or null
+  worktree --lane small|medium --base B [--branch N]
+                       afkv2 pane: the small-asks worktree, or a medium worktree, from the confirmed base B
+  note --note-file N   afkv2 pane: check the note, store it, send its path to the main pane and record it
+  tell --kind feedback|wrap --text-file F
+                       main pane: send feedback or the wrap-up request to the afkv2 agent
+  check-note --note-file N
+                       main pane: the parsed note, or its failures; writes nothing
+  close [--force]      main pane: after the wrap note, or forced on a dead afkv2 pane: close that pane, delete the
+                       state and the notes; every worktree and branch stays
+
+Each verb prints 1 JSON object, `{"ok": true, ...}` or `{"ok": false, "error": {"code", "reason"}}`, and exits 0 ok,
+1 refused, 2 unreadable input. The caller is the pane of `HERDR_PANE_ID`, never an argument. dogfood.py is the only
+writer of the state file `dogfood-<main pane>.json` in the afkv2 data folder; every herdr and git call goes through
+the runner, a `HerdrRunner` of the proposer engine.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import re
+import shutil
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+PLUGIN = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(PLUGIN / "skills" / "use-lavish" / "scripts"))
+sys.path.insert(0, str(PLUGIN / "skills" / "setup" / "scripts"))
+sys.path.insert(1, str(PLUGIN / "scripts"))
+
+from grill_common import EXIT_UNREADABLE, Parser, Refusal  # noqa: E402
+from places import Places, write_atomic  # noqa: E402
+from proposer_engine import UNREADABLE, HerdrRunner  # noqa: E402
+from setup import read_install_record  # noqa: E402
+import dogfood_note  # noqa: E402
+
+STATE_VERSION = 1
+HARNESS = "claude"
+AGENT_ARGS = ["--model", "opus", "--effort", "max", "--dangerously-skip-permissions"]
+START_MS, PROMPT_MS = "90000", "30000"
+COMMAND_S = 120
+FETCH_S = 60
+ASK_LIMIT = 8000
+NAME_TRIES = 3
+LOOKUP_LIMIT = 10
+INPUT_LINES, PREFIX, ENTER_PAUSE_S = 6, 40, 2
+MANAGED_PREFERENCES, CLAUDE_DOMAIN = "/Library/Managed Preferences", "com.anthropic.claudecode"
+FORWARD_LINE = "A new ask from the main pane:"
+AGENT_FILE = Path("afkv2") / "skills" / "dogfood" / "AGENT.md"
+LANES = ("small", "medium")
+SMALL_BRANCH = "feat/afkv2-df-{:%Y%m%d-%H%M}"
+NAME = re.compile(r"[A-Za-z0-9._/-]+")
+NOTE_LIMIT = 16 * 1024
+NOTE_LINE = "A note from the afkv2 pane: {}"
+GONE = ("agent_not_found", "pane_not_found")
+TELL_LINES = {"feedback": "Feedback from the main pane:", "wrap": "The wrap-up request from the main pane:"}
+
+
+def _clock():
+    return datetime.now(timezone.utc)
+
+
+def _now():
+    return _clock().isoformat(timespec="seconds")
+
+
+# herdr, through the runner.
+
+def _parsed(text):
+    try:
+        return json.loads(text)
+    except ValueError:
+        return None
+
+
+def _herdr_code(out, err):
+    for text in (err, out):
+        data = _parsed(text)
+        if isinstance(data, dict) and isinstance(data.get("error"), dict):
+            return data["error"].get("code")
+    return None
+
+
+def _herdr_binary(env, runner):
+    return env.get("HERDR_BIN_PATH") or runner.which("herdr")
+
+
+def _herdr(env, runner, *args, timeout=COMMAND_S):
+    return runner.run([_herdr_binary(env, runner), *args], timeout=timeout)
+
+
+def _herdr_ok(env, runner, *args, timeout=COMMAND_S):
+    code, out, err = _herdr(env, runner, *args, timeout=timeout)
+    if code != 0:
+        raise Refusal("herdr-failed", f"herdr {' '.join(args[:2])}: {_herdr_code(out, err) or (err or out).strip()}")
+    return _parsed(out) or {}
+
+
+def _herdr_pane(env, runner):
+    """The pane of the caller; refuses outside herdr (herdr playbook H-9)."""
+    if env.get("HERDR_ENV") != "1" or not env.get("HERDR_PANE_ID") or not _herdr_binary(env, runner):
+        raise Refusal("outside-herdr", "this session does not run in a herdr pane, or herdr is not on PATH: start "
+                                       "herdr, then run the skill again from a pane in it")
+    return env["HERDR_PANE_ID"]
+
+
+def _read_text(path, code, what):
+    """The text of an ask or tell file: UTF-8, 1 to ASK_LIMIT characters; else `code`, exit 2."""
+    try:
+        text = Path(path).read_bytes().decode("utf-8")
+    except (OSError, UnicodeDecodeError) as problem:
+        raise Refusal(code, f"the {what} file {path}: {problem}", EXIT_UNREADABLE) from None
+    if not 1 <= len(text) <= ASK_LIMIT:
+        raise Refusal(code, f"the {what} file {path} holds {len(text)} characters; it holds 1 to {ASK_LIMIT}",
+                      EXIT_UNREADABLE)
+    return text
+
+
+def _read_ask(path):
+    return _read_text(path, "ask-unreadable", "ask")
+
+
+# The plugin source.
+
+def _source(env, runner):
+    """The source line of the install record, checked again: a main checkout of the afkv2 plugin source."""
+    source = read_install_record(_places(env)).get("source", "").strip()
+    if not source:
+        raise Refusal("no-source", "the install record has no source line: run /afkv2:setup, which records the "
+                                   "main checkout of the plugin source")
+    problem = _source_problem(Path(source), runner)
+    if problem:
+        raise Refusal("source-broken", f"the source line {source} {problem}: run /afkv2:setup to record the main "
+                                       f"checkout of the plugin source again")
+    return source
+
+
+def _source_problem(source, runner):
+    if not source.is_dir():
+        return "names no folder"
+    text = runner.read_text(source / "afkv2" / ".claude-plugin" / "plugin.json")
+    manifest = _parsed(text) if isinstance(text, str) else None
+    if not isinstance(manifest, dict) or manifest.get("name") != "afkv2":
+        return "holds no afkv2 plugin manifest"
+    code, out, err = runner.run(["git", "-C", str(source), "rev-parse", "--path-format=absolute", "--git-dir",
+                                 "--git-common-dir"])
+    dirs = out.splitlines()
+    if code != 0 or len(dirs) < 2:
+        return f"is not a git repository ({(err or out).strip()})"
+    if Path(dirs[0].strip()) != Path(dirs[1].strip()):
+        return "is a linked worktree, not the main checkout"
+    return None
+
+
+# The auto-approval ban (herdr playbook H-4): any Claude managed source that turns bypass off, or that cannot be
+# read or parsed, bans it.
+
+def _bans_bypass(text):
+    if not isinstance(text, str):
+        return True
+    try:
+        permissions = json.loads(text).get("permissions") or {}
+    except (ValueError, AttributeError):
+        return True
+    return not isinstance(permissions, dict) or permissions.get("disableBypassPermissionsMode") == "disable"
+
+
+def _registry_settings(out):
+    for line in out.splitlines():
+        parts = line.split(None, 2)
+        if len(parts) == 3 and parts[0] == "Settings" and parts[1] in ("REG_SZ", "REG_EXPAND_SZ"):
+            return parts[2]
+    return UNREADABLE
+
+
+def _managed_settings(env, runner):
+    """Each Claude managed settings document of this host: its text, or UNREADABLE."""
+    if runner.platform == "win32":
+        folder = Path(env.get("ProgramFiles") or r"C:\Program Files") / "ClaudeCode"
+    elif runner.platform == "darwin":
+        folder = Path("/Library/Application Support/ClaudeCode")
+    else:
+        folder = Path("/etc/claude-code")
+    for path in [folder / "managed-settings.json", *runner.glob(folder / "managed-settings.d", "*.json")]:
+        text = runner.read_text(path)
+        if text is not None:
+            yield text
+    if runner.platform == "win32":
+        for hive in ("HKLM", "HKCU"):
+            code, out, _ = runner.run(["reg", "query", rf"{hive}\SOFTWARE\Policies\ClaudeCode", "/v", "Settings"])
+            if code == 0:
+                yield _registry_settings(out)
+    elif runner.platform == "darwin" and runner.glob(Path(MANAGED_PREFERENCES), f"{CLAUDE_DOMAIN}.plist"):
+        code, out, _ = runner.run(["plutil", "-convert", "json", "-o", "-",
+                                   f"{MANAGED_PREFERENCES}/{CLAUDE_DOMAIN}.plist"])
+        yield out if code == 0 else UNREADABLE
+
+
+def _check_auto_approval(env, runner):
+    if any(_bans_bypass(text) for text in _managed_settings(env, runner)):
+        raise Refusal("auto-approval-banned", "a Claude managed setting turns off bypass mode, or cannot be read: the "
+                                              "afkv2 agent needs full auto-approval, so no pane opens")
+
+
+# The state file.
+
+def _places(env):
+    return Places.from_env(env)
+
+
+def state_path(env, main_pane):
+    safe = "".join(char if char.isascii() and (char.isalnum() or char in "_-") else "_" for char in main_pane)
+    return _places(env).data / f"dogfood-{safe}.json"
+
+
+def _read_state(path):
+    """The state in `path`, or None when the file is absent; any other file refuses (plan decision D-1)."""
+    try:
+        state = json.loads(Path(path).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as problem:
+        raise Refusal("state-unreadable", f"the state file {path} cannot be read: {problem}; delete it after a "
+                                          f"look", EXIT_UNREADABLE) from None
+    if not isinstance(state, dict) or state.get("version") != STATE_VERSION:
+        raise Refusal("state-unreadable", f"the state file {path} is not a version {STATE_VERSION} dogfood state; "
+                                          f"delete it after a look", EXIT_UNREADABLE)
+    return state
+
+
+def find_state(env, pane):
+    """`(role, state)` of the caller pane: `main` for its own state file, `afkv2` for the state whose afkv2 pane it
+    is, else `(None, None)`. The lookup reads at most LOOKUP_LIMIT files, the newest first."""
+    own = state_path(env, pane)
+    state = _read_state(own)
+    if state:
+        return "main", state
+    folder = _places(env).data
+    others = [path for path in folder.glob("dogfood-*.json") if path != own] if folder.is_dir() else []
+    for path in sorted(others, key=lambda path: path.stat().st_mtime_ns, reverse=True)[:LOOKUP_LIMIT]:
+        state = _read_state(path)
+        if state and state.get("afkv2_pane") == pane:
+            return "afkv2", state
+    return None, None
+
+
+def _live(env, runner, state):
+    """Liveness: herdr answers the agent name of the state, in the afkv2 pane of the state."""
+    code, out, err = _herdr(env, runner, "agent", "get", state["agent"])
+    if code != 0:
+        if _herdr_code(out, err) == "agent_not_found":
+            return False
+        raise Refusal("herdr-failed", f"herdr agent get {state['agent']}: {_herdr_code(out, err) or (err or out).strip()}")
+    agent = ((_parsed(out) or {}).get("result") or {}).get("agent") or {}
+    return agent.get("pane_id") == state["afkv2_pane"]
+
+
+def _write_state(env, state):
+    write_atomic(state_path(env, state["main_pane"]), (json.dumps(state, indent=2) + "\n").encode("utf-8"))
+
+
+# The verbs.
+
+def _agent_name(env, runner, main_pane):
+    """`dogfood-<4 hex>` from the SHA-256 of the main pane id; on a clash with a live agent the next 4 hex digits,
+    at most NAME_TRIES tries."""
+    digest = hashlib.sha256(main_pane.encode("utf-8")).hexdigest()
+    names = [f"dogfood-{digest[4 * n:4 * n + 4]}" for n in range(NAME_TRIES)]
+    for name in names:
+        code, out, err = _herdr(env, runner, "agent", "get", name)
+        if code != 0 and _herdr_code(out, err) == "agent_not_found":
+            return name
+        if code != 0:
+            raise Refusal("herdr-failed", f"herdr agent get {name}: {_herdr_code(out, err) or (err or out).strip()}")
+    raise Refusal("herdr-failed", f"live agents already hold the names {', '.join(names)}: close one of them, then "
+                                  f"run the skill again")
+
+
+def _role_prompt(source, ask):
+    return (f"You are the afkv2 agent of a dogfood session. Read {Path(source) / AGENT_FILE} and follow it. "
+            f"The first ask:\n\n{ask}")
+
+
+def _in_input_line(screen, text):
+    """Whether the start of `text` still sits in the last lines of the screen."""
+    tail = "".join("".join(line.split()) for line in screen.splitlines()[-INPUT_LINES:])
+    return "".join(text.split())[:PREFIX] in tail
+
+
+def _send(env, runner, agent, pane, text):
+    """1 prompt, with herdr playbook H-6 on a stall: 1 Enter only while the text sits in the input line, never a
+    resend. Answers `submitted`, and `prompt_error` when it is false: the session stays open (plan decision D-4)."""
+    code, out, err = _herdr(env, runner, "agent", "prompt", agent, text, "--wait", "--until", "working",
+                            "--timeout", PROMPT_MS)
+    if code == 0:
+        return {"submitted": True}
+    if _herdr_code(out, err) != "agent_prompt_stalled":
+        return {"submitted": False, "prompt_error": f"herdr agent prompt: {_herdr_code(out, err) or (err or out).strip()}"}
+    return _after_stall(env, runner, agent, pane, text)
+
+
+def _after_stall(env, runner, agent, pane, text):
+    """Herdr playbook H-6 after `agent_prompt_stalled`: 1 Enter only while the text sits in the input line."""
+    code, screen, err = _herdr(env, runner, "pane", "read", pane, "--source", "visible", "--lines", "40")
+    if code == 0 and _in_input_line(screen, text):
+        runner.sleep(ENTER_PAUSE_S)
+        _herdr(env, runner, "pane", "send-keys", pane, "enter")
+    code, out, err = _herdr(env, runner, "agent", "wait", agent, "--until", "working", "--timeout", PROMPT_MS)
+    if code == 0:
+        return {"submitted": True}
+    return {"submitted": False, "prompt_error": "the prompt stalled and the agent did not start work; look at the "
+                                                "afkv2 pane"}
+
+
+def _start_agent(env, runner, name, pane):
+    """Start the afkv2 agent in its pane: Claude, the model and effort of AC-005, full auto-approval (H-4)."""
+    code, out, err = _herdr(env, runner, "agent", "start", name, "--kind", HARNESS, "--pane", pane, "--timeout",
+                            START_MS, "--", *AGENT_ARGS, timeout=COMMAND_S)
+    if code != 0:
+        problem = _herdr_code(out, err) or (err or out).strip()
+        if problem == "agent_not_ready":
+            raise Refusal("agent-not-ready", f"the agent {name} shows a dialog at startup, or did not get ready in "
+                                             f"{int(START_MS) // 1000} s; its pane is closed")
+        raise Refusal("herdr-failed", f"herdr agent start: {problem}; the pane is closed")
+
+
+def verb_start(args, env, runner):
+    """Open the afkv2 pane beside the main pane, start its agent, write the state, then send the role and the ask."""
+    main_pane = _herdr_pane(env, runner)
+    role, state = find_state(env, main_pane)
+    if role == "afkv2":
+        raise Refusal("in-afkv2-pane", f"this pane is the afkv2 pane of the main pane {state['main_pane']}: run start "
+                                       f"from the main pane")
+    ask = _read_ask(args.ask_file)
+    source = _source(env, runner)
+    if state and _live(env, runner, state):
+        sent = _send(env, runner, state["agent"], state["afkv2_pane"], f"{FORWARD_LINE}\n\n{ask}")
+        return {"ok": True, "status": "existing", "agent": state["agent"], "pane": state["afkv2_pane"], "state": state,
+                **sent}
+    _check_auto_approval(env, runner)
+    name = _agent_name(env, runner, main_pane)
+    split = _herdr_ok(env, runner, "pane", "split", "--pane", main_pane, "--direction", "right", "--cwd", source,
+                      "--no-focus")
+    pane = ((split.get("result") or {}).get("pane") or {}).get("pane_id")
+    if not pane:
+        raise Refusal("herdr-failed", "herdr pane split answered no pane id")
+    try:
+        _start_agent(env, runner, name, pane)
+        state = {"version": STATE_VERSION, "main_pane": main_pane, "agent": name, "afkv2_pane": pane,
+                 "harness": HARNESS, "source": source, "base": None, "worktrees": [], "notes": [],
+                 "wrap_reported": False, "started": _now()}
+        _write_state(env, state)
+    except BaseException:
+        _herdr(env, runner, "pane", "close", pane)
+        raise
+    sent = _send(env, runner, name, pane, _role_prompt(source, ask))
+    return {"ok": True, "status": "opened", "agent": name, "pane": pane, "state": state, **sent}
+
+
+def verb_status(args, env, runner):
+    """The state of the session of the caller pane, from either pane, or null. Writes nothing."""
+    pane = env.get("HERDR_PANE_ID")
+    return {"ok": True, "state": find_state(env, pane)[1] if pane else None}
+
+
+def _afkv2_state(env, runner):
+    """The state whose afkv2 pane is the caller; refuses any other pane (SDD §5)."""
+    pane = _herdr_pane(env, runner)
+    role, state = find_state(env, pane)
+    if role != "afkv2":
+        raise Refusal("not-afkv2-pane", f"the pane {pane} is not the afkv2 pane of a dogfood session: only the afkv2 "
+                                        f"agent runs this verb")
+    return state
+
+
+def _name_problem(name):
+    if not NAME.fullmatch(name) or name.startswith("-") or ".." in name:
+        return f"{name!r} is not a branch name of the form [A-Za-z0-9._/-]+ that starts with no - and holds no .."
+    return None
+
+
+def _has_ref(runner, source, ref):
+    code, _, _ = runner.run(["git", "-C", source, "rev-parse", "--verify", "--quiet", ref])
+    return code == 0
+
+
+def _has_branch(runner, source, branch):
+    return _has_ref(runner, source, f"refs/heads/{branch}")
+
+
+def _start_point(runner, source, base):
+    """The newest tip of the base. With an origin: fetch it, and start from origin/<base> when the local branch is
+    absent or behind it. A local branch with its own commits stays the start. None: the base exists nowhere."""
+    local = _has_branch(runner, source, base)
+    remote = f"refs/remotes/origin/{base}"
+    code, _, _ = runner.run(["git", "-C", source, "remote", "get-url", "origin"])
+    if code == 0:
+        runner.run(["git", "-C", source, "fetch", "--quiet", "origin", f"+refs/heads/{base}:{remote}"],
+                   timeout=FETCH_S)
+        if _has_ref(runner, source, remote):
+            if not local:
+                return remote
+            code, _, _ = runner.run(["git", "-C", source, "merge-base", "--is-ancestor", f"refs/heads/{base}", remote])
+            if code == 0:
+                return remote
+    return f"refs/heads/{base}" if local else None
+
+
+def _answer(worktree):
+    return {"ok": True, "path": worktree["path"], "branch": worktree["branch"], "lane": worktree["lane"]}
+
+
+def verb_worktree(args, env, runner):
+    """The small-asks worktree or a medium worktree of the session, from the confirmed base (ADR-0003 design). The
+    folder is `<source>-worktrees/<branch>`; the state records it only after git made it (plan decision D-7)."""
+    state = _afkv2_state(env, runner)
+    for name in (args.base, args.branch):
+        problem = name is not None and _name_problem(name)
+        if problem:
+            raise Refusal("bad-branch", problem)
+    if args.lane == "small" and args.branch is not None:
+        raise Refusal("bad-branch", "the small lane names its own branch: run worktree --lane small with no --branch")
+    if args.lane == "medium" and args.branch is None:
+        raise Refusal("bad-branch", "the medium lane needs --branch, the branch name of the lane")
+    branch = SMALL_BRANCH.format(_clock()) if args.lane == "small" else args.branch
+    for worktree in state["worktrees"]:
+        if (worktree["lane"], worktree["branch"]) == (args.lane, branch):
+            return _answer(worktree)
+        if args.lane == "small" and worktree["lane"] == "small":
+            raise Refusal("small-exists", f"this session already has the small-asks worktree {worktree['path']} on "
+                                          f"{worktree['branch']}: put each small ask there")
+        if worktree["branch"] == branch:
+            raise Refusal("bad-branch", f"the branch {branch} already belongs to the {worktree['lane']} worktree "
+                                        f"{worktree['path']}")
+    source = state["source"]
+    if state["base"] not in (None, args.base):
+        raise Refusal("base-missing", f"the base of this session is {state['base']}: every worktree of the session "
+                                      f"starts from it")
+    start = _start_point(runner, source, args.base)
+    if start is None:
+        raise Refusal("base-missing", f"the plugin source {source} has no branch {args.base}, local or on origin: "
+                                      f"confirm the integration branch with the developer again")
+    if _has_branch(runner, source, branch):
+        raise Refusal("bad-branch", f"the branch {branch} already exists in the plugin source: name another branch")
+    path = Path(source).parent / f"{Path(source).name}-worktrees" / branch.replace("/", "-")
+    code, out, err = runner.run(["git", "-C", source, "worktree", "add", "--no-track", "-b", branch, str(path), start])
+    if code != 0:
+        raise Refusal("worktree-failed", f"git worktree add {path}: {(err or out).strip()}")
+    worktree = {"path": str(path), "branch": branch, "lane": args.lane, "created": _now()}
+    state = _read_state(state_path(env, state["main_pane"])) or state
+    state["base"] = state["base"] or args.base
+    state["worktrees"] = [*state["worktrees"], worktree]
+    _write_state(env, state)
+    return _answer(worktree)
+
+
+def notes_folder(env, main_pane):
+    return state_path(env, main_pane).with_suffix("") / "notes"
+
+
+def read_note(path):
+    """The bytes and the text of 1 note file: UTF-8, at most NOTE_LIMIT bytes; else `note-unreadable`, exit 2."""
+    try:
+        body = Path(path).read_bytes()
+        if len(body) > NOTE_LIMIT:
+            raise Refusal("note-unreadable", f"the note file {path} holds {len(body)} bytes; a note holds at most "
+                                             f"{NOTE_LIMIT}", EXIT_UNREADABLE)
+        return body, body.decode("utf-8")
+    except (OSError, UnicodeDecodeError) as problem:
+        raise Refusal("note-unreadable", f"the note file {path}: {problem}", EXIT_UNREADABLE) from None
+
+
+def _next_id(state, folder):
+    ids = [note["id"] for note in state["notes"]]
+    ids += [int(path.stem) for path in folder.glob("[0-9][0-9][0-9][0-9].md")] if folder.is_dir() else []
+    return max(ids, default=0) + 1
+
+
+def _prompt(env, runner, target, pane, text, refusals):
+    """1 prompt to `target`, whose pane is `pane`: True, `unconfirmed` after a stall that H-6 does not confirm, or a
+    refusal when herdr typed nothing: the refusal of `refusals` ((herdr codes, Refusal), ...) that names the herdr
+    code, else `herdr-failed` (plan decisions D-8, D-10)."""
+    code, out, err = _herdr(env, runner, "agent", "prompt", target, text, "--wait", "--until", "working",
+                            "--timeout", PROMPT_MS)
+    if code == 0:
+        return True
+    problem = _herdr_code(out, err)
+    if problem == "agent_prompt_stalled":
+        return True if _after_stall(env, runner, target, pane, text)["submitted"] else "unconfirmed"
+    for codes, refusal in refusals:
+        if problem in codes:
+            raise refusal
+    raise Refusal("herdr-failed", f"herdr agent prompt {target}: {problem or (err or out).strip()}")
+
+
+def _prompt_main(env, runner, main_pane, text):
+    """1 prompt to the main pane by its pane id (plan decision D-8)."""
+    gone = Refusal("main-pane-gone", f"the main pane {main_pane} is gone: the work stays committed; tell the "
+                                     f"developer in this pane")
+    return _prompt(env, runner, main_pane, main_pane, text, [(GONE, gone)])
+
+
+def verb_note(args, env, runner):
+    """Check the note, store it as notes/NNNN.md, prompt the main pane with 1 line holding its path, then record
+    id, SHA-256 and paths in the state (SDD §7, ADR-0001 design). The state names the target; no argument does."""
+    state = _afkv2_state(env, runner)
+    body, text = read_note(args.note_file)
+    digest = hashlib.sha256(body).hexdigest()
+    sent = next((note for note in state["notes"] if note["sha256"] == digest), None)
+    if sent:
+        raise Refusal("already-sent", f"this note was sent as {sent['path']}: send a changed note")
+    note = dogfood_note.parse(text)
+    failures = dogfood_note.check(note, [worktree["path"] for worktree in state["worktrees"]])
+    if failures:
+        raise Refusal("note-check-failed", f"the note breaks {len(failures)} rule(s) of NOTE-FORMAT.md",
+                      failures=failures)
+    main_pane = state["main_pane"]
+    folder = notes_folder(env, main_pane)
+    path = folder / f"{_next_id(state, folder):04d}.md"
+    write_atomic(path, body)
+    try:
+        sent = _prompt_main(env, runner, main_pane, NOTE_LINE.format(path))
+    except Refusal:
+        path.unlink(missing_ok=True)
+        raise
+    record = {"id": int(path.stem), "sha256": digest, "path": str(path), "kind": note["kind"], "sent_at": _now(),
+              "paths": [row["path"] for row in note["changed"]]}
+    state = _read_state(state_path(env, main_pane)) or state
+    state["notes"] = [*state["notes"], record]
+    state["wrap_reported"] = state["wrap_reported"] or note["kind"] == "wrap"
+    _write_state(env, state)
+    return {"ok": True, "sent": sent, "id": record["id"], "path": record["path"]}
+
+
+def _main_state(env, runner, verb):
+    """`(pane, state)` of the caller as a main pane, state None when it has no session; refuses the afkv2 pane of a
+    state (SDD §5)."""
+    pane = _herdr_pane(env, runner)
+    role, state = find_state(env, pane)
+    if role == "afkv2":
+        raise Refusal("in-afkv2-pane", f"this pane is the afkv2 pane of the main pane {state['main_pane']}: run {verb} "
+                                       f"from the main pane")
+    return pane, state
+
+
+def _no_pane(pane):
+    return Refusal("no-pane", f"the main pane {pane} has no live afkv2 pane: run start to open one")
+
+
+def verb_tell(args, env, runner):
+    """Send feedback or the wrap-up request to the afkv2 agent of the session: 1 prompt, its lead line by kind, then
+    the text (plan decision D-10). The state names the target; no argument does. Writes nothing."""
+    pane, state = _main_state(env, runner, "tell")
+    text = _read_text(args.text_file, "text-unreadable", "text")
+    if not state or not _live(env, runner, state):
+        raise _no_pane(pane)
+    blocked = Refusal("prompt-blocked", f"the afkv2 agent {state['agent']} shows a dialog, so nothing was typed: "
+                                        f"tell the developer to look at the afkv2 pane")
+    sent = _prompt(env, runner, state["agent"], state["afkv2_pane"], f"{TELL_LINES[args.kind]}\n\n{text}",
+                   [(("agent_blocked",), blocked), (GONE, _no_pane(pane))])
+    return {"ok": True, "sent": sent, "kind": args.kind}
+
+
+def verb_check_note(args, env, runner):
+    """The parsed note, checked against the worktrees of the session by the 1 parser of note (plan decision D-11).
+    Pure: no herdr or git call, no write."""
+    pane, state = _main_state(env, runner, "check-note")
+    _, text = read_note(args.note_file)
+    if not state:
+        raise Refusal("no-pane", f"the main pane {pane} has no dogfood session, so no worktree list to check the note "
+                                 f"against")
+    note = dogfood_note.parse(text)
+    failures = dogfood_note.check(note, [worktree["path"] for worktree in state["worktrees"]])
+    if failures:
+        raise Refusal("note-check-failed", f"the note breaks {len(failures)} rule(s) of NOTE-FORMAT.md: apply nothing "
+                                           f"from it, and ask the afkv2 agent for a complete note", failures=failures)
+    return {"ok": True, "note": note}
+
+
+def verb_close(args, env, runner):
+    """End the session after the wrap note, or with --force on a dead afkv2 pane: close the afkv2 pane once, delete
+    the notes folder, then the state. Every worktree and branch stays; close runs no git (plan decision D-12)."""
+    pane, state = _main_state(env, runner, "close")
+    if not state:
+        return {"ok": True, "pane_closed": False, "worktrees": [], "branches": []}
+    if not state["wrap_reported"]:
+        if not args.force:
+            raise Refusal("no-wrap-report", "the afkv2 agent has sent no wrap note: run tell --kind wrap and wait for "
+                                            "the note, or close --force when the afkv2 pane is dead")
+        if _live(env, runner, state):
+            raise Refusal("no-wrap-report", f"the afkv2 agent {state['agent']} is live: --force is only for a dead "
+                                            f"afkv2 pane; run tell --kind wrap and wait for the wrap note")
+        closed = False
+    else:
+        code, out, err = _herdr(env, runner, "pane", "close", state["afkv2_pane"])
+        problem = _herdr_code(out, err)
+        if code != 0 and problem not in GONE:
+            raise Refusal("herdr-failed", f"herdr pane close {state['afkv2_pane']}: {problem or (err or out).strip()}")
+        closed = code == 0
+    folder = notes_folder(env, pane).parent
+    try:
+        if folder.exists():
+            shutil.rmtree(folder)
+        state_path(env, pane).unlink(missing_ok=True)
+    except OSError as problem:
+        raise Refusal("cleanup-failed", f"close could not delete {problem.filename or folder}: "
+                                        f"{problem.strerror or problem}; the state stays, so run close again") from problem
+    return {"ok": True, "pane_closed": closed, "worktrees": [worktree["path"] for worktree in state["worktrees"]],
+            "branches": [worktree["branch"] for worktree in state["worktrees"]]}
+
+
+VERBS = {"start": verb_start, "status": verb_status, "worktree": verb_worktree, "note": verb_note, "tell": verb_tell,
+         "check-note": verb_check_note, "close": verb_close}
+
+
+def _parser():
+    parser = Parser(prog="dogfood.py")
+    verbs = parser.add_subparsers(dest="verb", required=True)
+    verbs.add_parser("start").add_argument("--ask-file", required=True)
+    verbs.add_parser("status")
+    worktree = verbs.add_parser("worktree")
+    worktree.add_argument("--lane", required=True, choices=LANES)
+    worktree.add_argument("--base", required=True)
+    worktree.add_argument("--branch")
+    verbs.add_parser("note").add_argument("--note-file", required=True)
+    tell = verbs.add_parser("tell")
+    tell.add_argument("--kind", required=True, choices=tuple(TELL_LINES))
+    tell.add_argument("--text-file", required=True)
+    verbs.add_parser("check-note").add_argument("--note-file", required=True)
+    verbs.add_parser("close").add_argument("--force", action="store_true")
+    return parser
+
+
+def main(argv, env, runner, out=print):
+    """Run 1 verb; print 1 JSON object; return the exit code."""
+    try:
+        args = _parser().parse_args(argv)
+        answer = VERBS[args.verb](args, env, runner)
+        code = 0
+    except Refusal as refusal:
+        answer = {"ok": False, "error": {"code": refusal.code, "reason": refusal.reason}, **refusal.extra}
+        code = refusal.exit_code
+    except OSError as problem:
+        answer = {"ok": False, "error": {"code": "io-failed", "reason": f"{problem.filename or 'a file'}: "
+                                                                       f"{problem.strerror or problem}"}}
+        code = 1
+    out(json.dumps(answer))
+    return code
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:], os.environ, HerdrRunner()))

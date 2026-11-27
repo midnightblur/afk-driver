@@ -158,6 +158,24 @@ An agent session, of Claude or Codex, that drafts a whole design on its own from
 **Agent run time**:
 The days the agents would need to build a design, from the plan to a change ready for review, with no human work counted. Shown as a low, likely and high range.
 
+**afkv2 agent**:
+The agent in a side pane that builds an afkv2 change while the developer works in another repository. It runs the afkv2 lanes in a plugin worktree and sends milestone notes to the main agent that opened it.
+
+**Main agent (dogfood)**:
+The developer's session of the real work that opened an afkv2 agent with /afkv2:dogfood. It applies each milestone ad hoc and never writes a plugin file.
+
+**Milestone**:
+A committed afkv2 change that the afkv2 agent judges usable for 1 named purpose, not released.
+
+**Milestone note**:
+The prompt that the afkv2 agent sends to the main agent: what changed, the worktree paths, how to use it, the delta to redo, and what cannot apply ad hoc.
+
+**Apply ad hoc**:
+The main agent uses the changed files from the plugin worktree in place of the installed copy, for the rest of its session, at once on receipt of the note. The latest instruction always wins: work done under the old text that the new text does differently is redone as a delta.
+
+**Earliest convenience**:
+The moment a queued milestone note reaches the main agent, after its current turn ends.
+
 **Mockup**:
 A self-contained HTML file that simulates a feature's screens and behaviour with fixture data; no backend
 
