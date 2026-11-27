@@ -3,7 +3,7 @@
 > Layer: Requirements
 > Context ticket: 207
 
-The afkv2 design document has fixed, gated headings and no UI section. `propose-solution` reads `PROTOTYPE.md` and cites each screen decision in the section where it changes the design. The design format and its gate do not change; the mockup stays the UI record.
+The afkv2 design document has fixed, gated headings and no UI section. `propose-solution` reads `PROTOTYPE.md` and cites each screen decision in the section where it changes the design, and designs each data or behaviour a decision names after `Implies:` in the section that owns it. The design format and its gate do not change; the mockup stays the UI record.
 
 ## Considered Options
 
