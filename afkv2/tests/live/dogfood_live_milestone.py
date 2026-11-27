@@ -43,6 +43,8 @@ from dogfood_live_start import (AFKV2, BASE, DOGFOOD, POLL_S, TURN_LIMIT_S, Fail
 DOGFOOD_PY = AFKV2.parent / DOGFOOD / "scripts" / "dogfood.py"
 NOTE_LINE = "A note from the afkv2 pane:"
 HEADER = "afkv2-note v1"
+NOTE_PROMPT = re.compile(re.escape(NOTE_LINE) + r" [^<\s]")
+IN_USE = ".in_use"  # the harness marks a plugin version that a session runs; no plugin file
 FORWARD_LINE = "A new ask from the main pane:"
 FEEDBACK_LINE = "Feedback from the main pane:"
 WRAP_LINE = "The wrap-up request from the main pane:"
@@ -268,6 +270,13 @@ def first(found, kind, text, start=0):
                  and words in flat(found[index]["text"]).lower().replace("\\\\", "\\")), None)
 
 
+def note_at(found, start=0):
+    """The index of the first note prompt from `start` on: the note line with a path. A skill text that names the
+    line as `<path>` is no note prompt."""
+    return next((index for index in range(start, len(found)) if found[index]["kind"] == "user"
+                 and NOTE_PROMPT.search(found[index]["text"])), None)
+
+
 def user_prompts(found, text):
     return [event for event in found if event["kind"] == "user" and flat(text).lower() in flat(event["text"]).lower()]
 
@@ -411,9 +420,15 @@ def plugin_hashes():
     hashes = {}
     for root in sorted(filter(None, roots)):
         for path in Path(root).rglob("*"):
-            if path.is_file() and "__pycache__" not in path.parts:
+            if path.is_file() and "__pycache__" not in path.parts and path.name != IN_USE:
                 hashes[str(path)] = hashlib.sha256(path.read_bytes()).hexdigest()
     return hashes
+
+
+def hash_changes(before, after=None):
+    """The installed files whose hash differs from `before`."""
+    after = plugin_hashes() if after is None else after
+    return sorted(path for path in set(before) | set(after) if before.get(path) != after.get(path))
 
 
 def porcelain(folder):
@@ -431,6 +446,31 @@ def wait_for(predicate, limit, step=POLL_S):
     return predicate()
 
 
+WATCH_ID = re.compile(r'\\?"id\\?":\s*\\?"(\d+)\\?"')
+
+
+def stop_watches(numbers):
+    """Stop each CI watch process, with its children, that watches one of the changes `numbers`: the afkv2 agent
+    starts it detached, so it runs on after its pane closes and holds its worktree. Answers the process ids."""
+    if sys.platform == "win32":
+        code, out, err = run_command(["powershell", "-NoProfile", "-Command",
+                                      "Get-CimInstance Win32_Process | Select-Object ProcessId, CommandLine | "
+                                      "ConvertTo-Json -Compress"])
+        rows = json.loads(out or "[]") if code == 0 else []
+        processes = [(str(row.get("ProcessId")), row.get("CommandLine") or "") for row in
+                     (rows if isinstance(rows, list) else [rows])]
+    else:
+        code, out, err = run_command(["ps", "-eo", "pid=,args="])
+        processes = [tuple(line.strip().split(None, 1)) for line in out.splitlines() if len(line.split(None, 1)) == 2]
+    if code != 0:
+        raise Failed("process-list-failed", err or out)
+    found = [pid for pid, command in processes if "ci_watch.py" in command and " watch " in command
+             and (WATCH_ID.search(command) or [None, None])[1] in numbers]
+    for pid in found:
+        run_command(["taskkill", "/F", "/T", "/PID", pid] if sys.platform == "win32" else ["kill", pid])
+    return found
+
+
 # The worlds of the rows.
 
 class Run(World):
@@ -441,6 +481,7 @@ class Run(World):
         pages = self.real_data() / "pages"
         self.pages_kept = {path.name for path in pages.iterdir()} if pages.is_dir() else set()
         self.remote = None
+        self.watched = set()  # the changes into verify/df-base, whose CI watch may run on after the pane
         self.started = time.time()
 
     def harness_up(self, name):
@@ -475,6 +516,7 @@ class Run(World):
         """Close each open change into verify/df-base, delete its branch, and delete verify/df-base."""
         if not self.slug():
             return
+        self.watched |= {str(change["number"]) for change in self.changes("all")}
         for change in self.changes("open"):
             run_command(["gh", "pr", "close", str(change["number"]), "--repo", self.slug(), "--delete-branch",
                          "--comment", "Closed by the dogfood live test after its run."])
@@ -490,6 +532,12 @@ class Run(World):
                 done.append({"item": "forge", "name": BASE, "result": "removed"})
             except Exception as error:  # every item is tried
                 done.append({"item": "forge", "name": BASE, "result": "failed", "reason": str(error)})
+        if self.watched:
+            try:
+                stopped = stop_watches(self.watched)
+                done.append({"item": "ci watch", "name": ",".join(stopped) or "none", "result": "removed"})
+            except Exception as error:  # every item is tried
+                done.append({"item": "ci watch", "name": "", "result": "failed", "reason": str(error)})
         done += super().clean_up()
         pages = self.real_data() / "pages"
         for path in (pages.iterdir() if pages.is_dir() else []):
@@ -682,7 +730,7 @@ def queue_row(world, row):
 
     def taken():
         found_now = events(world, main)
-        at = first(found_now, "user", NOTE_LINE)
+        at = note_at(found_now)
         return found_now if at is not None and any(event["kind"] in ("text", "tool") for event in found_now[at + 1:]) else None
 
     session_events = wait_for(taken, TURN_LIMIT_S) or events(world, main)
@@ -690,26 +738,26 @@ def queue_row(world, row):
     session_events = events(world, main)
     asked = first(session_events, "user", token)
     done_at = first(session_events, "text", token, (asked or 0) + 1)
-    note_at = first(session_events, "user", NOTE_LINE)
+    note_index = note_at(session_events)
     turn_text = " ".join(event["text"] for event in session_events[(asked or 0) + 1:(done_at or 0)])
-    seen["order"] = {"asked": asked, "turn_end_text": done_at, "note_prompt": note_at,
-                     "queued": bool(note_at is not None and session_events[note_at].get("queued"))}
+    seen["order"] = {"asked": asked, "turn_end_text": done_at, "note_prompt": note_index,
+                     "queued": bool(note_index is not None and session_events[note_index].get("queued"))}
     holds = [check(seen, "the main agent was in a working turn with a tool call when the note went", busy, busy),
              check(seen, "note answers ok", code == 0 and (answer or {}).get("ok"), answer)]
     if row in ("VR-023", "VR-024"):
         holds += [check(seen, "the main pane shows the 1-line prompt as queued input",
                         flat(NOTE_LINE).lower() in flat(queued_screen).lower(), queued_screen[-1200:]),
                   check(seen, "the current turn ends with no mention of the note",
-                        done_at is not None and (note_at is None or note_at > done_at)
+                        done_at is not None and (note_index is None or note_index > done_at)
                         and "note" not in turn_text.lower(), seen["order"]),
                   check(seen, "the main agent takes the note as its next turn",
-                        note_at is not None and done_at is not None and note_at > done_at
-                        and any(event["kind"] in ("text", "tool") for event in session_events[note_at + 1:]),
+                        note_index is not None and done_at is not None and note_index > done_at
+                        and any(event["kind"] in ("text", "tool") for event in session_events[note_index + 1:]),
                         seen["order"])]
     else:
         holds += [check(seen, "Ctrl+Enter was sent", seen["ctrl_enter"]["exit"] == 0, seen["ctrl_enter"]),
                   check(seen, "the main agent takes the note inside the current turn, before that turn ends",
-                        note_at is not None and done_at is not None and note_at < done_at, seen["order"])]
+                        note_index is not None and done_at is not None and note_index < done_at, seen["order"])]
     holds.append(check(seen, "D-WORK is clean", porcelain(found["work"]) == "", porcelain(found["work"])))
     return all(holds) and end is not None
 
@@ -804,7 +852,7 @@ def path_missing_row(world):
     gone.unlink()
     wait_turn_end(world, found["main"], TURN_LIMIT_S * 2)
     found_now = events(world, found["main"])
-    at = first(found_now, "user", NOTE_LINE)
+    at = note_at(found_now)
     calls, results = checked_note(found_now, at or 0)
     applied = [event for event in tools_after(found_now, at or 0) if event.get("name") in ("Read", "Skill")
                and flat(str(found["tree"])).lower().replace("\\", "/")
@@ -835,7 +883,7 @@ def target_row(world):
     code, answer = as_pane(world, found["pane"], "note", "--note-file", note)
     pause(POLL_S)
     main_screen = world.herdr.read(found["main_pane"], 200)
-    taken = wait_for(lambda: first(events(world, found["main"]), "user", NOTE_LINE) is not None, 60)
+    taken = wait_for(lambda: note_at(events(world, found["main"])) is not None, 60)
     after = world.herdr.read(bystander, 200)
     target_code, target = as_pane(world, found["pane"], "note", "--note-file", note, "--target", bystander)
     wait_turn_end(world, found["main"])
@@ -869,7 +917,7 @@ def isolation_row(world):
     writes = [event for event in events3 if event["kind"] == "tool" and event.get("name") in live.EDIT_TOOLS
               and re.search(r"afkv2|plugins", event["text"], re.I)]
     after = plugin_hashes()
-    changed = sorted(path for path in set(hashes) | set(after) if hashes.get(path) != after.get(path))
+    changed = hash_changes(hashes, after)
     tab, pane = world.open_tab(found["work"])
     fresh = f"dffresh-{secrets.token_hex(2)}"
     world._start(fresh, "claude", pane, ["--permission-mode", "auto"])
@@ -965,7 +1013,7 @@ def milestone_row(world, row):
     path = str(skill_file(small.get("path", "?")))
     wait_turn_end(world, found["main"], TURN_LIMIT_S * 2)
     main_events = events(world, found["main"])
-    at = first(main_events, "user", NOTE_LINE)
+    at = note_at(main_events)
     told = said_after(main_events, at) if at is not None else ""
     calls, _ = checked_note(main_events, at or 0)
     holds = [check(seen, "the afkv2 agent commits the step-4 edit", built, ahead(source, small.get("branch", "?"))),
@@ -974,10 +1022,10 @@ def milestone_row(world, row):
                    flat(path).lower() in flat(text).lower() and re.search(r"^use: \S", text, re.M), text[:1500]),
              check(seen, "the main agent runs check-note", calls, len(calls)),
              check(seen, "the main pane says it applied the small-change update and that the next small change uses it",
-                   re.search(r"appl", told, re.I) and "small-change" in told.lower() and re.search(r"next", told, re.I),
+                   re.search(r"appl", told, re.I) and "small-change" in told.lower() and re.search(r"next|rest of (this|the) session|from now on", told, re.I),
                    told[-1500:]),
              check(seen, "D-WORK is clean", porcelain(found["work"]) == "", porcelain(found["work"])),
-             check(seen, "the installed plugin is unchanged", plugin_hashes() == hashes, None)]
+             check(seen, "the installed plugin is unchanged", not hash_changes(hashes), hash_changes(hashes))]
     if harness == "codex":
         later = [event for event in tools_after(main_events, at or 0) if "small-change" in event["text"]]
         holds.append(check(seen, "its next small change reads the worktree SKILL.md",
@@ -1084,7 +1132,7 @@ def wrap_row(world):
     close = next((index for index, text in enumerate(tools) if "dogfood.py" in text and " close" in text), None)
     return all([
         check(seen, "the main agent sends the wrap", wrap is not None, tools[-6:]),
-        check(seen, "it reports the wrap note", first(main_events, "user", NOTE_LINE) is not None, None),
+        check(seen, "it reports the wrap note", note_at(main_events) is not None, None),
         check(seen, "then it runs close", close is not None and wrap is not None and close > wrap, {"wrap": wrap, "close": close}),
         check(seen, "the afkv2 pane closes", closed, None)])
 
