@@ -1343,7 +1343,8 @@ def test_the_division_page_heading_links_the_ticket(world, tmp_path):
                           encoding="utf-8", timeout=120, env={**os.environ, "LOCALAPPDATA": str(tmp_path / "local")})
     assert done.returncode == 0, done.stdout + done.stderr
     page = (world.repo / json.loads(done.stdout)["page"]).read_text("utf-8")
-    heading = re.search(r'<h1 class="afkv2-title">(.*?)</h1>', page).group(1)
+    title = re.compile(r'<h1 class="afkv2-title">(.*?)</h1>')
+    heading = title.search(page).group(1)
     if os.environ.get("AFKV2_EVIDENCE"):
         Path(os.environ["AFKV2_EVIDENCE"], "division-heading.html").write_text(heading, "utf-8")
     assert re.fullmatch(r'<a class="afkv2-ref" href="https://acme\.atlassian\.net/browse/PROJ-1"[^>]*>PROJ-1</a> · Plan approval',
