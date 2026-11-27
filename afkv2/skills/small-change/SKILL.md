@@ -29,16 +29,40 @@ Run each command from the repository root, in the worktree of the branch. `<pyth
 
    `count` 1: draft alone, and show `reason` in the banner. `count` 2: 1 Claude and 1 Codex proposer each draft the fix and its test plan, then each critiques the other, by the verbs and the stages of the engine docstring ([../use-lavish/scripts/proposer_engine.py](../use-lavish/scripts/proposer_engine.py)). Read the 4 files, never the pane output; a difference both critiques do not settle is 1 fork card. Run `cleanup` before step 4. A proposer failure: `cleanup`, then draft alone.
 
-4. **Show 1 page round.** Write the round by `/afkv2:use-lavish` ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)) and `/afkv2:visualize` ([../visualize/SKILL.md](../visualize/SKILL.md)), with `session.skill` `small-change`. The round shows:
+4. **Show 1 page round.** Run the commands below with the `doc`, `session` and `raw_file` of `start`, and open no other page: `build` reads the writer, `small-change`, from the name of `doc`. Write the round input by "An ad-hoc page" step 3 of `/afkv2:use-lavish` ([../use-lavish/SKILL.md](../use-lavish/SKILL.md)), and each component by `/afkv2:visualize` ([../visualize/SKILL.md](../visualize/SKILL.md)). The round shows:
 
    | Part | A bug | An enhancement |
    |------|-------|----------------|
    | the picture of the problem | how it happens, its flow and the conditions that reach it | now against proposed, with kept, changed, added and removed |
-   | the fix | the fix of the verdict, or each fix as 1 option | the change |
-   | the test plan | each test with its level; 1 high-level test is the proof | the same |
-   | open questions | each 1 card | each 1 card |
+   | the fix | the `Next` cell of its verdict in [DIAGNOSIS.md](DIAGNOSIS.md); each fix of `several-fixes` is 1 option of 1 `debate` card | the change |
+   | the test plan | each test with its level; 1 high-level test (`api`, `ui-e2e` or `acceptance`) is the proof | the same |
+   | open questions | each 1 card, and each fork card of step 3 | the same |
 
-   End the round with 1 `signoff` card: the go. Build, show, wait and ingest by `/afkv2:use-lavish`. A session with no human at a page opens no page: it stops and asks.
+   End the round with 1 `signoff` card, the go card. Step 5 takes its id as `card`. Only the developer's `sign` mark on it is the go.
+
+   ```sh step=build
+   <python> "<this skill's folder>/../use-lavish/scripts/round_document.py" build --doc "<doc>" --session "<session>" --round-input "<round input>"
+   ```
+
+   Add `--ticket "<ticket>"` when `start` had a ticket.
+
+   ```sh step=present
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" present --doc "<doc>"
+   ```
+
+   Act on its refusals and notices by "An ad-hoc page" step 3 and "After each show" of `/afkv2:use-lavish`. Wait for the round send by "An ad-hoc page" step 4.
+
+   ```sh step=wait
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" wait --doc "<doc>" --raw-file "<raw file>"
+   ```
+
+   When `raw_file` holds the round send, run `ingest`, then go to step 5 of this skill.
+
+   ```sh step=ingest
+   <python> "<this skill's folder>/../use-lavish/scripts/page_round.py" ingest --doc "<doc>" --raw-file "<raw file>"
+   ```
+
+   A session with no developer at a page, such as a hands-off subagent, opens no page and gets no go: it stops at this step and reports that the lane waits for the developer's go.
 
 5. **Take the go.** Run `go` with `doc`, `card` (the go card) and `test_plan` (the test plan of the round, as text). `no-go-mark`: answer the notes in 1 more round. `code-before-go`: move the code out of the branch, and run `go` again.
 
