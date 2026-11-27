@@ -220,7 +220,7 @@ def events(world, name):
                 if block.get("type") == "text":
                     found.append({"kind": "user", "text": block.get("text", "")})
                 elif block.get("type") == "tool_result":
-                    found.append({"kind": "result", "text": json.dumps(block.get("content"), ensure_ascii=False)})
+                    found.append({"kind": "result", "text": _result_text(block.get("content"))})
         elif kind == "assistant":
             for block in live.blocks(entry, "text"):
                 found.append({"kind": "text", "text": block.get("text", "")})
@@ -228,6 +228,13 @@ def events(world, name):
                 found.append({"kind": "tool", "name": block.get("name"),
                               "text": json.dumps(block.get("input"), ensure_ascii=False)})
     return found
+
+
+def _result_text(content):
+    """The text of a Claude tool result: a string, or the text parts of a list."""
+    if isinstance(content, str):
+        return content
+    return "\n".join(str(part.get("text", "")) for part in content or [] if isinstance(part, dict))
 
 
 def _codex_events(world, name, session):
