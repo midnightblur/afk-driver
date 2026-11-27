@@ -1178,15 +1178,25 @@ def test_a_github_ticket_warns_that_a_public_repository_shows_the_pictures(gated
     ({"kind": "github-issues", "repo": "acme/widget"}, "211", "https://f.test/7", "https://github.com/acme/widget/issues/211"),
     (None, None, "https://github.com/acme/widget/pull/7", "https://github.com/acme/widget/pull/7"),
     ({}, "ABC-12", "https://f.test/7", None),
-], ids=["jira-ticket", "github-issue", "change-without-ticket", "no-link-template"])
+    (None, "211", "https://f.test/7", None),
+], ids=["jira-ticket", "github-issue", "change-without-ticket", "no-link-template", "number-under-jira"])
 def test_the_ship_page_links_the_place_of_the_proof_comment(gated, repo, capsys, tracker, ticket, change_url, url):
     """The ship page shows where the proof comment goes as a link: proof-preview answers the web address of the
-    ticket, or of the change when there is no ticket, and null when no link template is known. A `tracker` of None
-    keeps the Jira tracker of the fixture; `{}` is a config with no tracker."""
+    ticket in the repository's tracker, or of the change when there is no ticket, and null when no link template
+    is known. A `tracker` of None keeps the Jira tracker of the fixture; `{}` is a config with no tracker. The
+    origin is on GitHub, so a ticket that the tracker cannot hold must not take the forge's issue link."""
     head = gated["head"] if tracker is None else _commit_config(repo, tracker)
+    git(repo, "remote", "set-url", "origin", "https://github.com/acme/widget.git")
     gated["forge"].answers["change-view"] = {**VIEW, "url": change_url, "head_sha": head}
     answer = _preview(capsys, gated, **({"ticket": ticket} if ticket else {}))
     assert answer["where"]["url"] == url
+
+
+def test_the_ship_page_shows_the_ticket_key_as_text_with_no_jira_base_url(gated, capsys, monkeypatch, tmp_path):
+    """With no Jira base URL in the environment or the user configs, proof-preview still answers, with `where.url` null."""
+    monkeypatch.delenv("JIRA_BASE_URL")
+    monkeypatch.setattr(Path, "home", lambda: tmp_path / "no-home")
+    assert _preview(capsys, gated, ticket="ABC-12")["where"] == {"kind": "ticket", "key": "ABC-12", "url": None}
 
 
 def test_the_preview_names_a_secret_in_the_comment(gated, capsys):

@@ -508,12 +508,15 @@ def _page_links():
 
 def _place_url(where, view):
     """The web address of the place of the proof comment, for the ship page: the change's own address, or the
-    ticket's by the page link templates. None when no template is known: the page shows the key as text."""
+    address of the ticket in the repository's tracker by the page link templates. None when no template is known,
+    or the tracker cannot hold the key: the page shows the key as text."""
     if where["kind"] == "change":
         return view.get("url") or None
     page_links = _page_links()
     key = where["key"].lstrip("#")
-    kind = "ticket" if page_links.JIRA_KEY.fullmatch(key) else "issue" if key.isdigit() else None
+    tracker = ((_config() or {}).get("tracker") or {}).get("kind")
+    kind = ("ticket" if tracker == "jira" and page_links.JIRA_KEY.fullmatch(key)
+            else "issue" if tracker == GITHUB_TRACKER and key.isdigit() else None)
     template = (page_links.links_for([key]) or {}).get(kind) if kind else None
     return template.replace("{id}", key) if template else None
 
