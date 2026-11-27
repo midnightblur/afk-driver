@@ -308,6 +308,16 @@ def test_a_forge_failure_is_a_refusal_in_the_list_and_list_exits_0(repo, monkeyp
     assert answer["receipt"] == gc_target.receipt_of({key: value for key, value in answer.items() if key != "ok"})
 
 
+def test_the_list_command_says_which_change_is_still_open_and_what_gc_needs(repo, monkeypatch, capsys):
+    forge(monkeypatch, listed(change(221, "opened", tip(repo, FEATURE))))
+    code, answer = run_cli(capsys, "list", "--repo", str(repo.feature))
+    refusal = {refusal["code"]: refusal for refusal in answer["refusals"]}["not-merged"]
+    if os.environ.get("AFKV2_EVIDENCE"):
+        Path(os.environ["AFKV2_EVIDENCE"], "not-merged-reason.txt").write_text(refusal["reason"], "utf-8")
+    assert code == 0 and answer["ok"] is True and refusal["link"] == f"{GITHUB}/pull/221"
+    assert refusal["reason"] == f"change 221 is still open; gc needs a merged change from {FEATURE} and no open change from it"
+
+
 def test_the_list_command_runs_in_the_current_folder_by_default(repo, monkeypatch, capsys):
     merged(repo, monkeypatch)
     monkeypatch.chdir(repo.feature)

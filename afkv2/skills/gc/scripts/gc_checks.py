@@ -67,6 +67,18 @@ def _changes(answer):
     return changes, None
 
 
+STATE_WORDS = {"opened": "is still open", "merged": "is merged", "closed": "was closed without a merge"}
+
+
+def _state_text(item):
+    """1 change and its state in plain words. A state the forge port does not name counts as open."""
+    state = item["state"]
+    if state in STATE_WORDS:
+        return f"change {item['number']} {STATE_WORDS[state]}"
+    named = f"has the state {state!r}" if state else "has no state"
+    return f"change {item['number']} {named}, which gc counts as open"
+
+
 def check_change(repo, branch, **passed):
     """Merged and none open: at least one change of `branch` is merged and every other is merged or closed.
     `change` is the newest merged change (its head commit serves every tip check), or None. A state the forge
@@ -83,9 +95,10 @@ def check_change(repo, branch, **passed):
     if merged and all(item["state"] in ("merged", "closed") for item in changes):
         return {"refusal": None, "change": change}
     shown = [{"number": item["number"], "state": item["state"], "url": item["url"]} for item in changes]
-    states = ", ".join(f"{item['number']} {item['state'] or '(no state)'}" for item in changes) or "no change"
-    return {"refusal": {"code": "not-merged", "reason": f"the forge does not say merged with none open: {states}",
-                        "answer": shown, "link": changes[0]["url"] if changes else None},
+    facts = ", ".join(_state_text(item) for item in changes) or f"the forge shows no change from {branch}"
+    reason = f"{facts}; gc needs a merged change from {branch} and no open change from it"
+    return {"refusal": {"code": "not-merged", "reason": reason, "answer": shown,
+                        "link": changes[0]["url"] if changes else None},
             "change": change}
 
 

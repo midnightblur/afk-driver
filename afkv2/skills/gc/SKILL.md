@@ -68,7 +68,7 @@ An answer of the later command that the developer brings back: `refused` with `u
 
 | Code | Meaning | Passable |
 |------|---------|----------|
-| `not-merged` | the forge does not show the change merged with none open; `answer` lists each change and its state | yes |
+| `not-merged` | the forge shows no merged change from the branch, or an open change from it; `answer` lists each change and its state | yes |
 | `forge-failed` | the forge call failed; `error` names the failure | yes; or run gc again later |
 | `uncommitted` | a worktree has uncommitted or untracked files; `files` names each one | yes; those files are lost |
 | `outside-commits` | a feature branch tip has commits outside the change head; `branches` gives each commit's short id and title, or `unchecked` when no head commit can tell | yes; the report keeps each tip |

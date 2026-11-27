@@ -82,6 +82,19 @@ def test_any_other_forge_answer_refuses_not_merged_with_the_answer_and_the_link(
     assert (result["change"] or {}).get("number") == (merged[0] if merged else None)
 
 
+@pytest.mark.parametrize("changes, facts", [
+    ([change(7, "opened")], "change 7 is still open"),
+    ([change(7, "closed")], "change 7 was closed without a merge"),
+    ([change(9, "opened", HEAD_NEW), change(7, "merged")], "change 9 is still open, change 7 is merged"),
+    ([change(7, "draft")], "change 7 has the state 'draft', which gc counts as open"),
+    ([change(7, "")], "change 7 has no state, which gc counts as open"),
+    ([], f"the forge shows no change from {FEATURE}"),
+])
+def test_the_not_merged_reason_gives_each_change_state_in_plain_words_and_what_gc_needs(monkeypatch, changes, facts):
+    result, _ = check_with(monkeypatch, listed(*changes))
+    assert result["refusal"]["reason"] == f"{facts}; gc needs a merged change from {FEATURE} and no open change from it"
+
+
 def test_a_failed_forge_call_refuses_forge_failed_with_the_error(monkeypatch):
     error = {"code": "auth", "reason": "gh is not signed in"}
     result, _ = check_with(monkeypatch, {"ok": False, "error": error})
