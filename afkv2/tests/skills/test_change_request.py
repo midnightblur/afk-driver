@@ -1113,6 +1113,7 @@ def _commit_config(repo, tracker=None):
 @pytest.fixture
 def gated(ship, repo, tmp_path, monkeypatch):
     """A passed and judged gate record at the head of the change, its proof line kept by `open`, and a tracker."""
+    monkeypatch.setenv("JIRA_BASE_URL", "https://jira.test")
     head = _commit_config(repo, {"kind": "jira"})
     ship["forge"].answers["change-view"] = {**VIEW, "head_sha": head}
     folder = tmp_path / "run" / "plan" / "gate"
@@ -1155,7 +1156,8 @@ def test_the_preview_shows_the_exact_comment_its_pictures_and_its_receipt(gated,
     assert first == f"afkv2 proof v1 {answer['receipt']}" and len(answer["receipt"]) == 64
     assert rest[0] == "VR-1 · the export downloads a file · ui-e2e · pass · The page shows the downloaded file."
     assert answer["pictures"] == [str(gated["gate"].parent / "shot.png")]
-    assert answer["where"] == {"kind": "ticket", "key": "ABC-12"} and answer["notice"] == "" and answer["secrets"] == []
+    assert answer["where"] == {"kind": "ticket", "key": "ABC-12", "url": "https://jira.test/browse/ABC-12"}
+    assert answer["notice"] == "" and answer["secrets"] == []
 
 
 def test_the_receipt_changes_with_the_place_the_text_and_the_pictures(gated, capsys):
@@ -1169,6 +1171,22 @@ def test_a_github_ticket_warns_that_a_public_repository_shows_the_pictures(gated
     head = _commit_config(repo, {"kind": "github-issues", "repo": "acme/widget"})
     gated["forge"].answers["change-view"] = {**VIEW, "head_sha": head}
     assert "public" in _preview(capsys, gated, ticket="12")["notice"]
+
+
+@pytest.mark.parametrize("tracker, ticket, change_url, url", [
+    (None, "ABC-12", "https://f.test/7", "https://jira.test/browse/ABC-12"),
+    ({"kind": "github-issues", "repo": "acme/widget"}, "211", "https://f.test/7", "https://github.com/acme/widget/issues/211"),
+    (None, None, "https://github.com/acme/widget/pull/7", "https://github.com/acme/widget/pull/7"),
+    ({}, "ABC-12", "https://f.test/7", None),
+], ids=["jira-ticket", "github-issue", "change-without-ticket", "no-link-template"])
+def test_the_ship_page_links_the_place_of_the_proof_comment(gated, repo, capsys, tracker, ticket, change_url, url):
+    """The ship page shows where the proof comment goes as a link: proof-preview answers the web address of the
+    ticket, or of the change when there is no ticket, and null when no link template is known. A `tracker` of None
+    keeps the Jira tracker of the fixture; `{}` is a config with no tracker."""
+    head = gated["head"] if tracker is None else _commit_config(repo, tracker)
+    gated["forge"].answers["change-view"] = {**VIEW, "url": change_url, "head_sha": head}
+    answer = _preview(capsys, gated, **({"ticket": ticket} if ticket else {}))
+    assert answer["where"]["url"] == url
 
 
 def test_the_preview_names_a_secret_in_the_comment(gated, capsys):
@@ -1317,7 +1335,8 @@ def test_a_comment_posted_before_is_not_posted_again_and_ready_goes_on(gated, re
 def test_without_a_ticket_a_github_change_gets_the_comment_with_its_pictures(gated, capsys):
     gated["forge"].answers["change-view"] = {**VIEW, "url": "https://github.com/acme/widget/pull/7", "head_sha": gated["head"]}
     preview = _preview(capsys, gated)
-    assert preview["where"] == {"kind": "change", "key": "7"} and "public" in preview["notice"]
+    assert preview["where"] == {"kind": "change", "key": "7", "url": "https://github.com/acme/widget/pull/7"}
+    assert "public" in preview["notice"]
     code, _answer = _mark(capsys, gated, receipt=preview["receipt"])
     assert code == 0
     verb, sent = gated["tracker"].calls[-1]

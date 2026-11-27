@@ -53,6 +53,7 @@ PROOF_FOLDER = "afkv2-proof"
 PARTS_FOLDER = "afkv2-change"
 SHIP_ORDER = ("code-before-go", *gate_record.SHIP_CODES, "proof-not-posted")
 SMALL_LANE = PLUGIN / "skills" / "small-change" / "scripts"
+LAVISH_SCRIPTS = PLUGIN / "skills" / "use-lavish" / "scripts"
 
 
 def _call(script, verb, payload, limit):
@@ -497,12 +498,34 @@ def build_preview(payload, view, path, record):
             "proof_lines": gate_record.proof_lines(record)}
 
 
+def _page_links():
+    """The link templates of the pages (use-lavish `page_links.py`), loaded only for the ship page."""
+    if str(LAVISH_SCRIPTS) not in sys.path:
+        sys.path.append(str(LAVISH_SCRIPTS))
+    import page_links
+    return page_links
+
+
+def _place_url(where, view):
+    """The web address of the place of the proof comment, for the ship page: the change's own address, or the
+    ticket's by the page link templates. None when no template is known: the page shows the key as text."""
+    if where["kind"] == "change":
+        return view.get("url") or None
+    page_links = _page_links()
+    key = where["key"].lstrip("#")
+    kind = "ticket" if page_links.JIRA_KEY.fullmatch(key) else "issue" if key.isdigit() else None
+    template = (page_links.links_for([key]) or {}).get(kind) if kind else None
+    return template.replace("{id}", key) if template else None
+
+
 def proof_preview(payload):
-    """The proof comment that mark-ready posts, for the ship page. Posts nothing."""
+    """The proof comment that mark-ready posts, for the ship page, with the web address of its place in `where.url`.
+    Posts nothing; the receipt does not hold the address."""
     change = change_ref(payload)
     view = forge_answer("change-view", payload, id=change)
     path = Path(str(need(payload, "gate")))
     preview = build_preview(payload, view, path, _read_gate(path))
+    preview["where"] = {**preview["where"], "url": _place_url(preview["where"], view)}
     return ok(**{key: value for key, value in preview.items() if key != "post"})
 
 
