@@ -28,7 +28,7 @@ The `Cards` table:
 |--------|-------|
 | `File` | the card file, relative to the catalog folder, such as `cards/shell.html` |
 | `Kind` | `token`, `component`, `shell` or `page` |
-| `State` | `checked`: compared side by side with a live screenshot of the shape; `unchecked`: not compared |
+| `State` | `checked`: its computed styles measured against the live screen, then compared side by side with a live screenshot of the shape; `unchecked`: not compared |
 | `Screenshot` | the file name of the screenshot a `checked` card was compared with; `—` for an `unchecked` card |
 
 Each card file has 1 row. `tokens.css` needs no row. A file the table does not name is no problem for `check`.

@@ -31,7 +31,7 @@ This SDD and its accepted ADRs are binding on implementing agents and reviewers.
 | HL-1 Persistence and entity design | §4 | signed | developer / 2026-11-24 | sign mark on card sign-hl-1, R2: "Files only, no database. The frontends list in the config, the mockup, PROTOTYPE.md, the catalog." Risk accepted: a renamed frontend breaks the name an old PROTOTYPE.md holds. |
 | HL-2 API surface | §3 | signed | developer / 2026-11-24 | sign mark on card sign-hl-2, R2: "Every surface is a script verb in the afkv2 JSON envelope … 12 new verbs and 4 changed surfaces, each an added flag or field." Risk accepted: refusal codes are a tested contract. |
 | HL-3 Authorization and data scoping | §5 | signed | developer / 2026-11-24 | sign mark on card sign-hl-3, R2: "One role: you, at the keyboard. A hands-off subagent opens no page, writes no file and parks, by instruction." Risk accepted: no script stops a hands-off run. |
-| HL-4 Life cycle and invariants | §6 | signed | developer / 2026-11-24 | sign mark on card sign-hl-4, R2: run states start, no_ui, drafting, notes loop, prd_gap, settled; card states checked, unchecked. Risk accepted: the single-writer rule of PROTOTYPE.md has no script guardian. |
+| HL-4 Life cycle and invariants | §6 | signed | developer / 2026-11-24 | sign mark on card sign-hl-4, R2: run states start, no_ui, drafting, notes loop, prd_gap, settled; card states checked, unchecked. Later fix (dogfood): run state prd_change; design-system state draft. Risk accepted: the single-writer rule of PROTOTYPE.md has no script guardian. |
 | HL-5 Irreversible and outward side effects | §7 | n/a | — | Both skills write only their own new files and the INDEX row; the live app and the browser are local and stop at the end of the run (info card i-hl5, R2). |
 | HL-6 Change to existing behaviour | §14 | signed | developer / 2026-11-24 | sign mark on card sign-hl-6, R2: "5 seams extend existing code", each opt-in. Risk accepted: the Codex hook change is proven only by the owner's live check on Codex. |
 
@@ -67,9 +67,9 @@ Every surface answers one JSON object: `{"ok": true, ...}` or `{"ok": false, "er
 
 | Surface | Request | Success answer | Refusals |
 |---------|---------|----------------|----------|
-| `prototype_files.py start` | `--ticket K [--frontend NAME]` | `spec_dir, prd, index, prototype_md, mockup_dir, frontend {name, source, catalog}, catalog_exists, live, resume` | `missing-input` (no PRD; `writer` to-prd), `no-frontend` (reason names `catalog_files.py add-frontend`), `pick-frontend` (lists the names; several entries and no `--frontend`) |
-| `prototype_files.py check` | `--mockup F` | `file` | `network-call` (each line), `afkv2-runtime` (the tooltip block), `unreadable` |
-| `prototype_files.py settle` | `--ticket K` | `scanned` (files), `index_state` (`chosen <date>`) | `bad-prototype` (`problems`, for example a missing coverage row), `network-call`, `afkv2-runtime`, `secrets` (`file, line, shape`) |
+| `prototype_files.py start` | `--ticket K [--frontend NAME]` | `spec_dir, prd, index, prototype_md, mockup_dir, frontend {name, source, catalog}, catalog_exists, catalog_unchecked, live, resume, requirement_adrs` | `missing-input` (no PRD; `writer` to-prd), `no-frontend` (reason names `catalog_files.py add-frontend`), `pick-frontend` (lists the names; several entries and no `--frontend`) |
+| `prototype_files.py check` | `--mockup F` | `file` | `network-call` (each line), `afkv2-runtime` (the tooltip block), `page-leave` (each line), `unreadable` |
+| `prototype_files.py settle` | `--ticket K` | `scanned` (files), `index_state` (`chosen <date>`) | `bad-prototype` (`problems`, for example a missing coverage row, a second HTML file in `prototype/`, or `Fidelity: catalog` on a catalog with an unchecked card), `network-call`, `page-leave`, `afkv2-runtime`, `secrets` (`file, line, shape`) |
 | `mockup_show.py show` | `--mockup F` | `url`, `tab` (`reused` when a tab record shows the mockup already open, and the show adds `--no-open`; else null) | `no-host` (lavish missing, pin mismatch or `LAVISH_AXI_HOST` set; `reason`), `no-data-folder` (on Codex, `LOCALAPPDATA` not set) |
 | `mockup_show.py wait` | `--mockup F --notes-file N` | `count`, `ended`; N holds `[{uid, prompt, selector, tag, text}]` | `no-session`, `no-host` as show, `notes-unwritten` (N cannot be written after the poll; the notes are in the `notes` field), `no-data-folder` (on Codex, `LOCALAPPDATA` not set) |
 | `mockup_show.py reply` | `--mockup F --reply-file R` | ok | `no-session` |
@@ -89,7 +89,7 @@ Existing callers: every change to an existing surface adds a flag or a field; no
 | State | Datastore | Partitioning | Replication | Retention | Schema-evolution policy | PII? | Audited? |
 |-------|-----------|--------------|-------------|-----------|-------------------------|------|----------|
 | `frontends` list | `.afkv2/config.json`, committed | per repository | git | until the developer removes it | new fields optional; unknown fields refused | no | git history |
-| mockup | `<spec>/prototype/<screen>.html` | per ticket | git | forever, with the spec folder | edited in place | no: made-up data only | git history |
+| mockup | `<spec>/prototype/<name>.html`, 1 file, each screen at `#/<screen>` | per ticket | git | forever, with the spec folder | edited in place | no: made-up data only | git history |
 | `PROTOTYPE.md` | `<spec>/PROTOTYPE.md` | per ticket | git | forever | rewritten at each settle; coverage rows keep story numbers | no | git history |
 | catalog | the catalog folder of the entry | per frontend | git | forever; a card for a gone shape removed only after the developer's yes | refreshed in place | no | git history |
 | screenshots | `<afkv2 data folder>/shots/<run>/` | per run | none | deleted at the end of the run | none | possibly: live data, never committed | no |
@@ -109,24 +109,24 @@ Existing callers: every change to an existing surface adds a flag or a field; no
 | Section | Holds |
 |---------|-------|
 | header | frontend name, fidelity mark (`live-verified`, `catalog` or `source-only`), date |
-| Screens | 1 row per screen: name, mockup file, entry point, stories |
+| Screens | 1 row per screen: name, mockup file and route (`<file>#/<screen>`), entry point, stories |
 | Coverage | 1 row per PRD story: story number, path from the entry screen, `reachable` or `gap` |
 | Fidelity | the anchor used, what was compared, each difference left |
-| Decisions | 1 line per screen or interaction decision, with why |
+| Decisions | 1 line per screen or interaction decision, with why; implied data or behaviour after `Implies:`, which propose-solution designs |
 | PRD gaps | each point the PRD could not answer, or `none` |
 
 **Catalog README** (format file `CATALOG-FORMAT.md` in the design-system skill):
 
 | Section | Holds |
 |---------|-------|
-| Scope | the frontend, its source path, the app address used |
+| Scope | the frontend, its source path, the app address used (from the live block, or given by the developer) |
 | Cards | 1 row per card: file, shape kind (`token`, `component`, `shell`, `page`), state `checked` or `unchecked`, the screenshot it was checked against |
 | Refresh | how to run design-system again |
 
 | Relation | Target | Cardinality | Owning side | On delete / orphan | Fetch posture |
 |----------|--------|-------------|-------------|--------------------|---------------|
 | frontends entry → catalog folder | folder | 1 to 1 | config | entry removed: folder stays; the developer deletes it | read at start |
-| ticket → mockup | file | 1 to many screens | PROTOTYPE.md Screens | settle deletes losing variants inside the file | read at settle |
+| ticket → mockup | file | 1 file, many screen routes | PROTOTYPE.md Screens | settle deletes losing variants inside the file | read at settle |
 | PROTOTYPE.md → PRD story | story | 1 coverage row per story | PROTOTYPE.md | a retired story keeps its row, marked retired | read at settle |
 | VERIFICATION.md row → PROTOTYPE.md | screen path | many to 1 | VERIFICATION.md `story` and `criteria` columns | none | read by propose-verification |
 
@@ -138,7 +138,7 @@ Existing callers: every change to an existing surface adds a flag or a field; no
 erDiagram
   FRONTEND ||--|| CATALOG : "names"
   CATALOG ||--o{ CARD : "holds"
-  TICKET ||--o{ MOCKUP : "1 per screen"
+  TICKET ||--o| MOCKUP : "1 file, 1 route per screen"
   TICKET ||--o| PROTOTYPE_MD : "settles into"
   PROTOTYPE_MD ||--|{ COVERAGE_ROW : "1 per PRD story"
   VERIFICATION_ROW }o--|| COVERAGE_ROW : "traces by story"
@@ -189,13 +189,15 @@ stateDiagram-v2
   drafting --> notes_loop: 1 to 3 variants shown
   notes_loop --> notes_loop: a note, an edit, shown again
   notes_loop --> prd_gap: the PRD cannot answer; names /afkv2:grill-requirements
+  notes_loop --> prd_change: the developer changes a settled point; impact assessment to the grill round 0
   notes_loop --> settled: the developer settles; INDEX row chosen <date>
   settled --> notes_loop: run again on the ticket
   no_ui --> [*]
   prd_gap --> [*]
+  prd_change --> [*]
 ```
 
-Every move is the agent's, except the settle, which only the developer triggers. A catalog card is `checked` (compared with a live screenshot) or `unchecked`.
+Every move is the agent's, except the settle, which only the developer triggers. A catalog card is `checked` (computed styles measured against the live screen, then compared with a live screenshot) or `unchecked`. A catalog with an unchecked card is a draft: a prototype copies only its checked cards, and `settle` refuses `Fidelity: catalog` on it.
 
 Domain events: none.
 
@@ -265,7 +267,7 @@ The new skills depend on existing modules; nothing existing depends on them exce
 | `scripts/afkv2_config.py` | the config reader | answer adds `frontends` | as today |
 | propose-solution, propose-verification | the readers | start answers add `prototype`, `prototype_exists`; SKILL.md input rows | as today |
 
-The canvas rules of `MOCKUP.md`: inline CSS and JS; made-up rows in 1 JSON script, at most 50 per screen; an `id` on every region the developer may note, since a lavish selector stops at the nearest id; variants through `?variant=` with a switcher bar; neighbour pages as stubs inside the app shell.
+The canvas rules of `MOCKUP.md`: inline CSS and JS; made-up rows in 1 JSON script, at most 50 per screen; an `id` on every region the developer may note, since a lavish selector stops at the nearest id; variants through a `variant=<name>` parameter of the hash route with a switcher bar; neighbour pages as stubs inside the app shell. All screens sit in 1 file, routed by `#/<screen>`: lavish 0.1.86 annotates only the file it opened and drops the hash on its reload, so the route is kept in `window.name`; a link to another file, a `location.search` or `location.pathname` read or write, a reload and a form submit refuse `page-leave`.
 
 ## §9 L8 — Tactical Patterns
 

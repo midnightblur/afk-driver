@@ -1,6 +1,6 @@
 ---
 name: design-system
-description: /afkv2:design-system — builds or refreshes the design catalog of 1 frontend in the repository: its tokens and 1 card per repeating shape (shell, components, page types), each card checked side by side against a live screenshot or marked unchecked. Adds the frontend to the repository config on its first run. Writes only inside the catalog folder and sends nothing to any host. Use to create or refresh a catalog, before a prototype copies the look of the app.
+description: /afkv2:design-system — builds or refreshes the design catalog of 1 frontend in the repository: its tokens and 1 card per repeating shape (shell, components, page types), each card measured and checked side by side against the running app or marked unchecked; a catalog with an unchecked card is a draft. Adds the frontend to the repository config on its first run. Writes only inside the catalog folder and sends nothing to any host. Use to create or refresh a catalog, before a prototype copies the look of the app.
 ---
 
 # /afkv2:design-system
@@ -46,12 +46,14 @@ Run each command from the repository root, in the worktree of the branch. `<pyth
    2. Check that each variable that `needs` names is set. A variable is missing: start no app, go on with no app, and name the missing variables for the report.
    3. Run the `start` command of the block as a background command the harness tracks, in `/bin/sh`, or in Git Bash on Windows: the block holds POSIX shell syntax.
    4. Wait until the `address` answers, at most `ready_seconds`.
-   5. Take 1 screenshot of each shape with the browser driver into `<afkv2 data folder>/shots/<run>/`.
+   5. Take 1 screenshot of each shape with the browser driver into `<afkv2 data folder>/shots/<run>/`: walk the shell, each page type, and each component on a screen that shows it.
    6. The app does not answer, or the browser driver fails: go on with no app, and record the cause for the report.
+
+   With no `live` block, or when the steps above start no app: ask the developer once for the address of a running app that the run may screenshot, such as a dev server they run or a shared test environment, and whether they sign in to it in the browser of the driver. An address the developer gives is their app: start no app and stop none there, and take the screenshots by step 5. With no address, go on with no app: every card stays unchecked, and the run ends `draft`.
 
 4. **Write the cards.** Write `tokens.css` and 1 card per shape into `catalog_dir`, by [CATALOG-FORMAT.md](CATALOG-FORMAT.md), with made-up data only: copy the look of the app, and never copy a record from a screenshot, the live screen or its database.
 
-5. **Check each card.** Put each card side by side with the live screenshot of its shape, and fix each difference in the spacing, the type, the colours and the layout. Then mark the card `checked`, with the screenshot it was compared with. A card with no screenshot, because no app ran or the shape did not show, stays `unchecked`.
+5. **Check each card.** Measure first: with the browser driver, read the computed styles of the main elements of each shape on the live screen and on the card: the font family, size, weight and letter case, the line height, the colours, the padding, the height, the border and the radius. Fix each value that differs. Then put each card side by side with the live screenshot of its shape, and fix each difference in the spacing, the type, the colours and the layout. Then mark the card `checked`, with the screenshot it was compared with. A card with no screenshot, because no app ran or the shape did not show, stays `unchecked`.
 
 6. **Write the README** by [CATALOG-FORMAT.md](CATALOG-FORMAT.md): its Scope, 1 Cards row per card and its Refresh section.
 
@@ -65,7 +67,8 @@ Run each command from the repository root, in the worktree of the branch. `<pyth
 
    | State | When |
    |-------|------|
-   | `done` | `check` answered ok |
+   | `done` | `check` answered ok with `unchecked` 0 |
+   | `draft` | `check` answered ok with an unchecked card. A draft is not the look of the app: a prototype copies only its checked cards |
    | `stopped` | the developer stopped the run before `check` answered ok |
    | `refused` | a refusal stopped the run; the line names its code |
    | `parked` | a hands-off subagent parked by "Hands-off" |

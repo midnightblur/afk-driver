@@ -26,6 +26,7 @@ sys.path.insert(0, str(SKILL.parent / "use-lavish" / "scripts"))
 sys.path.insert(0, str(PLUGIN / "engine"))
 sys.path.insert(0, str(PLUGIN / "scripts"))
 sys.path.insert(0, str(SKILL.parent / "to-prd" / "scripts"))
+sys.path.insert(0, str(SKILL.parent / "design-system" / "scripts"))
 
 import afkv2_config  # noqa: E402
 import notices  # noqa: E402
@@ -75,6 +76,17 @@ _NAMES = re.compile(r"<!DOCTYPE[^>]*>|https?://www\.w3\.org/(?:2000/svg|1999/xht
                     r"|XML/1998/namespace|2000/xmlns/?)(?![\w/.-])", re.I)
 
 
+# A load of another page. lavish (0.1.86) annotates only the file it opened and refuses a load whose query changed,
+# so a mockup is 1 page that routes by its hash. A link or a form target counts unless it starts with `#` or a scheme
+# (a scheme URL is a network call); a `location` use counts unless it is the hash.
+PAGE_LEAVE = {
+    "link": re.compile(r"\b(?:href|action|formaction)\s*=(?!=)\s*"
+                       r"(?![\"']?\s*(?:#|[A-Za-z][A-Za-z0-9+.-]*:|[/\\]{2}))", re.I),
+    "location-call": re.compile(r"\blocation\s*\.\s*(?:search|pathname|assign|replace|reload)\b"),
+    "location-write": re.compile(r"\blocation(?:\s*\.\s*href)?\s*=(?!=)"),
+}
+
+
 def _line_of(breaks, offset):
     return bisect.bisect_right(breaks, offset) + 1
 
@@ -82,12 +94,24 @@ def _line_of(breaks, offset):
 def find_network_calls(text):
     """1 finding `{line, found, text}` per line with a call or a scheme URL, in line order. `found` names each kind
     on that line; `text` is the stripped line. Works on any text: a mockup, a catalog card or a style sheet."""
+    return _find(text, NETWORK, _NAMES)
+
+
+def find_page_leaves(text):
+    """1 finding `{line, found, text}` per line that loads another page: a link or a form target that is not a `#`
+    route, or a `location` use that is not the hash."""
+    return _find(text, PAGE_LEAVE)
+
+
+def _find(text, patterns, names_pattern=None):
+    """1 finding per line where a pattern of `patterns` matches, each line read with its HTML entities decoded. A
+    match of the kind `address` inside a match of `names_pattern` does not count."""
     lines = text.split("\n")
     decoded = "\n".join(html.unescape(line).replace("\n", " ") for line in lines)
     breaks = [match.start() for match in re.finditer("\n", decoded)]
-    names = [match.span() for match in _NAMES.finditer(decoded)]
+    names = [match.span() for match in names_pattern.finditer(decoded)] if names_pattern else []
     kinds = {}
-    for kind, pattern in NETWORK.items():
+    for kind, pattern in patterns.items():
         for match in pattern.finditer(decoded):
             if kind == "address" and any(start <= match.start() < end for start, end in names):
                 continue
@@ -109,7 +133,7 @@ def _where(findings, name):
 
 
 def check_text(text, name):
-    """Refuse `afkv2-runtime`, then `network-call`, for the text of one written file; `name` names it."""
+    """Refuse `afkv2-runtime`, then `network-call`, then `page-leave`, for the text of one written file; `name` names it."""
     marks = [number for number, line in enumerate(text.split("\n"), 1) if MARK_START in line or MARK_END in line]
     if marks:
         where = _where([{"line": number} for number in marks], name)
@@ -120,6 +144,11 @@ def check_text(text, name):
     if calls:
         raise Refusal("network-call", f"a network call or a scheme URL at {_where(calls, name)}: a mockup makes no "
                                       "network call; inline the asset or use a #id link", file=str(name), lines=calls)
+    leaves = find_page_leaves(text)
+    if leaves:
+        raise Refusal("page-leave", f"a load of another page at {_where(leaves, name)}: a mockup is 1 page that "
+                                    "routes by its hash; link to #/<screen> and keep all state in the hash",
+                      file=str(name), lines=leaves)
 
 
 def cmd_check(argv):
@@ -162,6 +191,15 @@ def _frontend(frontends, name):
     return next(entry for entry in frontends if name in (None, entry["name"]))
 
 
+def unchecked_cards(catalog_dir):
+    """The card files that the catalog README in `catalog_dir` marks other than `checked`; [] with no README."""
+    readme = Path(catalog_dir) / CATALOG_MARK
+    if not readme.is_file():
+        return []
+    import catalog_files  # it imports this module, so it loads at the call
+    return [card["file"] for card in catalog_files.cards_of(_read(readme)) if card["state"] != "checked"]
+
+
 def cmd_start(argv):
     parser = Parser(add_help=False)
     parser.add_argument("--ticket", required=True)
@@ -171,12 +209,14 @@ def cmd_start(argv):
     spec_dir = _spec(config, args.ticket)
     frontend = _frontend(config["frontends"], args.frontend)
     # A catalog exists when its folder holds the catalog README (decision D-2); config paths stay relative (D-1).
-    catalog_exists = (Path(config["repo_root"]) / frontend["catalog"] / CATALOG_MARK).is_file()
+    catalog_dir = Path(config["repo_root"]) / frontend["catalog"]
+    catalog_exists = (catalog_dir / CATALOG_MARK).is_file()
     live = config.get("live")
     prototype_md = spec_dir / FILE_NAME
     return {"ok": True, "ticket": args.ticket, "spec_dir": spec_dir.as_posix(), "prd": (spec_dir / "PRD.md").as_posix(),
-            "index": (spec_dir / "INDEX.md").as_posix(), "prototype_md": prototype_md.as_posix(),
+            "requirement_adrs": (spec_dir / "adr" / "requirements").as_posix(), "index": (spec_dir / "INDEX.md").as_posix(), "prototype_md": prototype_md.as_posix(),
             "mockup_dir": (spec_dir / MOCKUP_DIR).as_posix(), "frontend": frontend, "catalog_exists": catalog_exists,
+            "catalog_unchecked": unchecked_cards(catalog_dir),
             "live": live, "anchor": "catalog" if catalog_exists else "live" if live else "source",
             "resume": prototype_md.is_file()}
 
@@ -237,8 +277,12 @@ def prototype_problems(markdown, stories, spec_dir, frontends):
     screens = _table(bodies.get("Screens", ""))
     if "Screens" in bodies and not screens:
         problems.append("the Screens table has no row")
+    pages = sorted(p.name for p in (spec_dir / MOCKUP_DIR).glob("*.html"))
+    if len(pages) > 1:
+        problems.append(f"{MOCKUP_DIR}/ holds {len(pages)} HTML files: {', '.join(pages)}; a mockup is 1 file that "
+                        "routes each screen by its hash")
     for screen in screens:
-        mockup = screen.get("Mockup", "").strip("` ")
+        mockup = screen.get("Mockup", "").strip("` ").split("#", 1)[0]  # the file; `#/<screen>` is its route
         parts = PurePosixPath(mockup).parts
         if len(parts) < 2 or parts[0] != MOCKUP_DIR or ".." in parts:
             problems.append(f"screen {screen.get('Screen')!r}: mockup {mockup or '(empty)'} is not a file in {MOCKUP_DIR}/")
@@ -263,6 +307,20 @@ def prototype_problems(markdown, stories, spec_dir, frontends):
     return problems
 
 
+def _catalog_problems(markdown, config):
+    """Fidelity `catalog` needs a catalog whose every card is checked against the live app."""
+    fidelity = FIDELITY.search(markdown)
+    frontend = re.search(r"^> Frontend: *(\S.*?)\s*$", markdown, re.M)
+    if not fidelity or fidelity.group(1) != "catalog" or not frontend:
+        return []
+    entry = next((item for item in config["frontends"] if item["name"] == frontend.group(1)), None)
+    unchecked = unchecked_cards(Path(config["repo_root"]) / entry["catalog"]) if entry else []
+    if not unchecked:
+        return []
+    return [f"fidelity catalog: the catalog has {len(unchecked)} unchecked card{'s' if len(unchecked) > 1 else ''}: "
+            f"{', '.join(unchecked)}; check them against the live app, or mark the fidelity source-only"]
+
+
 def _written_files(spec_dir):
     """PROTOTYPE.md and every file in the mockup folder, from the spec folder."""
     files = [spec_dir / FILE_NAME, *sorted(p for p in (spec_dir / MOCKUP_DIR).rglob("*") if p.is_file())]
@@ -284,6 +342,7 @@ def cmd_settle(argv):
     stories = prd_stories(_read(spec_dir / "PRD.md").replace("\r\n", "\n"))
     frontends = [entry["name"] for entry in config["frontends"]]
     problems = prototype_problems(_read(prototype_md).replace("\r\n", "\n"), stories, spec_dir, frontends)
+    problems += _catalog_problems(_read(prototype_md).replace("\r\n", "\n"), config)
     files = _written_files(spec_dir)
     problems += [f"{name} is over {notices.MAX_SCAN_BYTES} bytes, past what the secret scan reads"
                  for path, name in files if path.stat().st_size > notices.MAX_SCAN_BYTES]

@@ -446,7 +446,9 @@ def test_end_with_the_mockup_file_gone_ends_the_session_and_clears_the_waiting_r
     note(f"mockup {mockup} deleted after show")
     ran = show_cli(capsys, "end", "--mockup", mockup)
     expect_ok(ran)
+    expect_field(ran, "ended", True)
     expect(calls(lavish)[-1], ["end", str(mockup)], f"{ran.given} (the last lavish call)")
+    expect(mockup.exists(), False, f"{ran.given} (the stand-in file for the lavish call is removed)")
     expect(launcher.read_waiting_record(data_home / "afkv2", "thread-1"), None, f"{ran.given} (the waiting record)")
 
 

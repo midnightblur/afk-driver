@@ -209,3 +209,9 @@ def test_each_section_example_follows_the_section_rules(heading):
     sections = [entry] if entry is level else [entry, level]
     assert section_rules.check_sections(sections) == []
     assert "../propose-solution/DRAFT.md" in _guide_section("## Design sections")
+
+
+def test_each_implied_data_or_behaviour_of_the_prototype_is_designed():
+    text = " ".join(SKILL_MD.read_text("utf-8").replace("`", "").lower().split())
+    phrase = "design each implies: item of its decisions section"
+    assert phrase in text, f"file: {SKILL_MD}\nexpected: holds {phrase!r}\nactual: no such phrase"

@@ -11,7 +11,8 @@
 `mockup_show.py reply --mockup FILE --reply-file REPLY`: shows REPLY (Markdown) on the open mockup. Refuses
   `no-session`.
 `mockup_show.py end --mockup FILE`: ends the session and clears the waiting record and the tab record, also when FILE
-  is gone. Never refuses on the host.
+  is gone: lavish resolves the file first, so an empty file stands in for the call and is removed after it. Never
+  refuses on the host.
 
 Each answer is one JSON object; exit 0 ok, 1 refused, 2 unreadable input.
 """
@@ -192,7 +193,12 @@ def cmd_end(argv):
     parser.add_argument("--mockup", required=True)
     args = parser.parse_args(argv)
     page = _mockup(args.mockup, exists=False)
-    code, out = launcher.run(["end", str(page)])
+    stand_in = _stand_in(page)
+    try:
+        code, out = launcher.run(["end", str(page)])
+    finally:
+        if stand_in:
+            page.unlink(missing_ok=True)
     _forget_tab(page)
     thread = os.environ.get(THREAD_VARIABLE)
     if thread:
@@ -202,6 +208,17 @@ def cmd_end(argv):
             pass
     parsed = {} if code in launcher.FALLBACK_EXITS else launcher.parse_host_output(out)
     return {"ok": True, "ended": code == 0, "host": str(parsed.get("error") or out.strip())}
+
+
+def _stand_in(page):
+    """True when it wrote an empty file at a gone mockup path: lavish resolves the file before it ends its session."""
+    if page.exists() or not page.parent.is_dir():
+        return False
+    try:
+        with page.open("xb"):
+            return True
+    except OSError:  # best effort: lavish then answers the error, and `ended` is false
+        return False
 
 
 VERBS = {"show": cmd_show, "wait": cmd_wait, "reply": cmd_reply, "end": cmd_end}

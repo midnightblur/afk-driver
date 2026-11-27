@@ -68,7 +68,7 @@ The prototype copies the look of the real app from the first anchor it can use.
 ### Prototype: start and anchor
 
 - [ ] AC-001 A PRD where no story adds or changes a screen → the prototype stops with `no_ui`, writes no file, and leaves the `INDEX.md` Prototype row as it is.
-- [ ] AC-002 A PRD where at least one story adds or changes a screen → the prototype writes one self-contained HTML mockup per screen in the ticket spec folder.
+- [ ] AC-002 A PRD where at least one story adds or changes a screen → the prototype writes 1 self-contained HTML mockup in the ticket spec folder that holds every screen, each at its own `#/<screen>` route.
 - [ ] AC-003 The anchor → the prototype uses the first anchor of the anchors table (AN-1 to AN-3) that applies, and records the fidelity mark of that row in `PROTOTYPE.md`.
 - [ ] AC-004 The repository config has a `live` block → the prototype and design-system start the app through it; no other start command or address input is asked.
 - [ ] AC-005 The repository config names no `live` block → no app starts; the mockup is built from the frontend source and `PROTOTYPE.md` marks it `source-only`.
@@ -100,7 +100,7 @@ The prototype copies the look of the real app from the first anchor it can use.
 ### Design system
 
 - [ ] AC-021 A design-system run for a frontend the config names → writes or refreshes its catalog in the catalog folder: the tokens and one card per repeating shape (shell, components, page types).
-- [ ] AC-022 Each catalog card → is checked side by side against a live screenshot of the shape it records; a card that cannot be checked → marked unchecked in the catalog.
+- [ ] AC-022 Each catalog card → is checked side by side against a live screenshot of the shape it records; a card that cannot be checked → marked unchecked in the catalog, and the run ends `draft`. With no live block, the run asks the developer once for the address of a running app.
 - [ ] AC-023 A design-system run → covers one frontend; it writes nothing outside that frontend's catalog folder.
 - [ ] AC-024 The catalog → holds only made-up data, and every written file passes the secret scan.
 - [ ] AC-025 A design-system run → sends nothing to claude.ai/design or any other host.

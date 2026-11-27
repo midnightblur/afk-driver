@@ -101,6 +101,41 @@ def test_mockup_is_clickable_from_the_entry_screen_inside_the_shell():
     _states(MOCKUP_MD, shell, "neighbour")
 
 
+# the PRD and its requirement ADRs bind the mockup: a note against a settled point is flagged, never applied silently
+
+def test_the_prd_and_its_requirement_adrs_bind_the_draft_and_each_note():
+    bound = "## Bound to the PRD"
+    _states(SKILL_MD, bound, "The PRD and the requirement ADRs in `requirement_adrs` bind the mockup.")
+    _states(SKILL_MD, bound, "contradicts a settled point")
+    _states(SKILL_MD, bound, "make no edit for it")
+    _states(SKILL_MD, bound, "cite its id")
+    _states(SKILL_MD, bound, "step 5")
+    _states(SKILL_MD, "## Steps", "Keep `spec_dir`, `prd`, `requirement_adrs`,")
+    _states(SKILL_MD, "## Steps", 'by "Bound to the PRD"')
+    _states(SKILL_MD, "### In lavish", 'check it by "Bound to the PRD"')
+    _states(SKILL_MD, "### In chat", 'check it by "Bound to the PRD"')
+
+
+# lavish (0.1.86) annotates only the file it opened, refuses a load with a changed query, and drops the hash when it
+# reloads after an edit; window.name survives that reload (proved in a scratch lavish session)
+
+def test_the_mockup_is_1_file_that_routes_by_its_hash():
+    routes = "## Screens and routes"
+    _states(MOCKUP_MD, "# Mockup rules", "1 self-contained HTML file in the `prototype/` folder")
+    _states(MOCKUP_MD, "# Mockup rules", "per screen in the", present=False)
+    _states(MOCKUP_MD, routes, "Route each screen by the hash: `#/<screen>`")
+    _states(MOCKUP_MD, routes, "Never read or write `location.search` or `location.pathname`.")
+    _states(MOCKUP_MD, routes, "Never link to another file")
+    _states(MOCKUP_MD, routes, "Keep the route in `window.name` at each render")
+    _states(MOCKUP_MD, routes, "An unknown route shows the entry screen.")
+    _states(MOCKUP_MD, "## Regions", "Start each `id` with its screen")
+    _states(MOCKUP_MD, "## Variants", "`variant=<name>` parameter of the hash route")
+    _states(SKILL_MD, "## Steps", "merge the screens and their edits into 1 file")
+    _states(SKILL_MD, "## Notes loop", "all in the 1 file")
+    _states(HOME / "PROTOTYPE-FORMAT.md", "## Screens table", "`prototype/orders.html#/detail`")
+    _states(HOME / "PROTOTYPE-FORMAT.md", "## Checks at settle", "`page-leave`")
+
+
 def test_every_verb_the_guides_name_exists():
     """Each `<script> <verb>` the guides name is a `cmd_<verb>` of that script; the notes loop calls `wait`."""
     scripts = HOME / "scripts"
@@ -149,3 +184,34 @@ def test_the_screen_check_comes_before_a_frontend_refusal():
         row_message = (f"file: {SKILL_MD.name}\nsection: ## Steps, step 1 refusal row {code}\n"
                        f"expected: {check!r} before {stop!r}\nactual: {row!r}")
         assert check in row and row.index(check) < row.index(stop), row_message
+
+
+# --- an unchecked catalog card is a lead, not the look; fidelity catalog needs every card checked
+
+def test_an_unchecked_catalog_card_is_a_lead_not_the_look():
+    _states(SKILL_MD, "## Steps", "copy each checked card as it is")
+    _states(SKILL_MD, "## Steps", "a card of `catalog_unchecked` is a lead, not the look")
+    _states(HOME / "PROTOTYPE-FORMAT.md", "## Header", "every card of the catalog is checked")
+
+
+def test_the_prototype_asks_for_a_running_app_when_the_config_starts_none():
+    _states(SKILL_MD, "## Steps", "ask the developer once for the address of a running app")
+    _states(SKILL_MD, "## Steps", "An address the developer gives is their app: start no app and stop none there")
+
+
+# --- a note against a settled point gets an impact assessment, and a requirement change leaves with it;
+# a mockup decision that implies data or behaviour names it for the design
+
+def test_a_note_against_a_settled_point_gets_an_impact_assessment():
+    bound = "## Bound to the PRD"
+    _states(SKILL_MD, bound, "an impact assessment")
+    _states(SKILL_MD, bound, "every acceptance criterion, ADR, worked example, validation and use case it touches or breaks")
+    _states(SKILL_MD, bound, "what else must change")
+    _states(SKILL_MD, bound, "a recommendation")
+    _states(SKILL_MD, bound, "stop with `prd_change`")
+    _states(SKILL_MD, bound, "the round 0 input of `/afkv2:grill-requirements`")
+    _states(SKILL_MD, "## Steps", "| `prd_change` |")
+
+
+def test_a_decision_that_implies_data_or_behaviour_names_it():
+    _states(HOME / "PROTOTYPE-FORMAT.md", "## Sections", "`Implies:`")
