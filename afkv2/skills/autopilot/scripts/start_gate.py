@@ -31,6 +31,7 @@ APPROVAL = re.compile(r"> Division: approved (\d{4}-\d{2}-\d{2})\s*")
 NOT_APPLICABLE = "not applicable:"
 APP_MARK = "> App:"
 NO_APP = {"", "none"}
+NO_APP_MARK = "·"
 LIVE_TIERS = {"api", "e2e", "browser", "e2e/browser", "ui-e2e", "acceptance"}
 SPAN = re.compile(r"`([^`]+)`")
 PROGRAM = re.compile(r"[a-z0-9][\w.-]*")
@@ -88,15 +89,27 @@ def approval_failures(text):
                     next="approve the division through `/afkv2:to-subtasks`")]
 
 
+def _app_line(text):
+    for line in header_of(text):
+        if line.startswith(APP_MARK):
+            return line[len(APP_MARK):].strip()
+    return None
+
+
 def plan_app(text, app=None):
     """The `app` of the invocation, else the value of the `> App:` header line, else None."""
     if app:
         return app
-    for line in header_of(text):
-        if line.startswith(APP_MARK):
-            value = line[len(APP_MARK):].strip()
-            return None if value.lower() in NO_APP else value
-    return None
+    value = _app_line(text)
+    if value is None or value.partition(NO_APP_MARK)[0].strip().lower() in NO_APP:
+        return None
+    return value
+
+
+def no_app_card(text):
+    """The card of a `> App: none · <card>` line, which the plan check matched with VERIFICATION.md. Else None."""
+    head, mark, card = (_app_line(text) or "").partition(NO_APP_MARK)
+    return (card.strip() or None) if mark and head.strip().lower() == "none" else None
 
 
 def _check_item(item):
@@ -203,11 +216,12 @@ def is_not_applicable(row):
     return row.check.startswith(NOT_APPLICABLE) and bool(row.check[len(NOT_APPLICABLE):].strip())
 
 
-def gate_failures(contract, app=None, rules=1, code=".", proved=None):
+def gate_failures(contract, app=None, rules=1, code=".", proved=None, no_app=None):
     """Each `## Verification` row of this contract that cannot run in this repository.
 
     `rules` is the answer of `rules_of`: on 2, `not applicable:` on a live tier refuses (PRD AC-029; SDD §6 I-4).
     `app` `config` starts the proven live block of the repository at `code`; `proved` keeps that answer across calls.
+    `no_app`, the card of a `> App: none · <card>` line, lets a live tier of a Rules 2 plan run with no app.
     """
     failures, proved = [], {} if proved is None else proved
     fix = f"correct the plan: mark the row `{NOT_APPLICABLE} <reason>`, or slice again"
@@ -221,7 +235,9 @@ def gate_failures(contract, app=None, rules=1, code=".", proved=None):
                 failures.append(failure("live-not-applicable", where, f"a `> Rules: 2` plan never skips a live level with `{NOT_APPLICABLE}`; only the developer accepts a lower level, as a `lower:` row of VERIFICATION.md"))
             continue
         if tier in LIVE_TIERS:
-            if not app:
+            if not app and rules == 2 and no_app:
+                pass
+            elif not app:
                 failures.append(failure("gate-cannot-run", where, f"this tier needs a running app, and the `{APP_MARK}` line of PLAN.md names none",
                                         next=f"{fix}, or name the app in the `{APP_MARK}` line"))
             else:
@@ -283,7 +299,7 @@ def check_start(plan, code=".", app=None):
     finished, app, rules, proved = {subtask for subtask, status in rows if status == "done"}, plan_app(text, app), rules_of(text), {}
     for contract in contracts:
         if contract.id not in finished:
-            failures.extend(gate_failures(contract, app, rules, code, proved))
+            failures.extend(gate_failures(contract, app, rules, code, proved, no_app_card(text)))
     failures.extend(worktree_failures(code, run_branch_of(plan)))
     failures.extend(forge_failures(code))
     failures = _once(failures)

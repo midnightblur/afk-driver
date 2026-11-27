@@ -292,6 +292,20 @@ def test_the_app_line_of_the_plan_header(line, app):
     assert start_gate.plan_app(plan_fixture.plan_text(["0001-a"], header_extra=f"> App: {line}")) == app
 
 
+@pytest.mark.parametrize("line, app, card", [("none · c-none", None, "c-none"), ("none", None, None), ("none ·", None, None),
+                                             ("http://a.test", "http://a.test", None)])
+def test_a_no_app_line_names_its_card(line, app, card):
+    text = plan_fixture.plan_text(["0001-a"], header_extra=f"> App: {line}")
+    assert (start_gate.plan_app(text), start_gate.no_app_card(text)) == (app, card)
+
+
+@pytest.mark.parametrize("rules, card, codes", [(2, "c-none", []), (2, None, ["gate-cannot-run"]), (1, "c-none", ["gate-cannot-run"])])
+def test_a_live_tier_runs_with_no_app_only_on_a_rules_2_plan_with_the_card(tmp_path, monkeypatch, rules, card, codes):
+    built = plan_of(tmp_path, monkeypatch, {"0001-a": contract_text("0001-a", rows="| api | `git --version` | the api |")})
+    contract = plan_contract.read_contract(built.plan, "0001-a")
+    assert [item["code"] for item in start_gate.gate_failures(contract, None, rules, no_app=card)] == codes
+
+
 @pytest.mark.parametrize("cell", ["`api`", "API", "`Api`"])
 def test_a_live_tier_cell_in_any_form_is_one_failure_at_the_same_place(tmp_path, monkeypatch, cell):
     answer = gate_rows(tmp_path, monkeypatch, f"| {cell} | `git --version` | the api |")

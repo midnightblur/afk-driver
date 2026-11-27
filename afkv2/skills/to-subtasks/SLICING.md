@@ -24,7 +24,7 @@ Give each plan row of VERIFICATION.md its subtask. A low-level row (`static`, `u
 | `ui-e2e` | a flow a user sees, driven in the real UI |
 | `acceptance` | the outcome a user sees, end to end |
 
-Decide now whether each gate can run in this repository. A live tier needs a running app; the `> App:` line of PLAN.md names it. A command needs its program on the PATH. A low-level gate the repository cannot run has the check cell `not applicable: <reason>`, and the plan check refuses any other form. A live tier never reads `not applicable:`: only the developer accepts a lower level, in VERIFICATION.md. A check that needs a file names a path the Scope of the subtask or of a subtask it waits on owns, or a file already on the feature branch.
+Decide now whether each gate can run in this repository. A live tier needs a running app, or a build with no live app that the developer accepted; the `> App:` line of PLAN.md names it ([PLAN-FORMAT.md](PLAN-FORMAT.md)). A command needs its program on the PATH. A low-level gate the repository cannot run has the check cell `not applicable: <reason>`, and the plan check refuses any other form. A live tier never reads `not applicable:`: only the developer accepts a lower level, in VERIFICATION.md. A check that needs a file names a path the Scope of the subtask or of a subtask it waits on owns, or a file already on the feature branch.
 
 A bullet on a runtime effect ("X happens within Y seconds") needs a check that causes the real condition and asserts the real outcome. A check that only starts the machine does not cover it.
 
